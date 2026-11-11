@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-11T17:41:35.127Z",
+  "generatedAt": "2026-11-11T18:10:17.749Z",
   "collections": [
     {
       "name": "users",
@@ -389,6 +389,19 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "resume_structured",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "resume_source",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["ai_extracted", "manual"]
         }
       ],
       "indexes": [

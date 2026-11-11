@@ -30,6 +30,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
+import { ResumeStructuredPanel } from '@/components/ResumeStructuredPanel'
 
 export const CandidateProfilePage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -374,6 +375,9 @@ export const CandidateProfilePage: React.FC = () => {
               )}
             </CardContent>
           </Card>
+
+          {/* Currículo estruturado (extraído por IA do upload e revisado pelo candidato) */}
+          <ResumeStructuredPanel candidate={candidate} />
         </div>
 
         {/* Lado Direito: Candidaturas, Trilha de Auditoria e Pareceres */}

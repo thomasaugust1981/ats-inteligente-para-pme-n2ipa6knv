@@ -80,6 +80,43 @@ export interface Job {
 
 export type CandidateAvailability = 'immediate' | 'two_weeks' | 'one_month' | 'exploring'
 
+/** Modelo padrão de currículo estruturado (extraído por IA ou preenchido manualmente). */
+export interface StructuredExperience {
+  title: string
+  company: string
+  start_date: string
+  end_date: string
+  current: boolean
+  description: string
+}
+
+export interface StructuredEducation {
+  degree: string
+  institution: string
+  start_date: string
+  end_date: string
+  status: string
+}
+
+export interface StructuredResume {
+  name: string
+  email: string
+  phone: string
+  location: string
+  linkedin: string
+  summary: string
+  skills: string[]
+  experiences: StructuredExperience[]
+  education: StructuredEducation[]
+  languages: string[]
+  courses: string[]
+}
+
+export type ResumeSource = 'ai_extracted' | 'manual'
+
+/** Estado do fluxo de leitura do currículo por IA na candidatura. */
+export type ResumeReaderStatus = 'idle' | 'reading' | 'review' | 'failed' | 'manual'
+
 export interface Candidate {
   id: string
   name: string
@@ -96,6 +133,8 @@ export interface Candidate {
   lgpd_consent_date: string
   lgpd_consent_version: string
   notes?: string
+  resume_structured?: StructuredResume | null
+  resume_source?: ResumeSource | null
   created: string
   updated: string
 }

@@ -24,6 +24,8 @@ import {
   DollarSign,
   Share2,
   Users,
+  Loader2,
+  PenLine,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -47,6 +49,14 @@ import {
 } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useToast } from '@/hooks/use-toast'
+import { ResumeReviewForm } from '@/components/ResumeReviewForm'
+import {
+  validateResumeFile,
+  extractResumeData,
+  normalizeStructured,
+  hasExtractedContent,
+} from '@/services/resumeReader'
+import type { ResumeReaderStatus, StructuredResume } from '@/types/ats'
 
 export const JobApplicationPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>()
@@ -72,6 +82,12 @@ export const JobApplicationPage: React.FC = () => {
   const [availability, setAvailability] = useState<CandidateAvailability>('immediate')
   const [resumeFile, setResumeFile] = useState<File | null>(null)
   const [lgpdConsent, setLgpdConsent] = useState(false)
+
+  // Fluxo do leitor de currículo com IA: idle → reading → review → confirmado
+  const [readerStatus, setReaderStatus] = useState<ResumeReaderStatus>('idle')
+  const [readerError, setReaderError] = useState<string | null>(null)
+  const [structuredData, setStructuredData] = useState<StructuredResume | null>(null)
+  const [wasExtracted, setWasExtracted] = useState(false)
 
   // Detecção do canal / origem (Query param ?origem= ou ?utm_source= ou referer)
   const [source, setSource] = useState<ApplicationSource>('direct_link')
@@ -143,27 +159,83 @@ export const JobApplicationPage: React.FC = () => {
     }
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0]
-      if (file.type !== 'application/pdf') {
-        toast({
-          title: 'Arquivo inválido',
-          description: 'Por favor envie apenas currículos em formato PDF.',
-          variant: 'destructive',
-        })
-        return
-      }
-      if (file.size > 15 * 1024 * 1024) {
-        toast({
-          title: 'Arquivo muito grande',
-          description: 'O tamanho máximo do currículo é de 15MB.',
-          variant: 'destructive',
-        })
-        return
-      }
-      setResumeFile(file)
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validação local: tipo real (magic number), extensão e tamanho (10 MB)
+    const validationError = await validateResumeFile(file)
+    if (validationError) {
+      toast({ title: 'Arquivo inválido', description: validationError, variant: 'destructive' })
+      e.target.value = ''
+      return
     }
+
+    setResumeFile(file)
+    setReaderError(null)
+    setStructuredData(null)
+    setReaderStatus('reading')
+
+    // Leitura automática por IA (PDF ou .docx). Em caso de falha o fluxo segue manual.
+    const result = await extractResumeData(file)
+    if (!result.ok) {
+      setReaderError(result.error)
+      setReaderStatus('failed')
+      return
+    }
+
+    const normalized = normalizeStructured(result.data)
+    setStructuredData(normalized)
+    if (!hasExtractedContent(normalized)) {
+      setReaderError(
+        'A leitura automática não encontrou dados neste arquivo. Verifique se é um currículo com texto selecionável ou preencha manualmente.',
+      )
+      setReaderStatus('failed')
+      return
+    }
+
+    setWasExtracted(true)
+    setReviewConfirmed(false)
+
+    // Pré-preenche os campos do formulário com o que a IA extraiu
+    if (normalized.name && !name) setName(normalized.name)
+    if (normalized.email && !email) setEmail(normalized.email)
+    if (normalized.phone && !phone) setPhone(normalized.phone)
+    if (normalized.linkedin && !linkedin) setLinkedin(normalized.linkedin)
+    if (normalized.location && !location) setLocation(normalized.location)
+    if (normalized.skills.length > 0 && !skills) setSkills(normalized.skills.join(', '))
+
+    setReaderStatus('review')
+  }
+
+  // Confirmação da revisão: fecha a edição e mantém os dados para envio junto à candidatura
+  const [reviewConfirmed, setReviewConfirmed] = useState(false)
+  const handleConfirmStructured = () => {
+    setReviewConfirmed(true)
+    toast({
+      title: 'Currículo revisado!',
+      description: 'Os dados extraídos serão salvos junto com sua candidatura.',
+    })
+  }
+
+  // Descarta a leitura e abre o modelo padrão vazio para preenchimento manual
+  const handleManualStart = () => {
+    setStructuredData({
+      name: '',
+      email: '',
+      phone: '',
+      location: '',
+      linkedin: '',
+      summary: '',
+      skills: [],
+      experiences: [],
+      education: [],
+      languages: [],
+      courses: [],
+    })
+    setReaderStatus('review')
+    setReaderError(null)
+    setWasExtracted(false)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -212,6 +284,12 @@ export const JobApplicationPage: React.FC = () => {
 
       if (resumeFile) {
         candidateFormData.append('resume', resumeFile)
+      }
+
+      // Dados estruturados do modelo padrão (extraídos por IA e revisados, ou manuais)
+      if (structuredData) {
+        candidateFormData.append('resume_structured', JSON.stringify(structuredData))
+        candidateFormData.append('resume_source', wasExtracted ? 'ai_extracted' : 'manual')
       }
 
       if (candidate) {
@@ -623,18 +701,19 @@ export const JobApplicationPage: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Upload de Currículo em PDF */}
+                    {/* Upload de Currículo (PDF ou Word .docx) com leitura por IA */}
                     <div>
                       <Label className="text-xs font-semibold">
-                        Currículo em PDF <span className="text-rose-500">*</span>
+                        Currículo (PDF ou Word) <span className="text-rose-500">*</span>
                       </Label>
                       <div className="mt-1 border-2 border-dashed rounded-lg p-4 text-center hover:bg-slate-50 cursor-pointer transition">
                         <input
                           id="resume-file"
                           type="file"
-                          accept="application/pdf"
+                          accept="application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.pdf,.docx"
                           onChange={handleFileChange}
                           className="hidden"
+                          disabled={readerStatus === 'reading'}
                         />
                         <label htmlFor="resume-file" className="cursor-pointer block">
                           <UploadCloud className="w-7 h-7 text-sky-600 mx-auto mb-1" />
@@ -649,15 +728,68 @@ export const JobApplicationPage: React.FC = () => {
                           ) : (
                             <div>
                               <span className="text-xs font-medium text-sky-700">
-                                Clique para anexar o currículo em PDF
+                                Clique para anexar seu currículo (PDF ou Word)
                               </span>
                               <p className="text-[10px] text-slate-400 mt-0.5">
-                                Máximo 15MB (.pdf)
+                                Máximo 10 MB — a IA lê os dados e você revisa antes de confirmar
                               </p>
                             </div>
                           )}
                         </label>
                       </div>
+
+                      {/* Estado: analisando */}
+                      {readerStatus === 'reading' && (
+                        <div className="mt-2 flex items-center gap-2 text-xs text-sky-700 bg-sky-50 border border-sky-100 rounded-lg p-3">
+                          <Loader2 className="w-4 h-4 animate-spin text-sky-600 shrink-0" />
+                          <span>
+                            Analisando seu currículo com IA... Isso pode levar alguns segundos.
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Estado: falha (ilegível/escaneado/erro) — fluxo segue manual */}
+                      {readerStatus === 'failed' && readerError && (
+                        <div className="mt-2 space-y-2">
+                          <div className="flex items-start gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                            <span>{readerError}</span>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="w-full text-xs"
+                            onClick={handleManualStart}
+                          >
+                            <PenLine className="w-3.5 h-3.5 mr-1" />
+                            Preencher o modelo manualmente
+                          </Button>
+                        </div>
+                      )}
+
+                      {/* Estado: revisão/edição do modelo padrão */}
+                      {readerStatus === 'review' && structuredData && (
+                        <div className="mt-3">
+                          {reviewConfirmed && (
+                            <div className="flex items-center gap-2 text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg p-2.5 mb-2">
+                              <CheckCircle2 className="w-4 h-4 shrink-0" />
+                              <span>
+                                Currículo revisado e confirmado. Ele será salvo junto com sua
+                                candidatura.
+                              </span>
+                            </div>
+                          )}
+                          <ResumeReviewForm
+                            data={structuredData}
+                            onChange={setStructuredData}
+                            onConfirm={handleConfirmStructured}
+                            onManualStart={handleManualStart}
+                            disabled={submitting}
+                            fromExtraction={wasExtracted}
+                          />
+                        </div>
+                      )}
                     </div>
 
                     {/* Consentimento LGPD com data e versão */}
