@@ -1,0 +1,581 @@
+{
+  "generatedAt": "2026-11-11T17:25:05.987Z",
+  "collections": [
+    {
+      "name": "users",
+      "type": "auth",
+      "apiRules": {
+        "list": "id = @request.auth.id",
+        "view": "id = @request.auth.id",
+        "create": "",
+        "update": "id = @request.auth.id",
+        "delete": "id = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "avatar",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "role",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["admin", "recruiter", "manager"]
+        },
+        {
+          "name": "company_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX `idx_tokenKey__pb_users_auth_` ON `users` (`tokenKey`)",
+        "CREATE UNIQUE INDEX `idx_email__pb_users_auth_` ON `users` (`email`) WHERE `email` != ''"
+      ]
+    },
+    {
+      "name": "companies",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != '' && @request.auth.role = 'admin'"
+      },
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "trade_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "logo",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "website",
+          "type": "url",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "city",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "state",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "jobs",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != '' && @request.auth.role = 'admin'"
+      },
+      "fields": [
+        {
+          "name": "title",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "slug",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "department",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "location",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "workplace_type",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["remote", "hybrid", "on_site"]
+        },
+        {
+          "name": "employment_type",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["clt", "pj", "internship", "temporary"]
+        },
+        {
+          "name": "seniority",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["intern", "junior", "mid", "senior", "lead", "specialist"]
+        },
+        {
+          "name": "requirements",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "benefits",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "salary_min",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "salary_max",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "salary_disclosed",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["draft", "published", "paused", "closed"]
+        },
+        {
+          "name": "stages",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "manager_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "created_by",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_jobs_status ON jobs (status)",
+        "CREATE INDEX idx_jobs_manager ON jobs (manager_id)"
+      ]
+    },
+    {
+      "name": "candidates",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "",
+        "update": "@request.auth.id != '' || @request.body.email = email",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "email",
+          "type": "email",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "phone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cpf",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "linkedin",
+          "type": "url",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "location",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "seniority",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["intern", "junior", "mid", "senior", "lead", "specialist"]
+        },
+        {
+          "name": "skills",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "availability",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["immediate", "two_weeks", "one_month", "exploring"]
+        },
+        {
+          "name": "resume",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "lgpd_consent",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "lgpd_consent_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "lgpd_consent_version",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_candidates_email ON candidates (email)",
+        "CREATE INDEX idx_candidates_seniority ON candidates (seniority)"
+      ]
+    },
+    {
+      "name": "applications",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "candidate_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "candidates"
+        },
+        {
+          "name": "job_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "jobs"
+        },
+        {
+          "name": "stage_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["active", "hired", "rejected", "withdrawn"]
+        },
+        {
+          "name": "source",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "google_for_jobs",
+            "direct_link",
+            "whatsapp",
+            "referral",
+            "linkedin",
+            "other"
+          ]
+        },
+        {
+          "name": "rejection_reason",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "rejection_note",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "stage_updated_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_applications_job ON applications (job_id)",
+        "CREATE INDEX idx_applications_candidate ON applications (candidate_id)",
+        "CREATE INDEX idx_applications_stage ON applications (job_id, stage_id)"
+      ]
+    },
+    {
+      "name": "audit_logs",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "application_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "applications"
+        },
+        {
+          "name": "candidate_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "candidates"
+        },
+        {
+          "name": "user_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "user_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "user_role",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "action",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "viewed_resume",
+            "stage_changed",
+            "candidate_rejected",
+            "candidate_hired",
+            "note_added",
+            "candidate_created",
+            "candidate_deleted"
+          ]
+        },
+        {
+          "name": "from_stage",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "to_stage",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "reason",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "details",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_audit_application ON audit_logs (application_id)",
+        "CREATE INDEX idx_audit_candidate ON audit_logs (candidate_id)"
+      ]
+    }
+  ]
+}
