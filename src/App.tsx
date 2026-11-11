@@ -14,6 +14,7 @@ import { CareersPage } from './pages/CareersPage'
 import { JobApplicationPage } from './pages/JobApplicationPage'
 import { LoginPage } from './pages/LoginPage'
 import { VerifyEmailPage, ResetPasswordPage } from './pages/AuthAuxPages'
+import { OnboardingPage } from './pages/OnboardingPage'
 
 // Páginas Administrativas
 import { JobsListPage } from './pages/JobsListPage'
@@ -37,6 +38,7 @@ const App = () => (
           <Route path="/login" element={<LoginPage />} />
           <Route path="/verificar-email" element={<VerifyEmailPage />} />
           <Route path="/redefinir-senha" element={<ResetPasswordPage />} />
+          <Route path="/onboarding" element={<OnboardingPage />} />
 
           {/* Rotas Protegidas dentro do Layout do ATS */}
           <Route element={<Layout />}>

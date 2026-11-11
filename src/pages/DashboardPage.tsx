@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { jobsService } from '@/services/jobs'
 import { candidatesService, applicationsService } from '@/services/candidates'
-import type { Job, Candidate, Application } from '@/types/ats'
+import { onboardingService } from '@/services/onboarding'
+import type { Job, Candidate, Application, OnboardingStatus } from '@/types/ats'
 import {
   Briefcase,
   Users,
@@ -27,6 +28,14 @@ export const DashboardPage: React.FC = () => {
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const [applications, setApplications] = useState<Application[]>([])
   const [loading, setLoading] = useState(true)
+  const [onboardingStatus, setOnboardingStatus] = useState<OnboardingStatus>('not_started')
+
+  useEffect(() => {
+    onboardingService
+      .getOnboardingStatus()
+      .then(setOnboardingStatus)
+      .catch(() => setOnboardingStatus('not_started'))
+  }, [])
 
   useEffect(() => {
     async function loadDashboardData() {
@@ -88,6 +97,31 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Banner de retomada do onboarding (visível quando não concluído) */}
+      {onboardingStatus !== 'completed' && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-amber-900">
+                {onboardingStatus === 'skipped'
+                  ? 'Onboarding da empresa pulado — retome quando quiser'
+                  : 'Você ainda não concluiu a configuração inicial da empresa'}
+              </p>
+              <p className="text-xs text-amber-800 mt-0.5">
+                Configure nome, logo, cor de marca, página de carreiras e convide sua equipe.
+              </p>
+            </div>
+          </div>
+          <Link to="/onboarding">
+            <Button size="sm" className="bg-amber-600 hover:bg-amber-700 shrink-0">
+              {onboardingStatus === 'skipped' ? 'Retomar onboarding' : 'Concluir onboarding'}
+              <ArrowRight className="w-3.5 h-3.5 ml-1" />
+            </Button>
+          </Link>
+        </div>
+      )}
+
       {/* Top Banner */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b">
         <div>

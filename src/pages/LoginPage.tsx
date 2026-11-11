@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
+import { onboardingService } from '@/services/onboarding'
 import { Briefcase, Lock, Mail, User as UserIcon, Building2, CheckCircle2 } from 'lucide-react'
 import type { UserRole } from '@/types/ats'
 
@@ -65,7 +66,14 @@ export const LoginPage: React.FC = () => {
         title: 'Bem-vindo ao ATS!',
         description: 'Login realizado com sucesso.',
       })
-      navigate('/')
+      // Quem ainda não concluiu (ou pulou) o onboarding é levado a ele;
+      // quem já completou vai direto ao painel.
+      try {
+        const status = await onboardingService.getOnboardingStatus()
+        navigate(status === 'completed' || status === 'skipped' ? '/' : '/onboarding')
+      } catch (_) {
+        navigate('/')
+      }
     }
   }
 
@@ -98,7 +106,8 @@ export const LoginPage: React.FC = () => {
       })
       // Tentar login automático
       await signIn(regEmail, regPassword)
-      navigate('/')
+      // Conta recém-criada: leva ao onboarding guiado da empresa
+      navigate('/onboarding')
     }
   }
 

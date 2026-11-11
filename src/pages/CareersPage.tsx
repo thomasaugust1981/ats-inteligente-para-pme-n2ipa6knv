@@ -16,6 +16,7 @@ import {
   Share2,
   ExternalLink,
 } from 'lucide-react'
+import { onboardingService } from '@/services/onboarding'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -44,6 +45,8 @@ export const CareersPage: React.FC = () => {
   const [selectedDepartment, setSelectedDepartment] = useState('all')
   const [selectedWorkplace, setSelectedWorkplace] = useState('all')
   const { toast } = useToast()
+  const brandColor = onboardingService.getBrandColor(company)
+  const logoUrl = onboardingService.getLogoUrl(company)
 
   useEffect(() => {
     async function loadData() {
@@ -95,7 +98,7 @@ export const CareersPage: React.FC = () => {
         '@type': 'Organization',
         name: companyName,
         sameAs: company?.website || baseUrl,
-        logo: 'https://img.usecurling.com/i?q=briefcase&color=azure',
+        logo: logoUrl || 'https://img.usecurling.com/i?q=briefcase&color=azure',
       },
       jobLocation: {
         '@type': 'Place',
@@ -204,8 +207,17 @@ export const CareersPage: React.FC = () => {
       <header className="border-b bg-white/80 backdrop-blur sticky top-0 z-20">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center text-white shadow-sm font-bold text-lg">
-              {company?.trade_name ? company.trade_name.substring(0, 2).toUpperCase() : 'VA'}
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-sm font-bold text-lg overflow-hidden shrink-0"
+              style={{ backgroundColor: brandColor }}
+            >
+              {logoUrl ? (
+                <img src={logoUrl} alt="Logo da empresa" className="w-full h-full object-contain" />
+              ) : company?.trade_name ? (
+                company.trade_name.substring(0, 2).toUpperCase()
+              ) : (
+                'VA'
+              )}
             </div>
             <div>
               <h1 className="font-bold text-base leading-tight text-slate-900">
@@ -227,11 +239,18 @@ export const CareersPage: React.FC = () => {
       {/* Banner / Hero */}
       <section className="bg-gradient-to-b from-white to-slate-50 border-b py-12 md:py-16">
         <div className="max-w-4xl mx-auto px-4 text-center">
-          <Badge className="mb-4 bg-sky-100 text-sky-800 hover:bg-sky-100 border-sky-200">
+          <Badge
+            className="mb-4 border"
+            style={{
+              backgroundColor: `${brandColor}1a`,
+              color: brandColor,
+              borderColor: `${brandColor}33`,
+            }}
+          >
             Trabalhe Conosco • Vagas Abertas
           </Badge>
           <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 mb-4">
-            Construa o futuro com a gente
+            Construa o futuro com a {company?.trade_name || company?.name || 'Vanguard'}
           </h2>
           <p className="text-base md:text-lg text-slate-600 max-w-2xl mx-auto mb-8">
             {company?.description ||
@@ -340,7 +359,10 @@ export const CareersPage: React.FC = () => {
               >
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between gap-2 mb-2">
-                    <span className="text-xs font-semibold text-sky-600 bg-sky-50 px-2.5 py-1 rounded-md">
+                    <span
+                      className="text-xs font-semibold px-2.5 py-1 rounded-md"
+                      style={{ backgroundColor: `${brandColor}14`, color: brandColor }}
+                    >
                       {job.department || 'Geral'}
                     </span>
                     {getWorkplaceBadge(job.workplace_type)}
@@ -383,7 +405,11 @@ export const CareersPage: React.FC = () => {
                   </Button>
 
                   <Link to={`/carreiras/vaga/${job.slug}`}>
-                    <Button size="sm" className="bg-sky-600 hover:bg-sky-700 text-white">
+                    <Button
+                      size="sm"
+                      className="text-white hover:opacity-90"
+                      style={{ backgroundColor: brandColor }}
+                    >
                       Ver detalhes
                       <ArrowRight className="w-3.5 h-3.5 ml-1" />
                     </Button>

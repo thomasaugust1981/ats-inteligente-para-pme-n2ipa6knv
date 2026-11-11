@@ -13,7 +13,9 @@ import {
   Menu,
   X,
   UserCheck,
+  Rocket,
 } from 'lucide-react'
+import { onboardingService } from '@/services/onboarding'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useState } from 'react'
@@ -56,6 +58,9 @@ const Layout: React.FC = () => {
     { label: 'Banco de Candidatos', path: '/candidatos', icon: Users },
   ]
 
+  // Administradores podem retomar o onboarding pelo painel
+  const showOnboardingLink = isAdmin
+
   const getRoleLabel = () => {
     if (isAdmin) return 'Administrador'
     if (isManager) return 'Gestor Solicitante'
@@ -93,6 +98,19 @@ const Layout: React.FC = () => {
 
         {/* Links de navegação */}
         <nav className="flex-1 px-3 py-2 space-y-1">
+          {showOnboardingLink && (
+            <Link
+              to="/onboarding"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition ${
+                location.pathname === '/onboarding'
+                  ? 'bg-sky-600 text-white shadow-xs'
+                  : 'text-amber-300 hover:text-white hover:bg-slate-800/80'
+              }`}
+            >
+              <Rocket className="w-4 h-4" />
+              <span>Onboarding da Empresa</span>
+            </Link>
+          )}
           {navItems.map((item) => {
             const Icon = item.icon
             const isActive =

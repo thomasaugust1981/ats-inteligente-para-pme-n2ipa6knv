@@ -11,6 +11,8 @@ export interface User {
   updated: string
 }
 
+export type OnboardingStatus = 'not_started' | 'in_progress' | 'completed' | 'skipped'
+
 export interface Company {
   id: string
   name: string
@@ -20,6 +22,20 @@ export interface Company {
   website?: string
   city?: string
   state?: string
+  brand_color?: string
+  onboarding_status?: OnboardingStatus
+  created: string
+  updated: string
+}
+
+export type TeamInviteStatus = 'pending' | 'accepted' | 'cancelled'
+
+export interface TeamInvite {
+  id: string
+  email: string
+  role: UserRole
+  status: TeamInviteStatus
+  invited_by?: string
   created: string
   updated: string
 }
