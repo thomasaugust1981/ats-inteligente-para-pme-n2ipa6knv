@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-11T18:10:17.749Z",
+  "generatedAt": "2026-11-11T18:20:41.565Z",
   "collections": [
     {
       "name": "users",
@@ -136,6 +136,12 @@
           "required": false,
           "system": false,
           "selectValues": ["not_started", "in_progress", "completed", "skipped"]
+        },
+        {
+          "name": "api_key_prefix",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []
@@ -272,11 +278,25 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "source",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["manual", "erp"]
+        },
+        {
+          "name": "external_id",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
         "CREATE INDEX idx_jobs_status ON jobs (status)",
-        "CREATE INDEX idx_jobs_manager ON jobs (manager_id)"
+        "CREATE INDEX idx_jobs_manager ON jobs (manager_id)",
+        "CREATE INDEX `idx_jobs_external_id` ON `jobs` (external_id)"
       ]
     },
     {
@@ -556,7 +576,10 @@
             "candidate_hired",
             "note_added",
             "candidate_created",
-            "candidate_deleted"
+            "candidate_deleted",
+            "erp_job_created",
+            "erp_job_updated",
+            "erp_job_rejected"
           ]
         },
         {
