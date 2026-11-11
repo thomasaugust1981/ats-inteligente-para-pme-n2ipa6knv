@@ -10,6 +10,7 @@ import Index from './pages/Index'
 import NotFound from './pages/NotFound'
 
 // Páginas Públicas
+import { PortalPage } from './pages/PortalPage'
 import { CareersPage } from './pages/CareersPage'
 import { JobApplicationPage } from './pages/JobApplicationPage'
 import { LoginPage } from './pages/LoginPage'
@@ -31,6 +32,7 @@ const App = () => (
         <Sonner />
         <Routes>
           {/* Rotas Públicas de Carreiras e Candidatura (com Google for Jobs & LGPD) */}
+          <Route path="/portal" element={<PortalPage />} />
           <Route path="/carreiras" element={<CareersPage />} />
           <Route path="/carreiras/vaga/:slug" element={<JobApplicationPage />} />
 
