@@ -36,6 +36,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
+import { LoadingState } from '@/components/LoadingState'
 
 export const CareersPage: React.FC = () => {
   const [jobs, setJobs] = useState<Job[]>([])
@@ -328,7 +329,7 @@ export const CareersPage: React.FC = () => {
         </div>
 
         {loading ? (
-          <div className="py-16 text-center text-slate-500">Carregando oportunidades...</div>
+          <LoadingState message="Buscando oportunidades abertas..." />
         ) : filteredJobs.length === 0 ? (
           <Card className="text-center py-16 bg-white border-dashed">
             <CardContent>

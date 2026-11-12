@@ -16,6 +16,7 @@ import {
   Building2,
   Filter,
   AlertCircle,
+  Link2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -48,6 +49,7 @@ export const PipelinePage: React.FC = () => {
   const { jobId } = useParams<{ jobId: string }>()
   const { user, isManager } = useAuth()
   const { toast } = useToast()
+  const { copyLink } = useCopyLink()
 
   const [job, setJob] = useState<Job | null>(null)
   const [allJobs, setAllJobs] = useState<Job[]>([])
@@ -271,8 +273,8 @@ export const PipelinePage: React.FC = () => {
                 className="text-xs"
                 onClick={() =>
                   copyLink(
-                    `/carreiras/vaga/${job.slug}`,
-                    'Link público da vaga copiado! Divulgue nos seus canais.',
+                    `${window.location.origin}/carreiras/vaga/${job.slug}?origem=direct_link`,
+                    'Link público da vaga',
                   )
                 }
               >

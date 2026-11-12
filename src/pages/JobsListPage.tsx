@@ -24,7 +24,9 @@ import {
   Users,
   Building2,
   Copy,
+  X,
 } from 'lucide-react'
+import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -51,6 +53,7 @@ export const JobsListPage: React.FC = () => {
   const { user, isManager, isAdmin } = useAuth()
   const navigate = useNavigate()
   const { copyLink } = useCopyLink()
+  const { toast } = useToast()
 
   const [jobs, setJobs] = useState<Job[]>([])
   const [loading, setLoading] = useState(true)

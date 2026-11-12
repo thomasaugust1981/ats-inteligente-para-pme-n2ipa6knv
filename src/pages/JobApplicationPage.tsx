@@ -50,6 +50,9 @@ import {
 import { Checkbox } from '@/components/ui/checkbox'
 import { useToast } from '@/hooks/use-toast'
 import { ResumeReviewForm } from '@/components/ResumeReviewForm'
+import { ApplicationProgress } from '@/components/ApplicationProgress'
+import { LoadingState } from '@/components/LoadingState'
+import type { ProgressStep } from '@/components/ApplicationProgress'
 import {
   validateResumeFile,
   extractResumeData,
@@ -69,6 +72,7 @@ export const JobApplicationPage: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [successSubmitted, setSuccessSubmitted] = useState(false)
+  const [loadError, setLoadError] = useState(false)
 
   // Form states
   const [name, setName] = useState('')
@@ -89,8 +93,35 @@ export const JobApplicationPage: React.FC = () => {
   const [structuredData, setStructuredData] = useState<StructuredResume | null>(null)
   const [wasExtracted, setWasExtracted] = useState(false)
 
+  // Pré-preenchimento a partir do Banco de Talentos (flag para mostrar aviso ao candidato)
+  const [prefilled, setPrefilled] = useState(false)
+
+  // Flag que indica que o candidato tentou enviar sem concluir tudo (destaca erros no progresso)
+  const [submitAttempted, setSubmitAttempted] = useState(false)
+
   // Detecção do canal / origem (Query param ?origem= ou ?utm_source= ou referer)
   const [source, setSource] = useState<ApplicationSource>('direct_link')
+
+  // Etapas do progresso da candidatura: 1. Dados, 2. Currículo, 3. Envio
+  const APPLICATION_STEPS: ProgressStep[] = [
+    { key: 'dados', label: 'Seus dados' },
+    { key: 'curriculo', label: 'Currículo' },
+    { key: 'envio', label: 'Confirmação LGPD' },
+  ]
+
+  // Etapa atual do formulário, calculada a partir do que o candidato já preencheu
+  const getCurrentStep = () => {
+    if (!name.trim() || !email.trim()) return 0
+    if (!resumeFile) return 1
+    return 2
+  }
+  const currentStep = getCurrentStep()
+
+  // Campos obrigatórios ainda incompletos, para destacar no indicador de progresso
+  const errorSteps: number[] = []
+  if (submitAttempted && (!name.trim() || !email.trim())) errorSteps.push(0)
+  if (submitAttempted && !resumeFile) errorSteps.push(1)
+  if (submitAttempted && !lgpdConsent) errorSteps.push(2)
 
   useEffect(() => {
     // Detectar origem da candidatura
@@ -126,6 +157,7 @@ export const JobApplicationPage: React.FC = () => {
         setCompany(comp)
       } catch (err) {
         console.error('Erro ao carregar detalhes da vaga:', err)
+        setLoadError(true)
       } finally {
         setLoading(false)
       }
@@ -139,23 +171,46 @@ export const JobApplicationPage: React.FC = () => {
     try {
       const existing = await candidatesService.findByEmail(email)
       if (existing) {
-        if (!name && existing.name) setName(existing.name)
-        if (!phone && existing.phone) setPhone(existing.phone)
-        if (!cpf && existing.cpf) setCpf(existing.cpf)
-        if (!linkedin && existing.linkedin) setLinkedin(existing.linkedin)
-        if (!location && existing.location) setLocation(existing.location)
+        let changed = false
+        if (!name && existing.name) {
+          setName(existing.name)
+          changed = true
+        }
+        if (!phone && existing.phone) {
+          setPhone(existing.phone)
+          changed = true
+        }
+        if (!cpf && existing.cpf) {
+          setCpf(existing.cpf)
+          changed = true
+        }
+        if (!linkedin && existing.linkedin) {
+          setLinkedin(existing.linkedin)
+          changed = true
+        }
+        if (!location && existing.location) {
+          setLocation(existing.location)
+          changed = true
+        }
+        if (!skills && existing.skills) {
+          setSkills(existing.skills)
+          changed = true
+        }
+        // Senioridade e disponibilidade sempre refletem o cadastro conhecido
         if (existing.seniority) setSeniority(existing.seniority)
-        if (!skills && existing.skills) setSkills(existing.skills)
         if (existing.availability) setAvailability(existing.availability)
 
-        toast({
-          title: 'Dados pré-carregados!',
-          description:
-            'Encontramos seu cadastro no Banco de Talentos. Você pode atualizar seus dados ou currículo se desejar.',
-        })
+        if (changed) {
+          setPrefilled(true)
+          toast({
+            title: 'Bem-vindo(a) de volta!',
+            description:
+              'Encontramos seu cadastro no Banco de Talentos e preenchemos alguns campos. Confira e edite o que precisar.',
+          })
+        }
       }
     } catch (_) {
-      // Silencioso se não encontrar
+      // Silencioso se não encontrar — segue fluxo normal
     }
   }
 
@@ -167,6 +222,8 @@ export const JobApplicationPage: React.FC = () => {
     const validationError = await validateResumeFile(file)
     if (validationError) {
       toast({ title: 'Arquivo inválido', description: validationError, variant: 'destructive' })
+      setReaderError(validationError)
+      setReaderStatus('failed')
       e.target.value = ''
       return
     }
@@ -238,24 +295,61 @@ export const JobApplicationPage: React.FC = () => {
     setWasExtracted(false)
   }
 
+  const getFriendlyNetworkError = (err: unknown): string => {
+    if (err instanceof TypeError && err.message === 'Failed to fetch') {
+      return 'Não foi possível conectar ao servidor. Verifique sua conexão com a internet e tente novamente.'
+    }
+    if (err && typeof err === 'object' && 'status' in err) {
+      const status = (err as { status?: number }).status
+      if (status === 400)
+        return 'Alguns dados enviados são inválidos. Confira os campos e tente novamente.'
+      if (status === 413) return 'Seu arquivo é muito grande. O tamanho máximo permitido é 10 MB.'
+      if (status === 429)
+        return 'Muitas tentativas em pouco tempo. Aguarde alguns instantes e tente novamente.'
+      if (status && status >= 500)
+        return 'Nosso servidor está temporariamente indisponível. Tente novamente em alguns minutos.'
+    }
+    return 'Não foi possível registrar a candidatura. Verifique os dados e tente novamente.'
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!job) return
+    setSubmitAttempted(true)
 
-    if (!lgpdConsent) {
+    if (!name.trim() || !email.trim()) {
       toast({
-        title: 'Consentimento obrigatório',
-        description:
-          'Você precisa autorizar o tratamento de dados conforme a LGPD para submeter sua candidatura.',
+        title: 'Campos obrigatórios',
+        description: 'Preencha nome completo e e-mail para continuar.',
         variant: 'destructive',
       })
       return
     }
 
-    if (!name.trim() || !email.trim()) {
+    if (!email.includes('@') || !email.includes('.')) {
       toast({
-        title: 'Campos obrigatórios',
-        description: 'Por favor preencha nome completo e e-mail válido.',
+        title: 'E-mail inválido',
+        description: 'Digite um e-mail válido, como nome@exemplo.com.br.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (!resumeFile) {
+      toast({
+        title: 'Currículo obrigatório',
+        description:
+          'Anexe seu currículo em PDF ou Word para que o time de recrutamento possa avaliar seu perfil.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (!lgpdConsent) {
+      toast({
+        title: 'Consentimento obrigatório',
+        description:
+          'Você precisa autorizar o tratamento de dados conforme a LGPD para enviar sua candidatura.',
         variant: 'destructive',
       })
       return
@@ -345,8 +439,7 @@ export const JobApplicationPage: React.FC = () => {
       console.error('Erro ao enviar candidatura:', err)
       toast({
         title: 'Falha no envio',
-        description:
-          'Não foi possível registrar a candidatura. Verifique os dados e tente novamente.',
+        description: getFriendlyNetworkError(err),
         variant: 'destructive',
       })
     } finally {
@@ -371,9 +464,10 @@ export const JobApplicationPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-500">
-        Carregando detalhes da oportunidade...
-      </div>
+      <LoadingState
+        message="Carregando detalhes da oportunidade..."
+        className="min-h-screen bg-slate-50"
+      />
     )
   }
 
@@ -381,16 +475,23 @@ export const JobApplicationPage: React.FC = () => {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-4">
         <AlertCircle className="w-12 h-12 text-rose-500 mb-3" />
-        <h2 className="text-xl font-bold text-slate-800">Vaga não encontrada</h2>
+        <h2 className="text-xl font-bold text-slate-800">
+          {loadError ? 'Não foi possível carregar esta vaga' : 'Vaga não encontrada'}
+        </h2>
         <p className="text-slate-500 text-sm mt-1 mb-4">
-          Esta posição pode ter sido encerrada ou movida.
+          {loadError
+            ? 'Ocorreu um problema de conexão ao abrir a vaga. Verifique sua internet e tente novamente.'
+            : 'Esta posição pode ter sido encerrada ou movida.'}
         </p>
-        <Link to="/carreiras">
-          <Button variant="outline">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Voltar para a página de vagas
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          <Link to="/carreiras">
+            <Button variant="outline">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Voltar para a página de vagas
+            </Button>
+          </Link>
+          {loadError && <Button onClick={() => window.location.reload()}>Recarregar página</Button>}
+        </div>
       </div>
     )
   }
@@ -547,8 +648,26 @@ export const JobApplicationPage: React.FC = () => {
                     Envie sua Candidatura
                   </CardTitle>
                   <CardDescription className="text-xs text-slate-500">
-                    Preencha os campos abaixo e anexe seu currículo em PDF.
+                    Preencha os campos abaixo e anexe seu currículo (PDF ou Word).
                   </CardDescription>
+                  {/* Indicador de progresso por etapas */}
+                  <div className="mt-4 bg-slate-50 rounded-lg border p-3">
+                    <ApplicationProgress
+                      steps={APPLICATION_STEPS}
+                      current={currentStep}
+                      errorSteps={errorSteps}
+                    />
+                  </div>
+                  {/* Aviso de pré-preenchimento (Banco de Talentos) */}
+                  {prefilled && (
+                    <div className="mt-3 flex items-start gap-2 text-xs text-sky-800 bg-sky-50 border border-sky-200 rounded-lg p-2.5">
+                      <Users className="w-4 h-4 shrink-0 mt-0.5" />
+                      <span>
+                        Alguns campos foram preenchidos com os dados do seu cadastro anterior.
+                        Revise e edite livremente — suas alterações serão salvas.
+                      </span>
+                    </div>
+                  )}
                 </CardHeader>
 
                 <form onSubmit={handleSubmit}>
