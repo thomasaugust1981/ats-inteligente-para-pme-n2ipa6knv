@@ -15,6 +15,7 @@ import {
   Clock,
   Sparkles,
   Calendar,
+  X,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -27,13 +28,29 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { useToast } from '@/hooks/use-toast'
+import { LoadingState } from '@/components/LoadingState'
+import { EmptyState } from '@/components/EmptyState'
+import { useCopyLink } from '@/hooks/use-copy-link'
 
 export const CandidatesListPage: React.FC = () => {
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const [loading, setLoading] = useState(true)
   const [searchParams] = useSearchParams()
   const { toast } = useToast()
+  const { copyLink } = useCopyLink()
+  const [lgpdTarget, setLgpdTarget] = useState<{ id: string; name: string } | null>(null)
+  const [lgpdConfirmText, setLgpdConfirmText] = useState('')
 
   // Filtros solicitados na especificação: competência, senioridade, localidade e disponibilidade
   const [searchTerm, setSearchTerm] = useState('')
@@ -49,7 +66,11 @@ export const CandidatesListPage: React.FC = () => {
       setCandidates(list)
     } catch (err) {
       console.error('Erro ao carregar candidatos:', err)
-      toast({ title: 'Erro ao listar candidatos', variant: 'destructive' })
+      toast({
+        title: 'Erro ao listar candidatos',
+        description: 'Verifique sua conexão e tente recarregar a página.',
+        variant: 'destructive',
+      })
     } finally {
       setLoading(false)
     }
@@ -59,26 +80,21 @@ export const CandidatesListPage: React.FC = () => {
     loadCandidates()
   }, [])
 
-  const handlePermanentDelete = async (candidateId: string, name: string) => {
-    const confirmation = window.prompt(
-      `EXCLUSÃO REAL LGPD:\nPara confirmar a eliminação permanente e irreversível de ${name}, de todos os seus dados e arquivo de currículo, digite EXCLUIR:`,
-    )
-
-    if (confirmation !== 'EXCLUIR') {
-      return
-    }
-
+  const handlePermanentDelete = async () => {
+    if (!lgpdTarget) return
+    const { id, name } = lgpdTarget
     try {
-      await candidatesService.deleteCandidateRealLGPD(candidateId)
+      await candidatesService.deleteCandidateRealLGPD(id)
       toast({
         title: 'Dados excluídos com sucesso (LGPD)',
         description: `Todos os registros e currículo de ${name} foram removidos de forma definitiva.`,
       })
+      setLgpdTarget(null)
       loadCandidates()
     } catch (err) {
       toast({
         title: 'Erro ao excluir candidato',
-        description: 'Não foi possível completar a exclusão.',
+        description: 'Não foi possível completar a exclusão. Tente novamente.',
         variant: 'destructive',
       })
     }
@@ -244,17 +260,38 @@ export const CandidatesListPage: React.FC = () => {
 
       {/* Lista de Candidatos */}
       {loading ? (
-        <div className="py-12 text-center text-slate-500">Carregando candidatos...</div>
+        <LoadingState message="Carregando candidatos..." />
       ) : filteredCandidates.length === 0 ? (
-        <Card className="text-center py-12 bg-white">
-          <CardContent>
-            <Users className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-            <h3 className="font-semibold text-slate-800">Nenhum candidato encontrado</h3>
-            <p className="text-sm text-slate-500 max-w-sm mx-auto mt-1 mb-4">
-              Ajuste seus filtros ou compartilhe o link de carreiras para atrair novos talentos.
-            </p>
-          </CardContent>
-        </Card>
+        candidates.length === 0 ? (
+          <EmptyState
+            icon={Users}
+            title="Nenhum candidato no banco de talentos ainda"
+            description="À medida que as pessoas se candidatarem nas suas vagas publicadas, elas aparecerão aqui com currículo, competências e consentimento LGPD."
+            actions={[
+              { label: 'Publicar uma vaga', to: '/vagas', icon: Briefcase },
+              { label: 'Ver página de carreiras', to: '/carreiras', icon: ExternalLink },
+            ]}
+          />
+        ) : (
+          <EmptyState
+            icon={Users}
+            title="Nenhum candidato encontrado com esses filtros"
+            description="Nenhum candidato corresponde à busca ou aos filtros selecionados. Ajuste ou limpe os filtros para ver mais resultados."
+            actions={[
+              {
+                label: 'Limpar filtros',
+                onClick: () => {
+                  setSearchTerm('')
+                  setSkillFilter('')
+                  setLocationFilter('')
+                  setSelectedSeniority('all')
+                  setSelectedAvailability('all')
+                },
+                icon: X,
+              },
+            ]}
+          />
+        )
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredCandidates.map((candidate) => (
@@ -342,7 +379,10 @@ export const CandidatesListPage: React.FC = () => {
                   variant="ghost"
                   size="sm"
                   className="h-8 text-rose-600 hover:text-rose-700 hover:bg-rose-50 text-xs"
-                  onClick={() => handlePermanentDelete(candidate.id, candidate.name)}
+                  onClick={() => {
+                    setLgpdConfirmText('')
+                    setLgpdTarget({ id: candidate.id, name: candidate.name })
+                  }}
                   title="Exclusão real LGPD"
                 >
                   <Trash2 className="w-3.5 h-3.5 mr-1" />
@@ -353,6 +393,46 @@ export const CandidatesListPage: React.FC = () => {
           ))}
         </div>
       )}
+
+      {/* Confirmação de exclusão definitiva (LGPD) — exige digitar EXCLUIR */}
+      <AlertDialog
+        open={!!lgpdTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setLgpdTarget(null)
+            setLgpdConfirmText('')
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir definitivamente {lgpdTarget?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação elimina de forma <strong>permanente e irreversível</strong> todos os dados,
+              candidaturas e o currículo desta pessoa, conforme direito do titular na LGPD. Não há
+              como desfazer. Para confirmar, digite <strong>EXCLUIR</strong> abaixo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Input
+            placeholder="Digite EXCLUIR para confirmar"
+            value={lgpdConfirmText}
+            onChange={(e) => setLgpdConfirmText(e.target.value)}
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-rose-600 hover:bg-rose-700"
+              disabled={lgpdConfirmText.trim().toUpperCase() !== 'EXCLUIR'}
+              onClick={(e) => {
+                e.preventDefault()
+                handlePermanentDelete()
+              }}
+            >
+              Excluir definitivamente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

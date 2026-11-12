@@ -21,9 +21,13 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { LoadingState } from '@/components/LoadingState'
+import { EmptyState } from '@/components/EmptyState'
+import { useToast } from '@/hooks/use-toast'
 
 export const DashboardPage: React.FC = () => {
   const { user, role, isManager } = useAuth()
+  const { toast } = useToast()
   const [jobs, setJobs] = useState<Job[]>([])
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const [applications, setApplications] = useState<Application[]>([])
@@ -65,6 +69,11 @@ export const DashboardPage: React.FC = () => {
         }
       } catch (err) {
         console.error('Erro ao carregar dados do painel:', err)
+        toast({
+          title: 'Erro ao carregar o painel',
+          description: 'Alguns números podem estar desatualizados. Recarregue a página.',
+          variant: 'destructive',
+        })
       } finally {
         setLoading(false)
       }
@@ -229,14 +238,14 @@ export const DashboardPage: React.FC = () => {
             </CardHeader>
             <CardContent>
               {loading ? (
-                <p className="text-xs text-slate-500 py-6 text-center">Carregando dados...</p>
+                <LoadingState message="Carregando vagas..." className="py-8" />
               ) : jobs.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-sm text-slate-500 mb-3">Nenhuma vaga cadastrada ainda.</p>
-                  <Link to="/vagas/nova">
-                    <Button size="sm">Cadastrar Primeira Vaga</Button>
-                  </Link>
-                </div>
+                <EmptyState
+                  icon={Briefcase}
+                  title="Nenhuma vaga cadastrada ainda"
+                  description="Crie sua primeira vaga para começar a receber candidaturas e acompanhar o pipeline."
+                  actions={[{ label: 'Cadastrar Primeira Vaga', to: '/vagas/nova', icon: Plus }]}
+                />
               ) : (
                 <div className="divide-y">
                   {jobs.slice(0, 5).map((job) => {
@@ -303,10 +312,15 @@ export const DashboardPage: React.FC = () => {
               </Link>
             </CardHeader>
             <CardContent>
-              {applications.length === 0 ? (
-                <p className="text-xs text-slate-500 py-6 text-center">
-                  Nenhuma candidatura registrada.
-                </p>
+              {loading ? (
+                <LoadingState message="Carregando candidaturas..." className="py-8" />
+              ) : applications.length === 0 ? (
+                <EmptyState
+                  icon={Users}
+                  title="Nenhuma candidatura ainda"
+                  description="Divulgue o link público das suas vagas publicadas para começar a receber candidatos."
+                  actions={[{ label: 'Ir para Minhas Vagas', to: '/vagas', icon: Briefcase }]}
+                />
               ) : (
                 <div className="divide-y">
                   {applications.slice(0, 4).map((app) => (
@@ -353,7 +367,8 @@ export const DashboardPage: React.FC = () => {
             <CardContent className="space-y-3">
               {Object.keys(sourcesMap).length === 0 ? (
                 <p className="text-xs text-slate-500 text-center py-4">
-                  Sem dados de canais ainda.
+                  Assim que chegarem candidaturas, mostramos aqui por qual canal (WhatsApp,
+                  LinkedIn, indicação…) elas entraram.
                 </p>
               ) : (
                 Object.entries(sourcesMap).map(([src, count]) => {

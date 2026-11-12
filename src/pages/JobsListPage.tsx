@@ -43,12 +43,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useToast } from '@/hooks/use-toast'
+import { useCopyLink } from '@/hooks/use-copy-link'
+import { LoadingState } from '@/components/LoadingState'
+import { EmptyState } from '@/components/EmptyState'
 
 export const JobsListPage: React.FC = () => {
   const { user, isManager, isAdmin } = useAuth()
   const navigate = useNavigate()
-  const { toast } = useToast()
+  const { copyLink } = useCopyLink()
 
   const [jobs, setJobs] = useState<Job[]>([])
   const [loading, setLoading] = useState(true)
@@ -66,7 +68,11 @@ export const JobsListPage: React.FC = () => {
       setJobs(list)
     } catch (err) {
       console.error('Erro ao listar vagas:', err)
-      toast({ title: 'Erro ao carregar vagas', variant: 'destructive' })
+      toast({
+        title: 'Erro ao carregar vagas',
+        description: 'Verifique sua conexão e tente recarregar a página.',
+        variant: 'destructive',
+      })
     } finally {
       setLoading(false)
     }
@@ -78,20 +84,23 @@ export const JobsListPage: React.FC = () => {
 
   const handleCopyLink = (slug: string) => {
     const url = `${window.location.origin}/carreiras/vaga/${slug}?origem=direct_link`
-    navigator.clipboard.writeText(url)
-    toast({
-      title: 'Link copiado!',
-      description: 'Link direto da vaga copiado com tag de origem configurada.',
-    })
+    copyLink(url, 'Link público da vaga')
   }
 
   const handleToggleStatus = async (job: Job, newStatus: JobStatus) => {
     try {
       await jobsService.updateJob(job.id, { status: newStatus })
-      toast({ title: 'Status da vaga atualizado', description: `Vaga alterada para ${newStatus}.` })
+      toast({
+        title: 'Status da vaga atualizado',
+        description: `Vaga alterada para ${STATUS_LABELS[newStatus]}.`,
+      })
       loadJobs()
     } catch (err) {
-      toast({ title: 'Erro ao atualizar status', variant: 'destructive' })
+      toast({
+        title: 'Erro ao atualizar status',
+        description: 'A vaga continua com o status anterior. Tente novamente.',
+        variant: 'destructive',
+      })
     }
   }
 
@@ -108,7 +117,11 @@ export const JobsListPage: React.FC = () => {
       toast({ title: 'Vaga excluída com sucesso' })
       loadJobs()
     } catch (err) {
-      toast({ title: 'Erro ao excluir vaga', variant: 'destructive' })
+      toast({
+        title: 'Erro ao excluir vaga',
+        description: 'A vaga não foi excluída. Tente novamente em instantes.',
+        variant: 'destructive',
+      })
     }
   }
 
@@ -120,6 +133,13 @@ export const JobsListPage: React.FC = () => {
     const matchesStatus = statusFilter === 'all' || job.status === statusFilter
     return matchesSearch && matchesStatus
   })
+
+  const STATUS_LABELS: Record<JobStatus, string> = {
+    published: 'Publicada',
+    draft: 'Rascunho',
+    paused: 'Pausada',
+    closed: 'Encerrada',
+  }
 
   const getStatusBadge = (status: JobStatus) => {
     switch (status) {
@@ -194,20 +214,35 @@ export const JobsListPage: React.FC = () => {
 
       {/* Grid de Vagas */}
       {loading ? (
-        <div className="py-12 text-center text-slate-500">Carregando vagas...</div>
+        <LoadingState message="Carregando vagas..." />
       ) : filteredJobs.length === 0 ? (
-        <Card className="text-center py-12 bg-white">
-          <CardContent>
-            <Briefcase className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-            <h3 className="font-semibold text-slate-800">Nenhuma vaga encontrada</h3>
-            <p className="text-sm text-slate-500 max-w-sm mx-auto mt-1 mb-4">
-              Crie uma nova oportunidade com requisitos, faixa salarial e etapas do processo.
-            </p>
-            <Link to="/vagas/nova">
-              <Button size="sm">Criar Nova Vaga</Button>
-            </Link>
-          </CardContent>
-        </Card>
+        jobs.length === 0 ? (
+          <EmptyState
+            icon={Briefcase}
+            title="Nenhuma vaga cadastrada ainda"
+            description="Crie sua primeira oportunidade com requisitos, faixa salarial e etapas do processo seletivo. Leva menos de 5 minutos."
+            actions={[
+              { label: 'Criar Nova Vaga', to: '/vagas/nova', icon: Plus },
+              { label: 'Ver página de carreiras', to: '/carreiras', icon: ExternalLink },
+            ]}
+          />
+        ) : (
+          <EmptyState
+            icon={Search}
+            title="Nenhuma vaga encontrada com esses filtros"
+            description="Nenhuma vaga corresponde à busca ou ao status selecionado. Tente ajustar ou limpar os filtros."
+            actions={[
+              {
+                label: 'Limpar filtros',
+                onClick: () => {
+                  setSearchTerm('')
+                  setStatusFilter('all')
+                },
+                icon: X,
+              },
+            ]}
+          />
+        )
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredJobs.map((job) => (

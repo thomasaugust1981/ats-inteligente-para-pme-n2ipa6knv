@@ -39,6 +39,10 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
+import { LoadingState } from '@/components/LoadingState'
+import { EmptyState } from '@/components/EmptyState'
+import { useCopyLink } from '@/hooks/use-copy-link'
+import { Plus } from 'lucide-react'
 
 export const PipelinePage: React.FC = () => {
   const { jobId } = useParams<{ jobId: string }>()
@@ -70,7 +74,11 @@ export const PipelinePage: React.FC = () => {
       setAllJobs(jobsList)
     } catch (err) {
       console.error('Erro ao carregar pipeline:', err)
-      toast({ title: 'Erro ao carregar pipeline da vaga', variant: 'destructive' })
+      toast({
+        title: 'Erro ao carregar pipeline da vaga',
+        description: 'Não foi possível carregar o quadro. Tente novamente em instantes.',
+        variant: 'destructive',
+      })
     } finally {
       setLoading(false)
     }
@@ -133,7 +141,11 @@ export const PipelinePage: React.FC = () => {
       }
     } catch (err) {
       console.error('Erro ao mover candidato:', err)
-      toast({ title: 'Erro ao mover candidato', variant: 'destructive' })
+      toast({
+        title: 'Erro ao mover candidato',
+        description: 'O candidato permanece na etapa anterior. Tente novamente.',
+        variant: 'destructive',
+      })
     } finally {
       setMoving(false)
     }
@@ -224,14 +236,14 @@ export const PipelinePage: React.FC = () => {
       </div>
 
       {loading ? (
-        <div className="py-20 text-center text-slate-500">Carregando quadro do pipeline...</div>
+        <LoadingState message="Carregando quadro do pipeline..." className="py-20" />
       ) : !job ? (
-        <div className="text-center py-16 bg-white rounded-lg border">
-          <p className="text-slate-500 mb-4">Nenhuma vaga encontrada para exibir o pipeline.</p>
-          <Link to="/vagas/nova">
-            <Button size="sm">Cadastrar Vaga</Button>
-          </Link>
-        </div>
+        <EmptyState
+          icon={Users}
+          title="Nenhum pipeline para exibir ainda"
+          description="Cadastre e publique uma vaga para acompanhar os candidatos em um quadro por etapas."
+          actions={[{ label: 'Cadastrar Vaga', to: '/vagas/nova', icon: Plus }]}
+        />
       ) : (
         <div className="space-y-4">
           {/* Informações da vaga ativa */}
@@ -253,6 +265,20 @@ export const PipelinePage: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs"
+                onClick={() =>
+                  copyLink(
+                    `/carreiras/vaga/${job.slug}`,
+                    'Link público da vaga copiado! Divulgue nos seus canais.',
+                  )
+                }
+              >
+                <Link2 className="w-3.5 h-3.5 mr-1" />
+                Copiar link
+              </Button>
               <Link to={`/carreiras/vaga/${job.slug}`} target="_blank">
                 <Button variant="outline" size="sm" className="text-xs">
                   <Eye className="w-3.5 h-3.5 mr-1" />
