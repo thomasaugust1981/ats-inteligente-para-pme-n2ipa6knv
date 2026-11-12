@@ -48,6 +48,8 @@ export const StageOwnerSettings: React.FC<Props> = ({
   const draftsRef = useRef(drafts)
   draftsRef.current = drafts
   const { toast } = useToast()
+  // Evita dois salvamentos paralelos (ex: duplo clique em "Salvar"/"Continuar")
+  const savingRef = useRef(false)
 
   const activeStages = stages.filter((s) => !FINAL_STAGE_IDS.includes(s.id))
 
@@ -82,19 +84,8 @@ export const StageOwnerSettings: React.FC<Props> = ({
     setDrafts((prev) => prev.map((d) => (d.stage_id === stageId ? { ...d, ...patch } : d)))
   }
 
-  // Salva quando o pai sinaliza (botão "Salvar" do passo/tela)
-  const firstSignal = useRef(true)
-  useEffect(() => {
-    if (firstSignal.current) {
-      firstSignal.current = false
-      return
-    }
-    if (!saveSignal || !jobId) return
-    handleSave()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [saveSignal])
-
   const handleSave = async () => {
+    if (savingRef.current) return
     if (!jobId) {
       toast({
         title: 'Configuração ainda não salvável',
@@ -103,6 +94,7 @@ export const StageOwnerSettings: React.FC<Props> = ({
       return
     }
     setSaving(true)
+    savingRef.current = true
     try {
       const error = await stageSettingsService.saveAll(jobId, draftsRef.current)
       if (error) {
@@ -116,8 +108,29 @@ export const StageOwnerSettings: React.FC<Props> = ({
       onSaved?.()
     } finally {
       setSaving(false)
+      savingRef.current = false
     }
   }
+
+  // Salva quando o pai sinaliza (botão "Salvar" do passo/tela).
+  // Usa ref (não estado) para o contador: assim o salvamento dispara mesmo que o
+  // pai desmonte o componente no mesmo clique (ex: "Continuar" do onboarding avança
+  // de passo), o que com estado nunca chegava a rodar o efeito e perdia a configuração.
+  const firstSignal = useRef(true)
+  const saveSignalRef = useRef(saveSignal)
+  saveSignalRef.current = saveSignal
+  const handleSaveRef = useRef<(() => Promise<void>) | null>(null)
+  handleSaveRef.current = handleSave
+  useEffect(() => {
+    return () => {
+      if (firstSignal.current) {
+        firstSignal.current = false
+        return
+      }
+      if (!saveSignalRef.current) return
+      void handleSaveRef.current?.()
+    }
+  }, [])
 
   if (loading) {
     return (

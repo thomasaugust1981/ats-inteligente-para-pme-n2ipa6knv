@@ -32,7 +32,7 @@ export const stageSettingsService = {
       this.listByJob(jobId),
       this.listByJob(DEFAULT_STAGE_SETTINGS_JOB_ID),
     ])
-    const merged = new Map(defaults.map((d) => [d.stage_id, d]))
+    const merged = new Map<string, StageSetting>(defaults.map((d) => [d.stage_id, d] as const))
     for (const s of specific) merged.set(s.stage_id, s)
     return [...merged.values()]
   },

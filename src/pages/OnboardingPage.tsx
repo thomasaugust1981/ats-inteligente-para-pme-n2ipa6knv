@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
@@ -123,22 +123,26 @@ function OnboardingPage() {
     load()
   }, [user])
 
-  const markInProgress = useCallback(async () => {
-    if (!company) return
-    if (company.onboarding_status === 'completed') return
-    try {
-      const updated = await onboardingService.updateCompany(company.id, {
-        onboarding_status: 'in_progress',
-      })
-      setCompany(updated)
-    } catch (_) {
-      // status permanece o atual; não bloqueia o fluxo
-    }
-  }, [company])
-
+  // Marca o onboarding como em andamento NO MÁXIMO UMA VEZ por empresa/carregamento.
+  // É exatamente isto que criava o loop de PATCH: o efeito dependia do objeto `company`,
+  // o update devolvia um novo objeto → efeito re-disparava → novo PATCH → tempestade/429.
+  // A guarda é por company.id (não por render), então o PATCH legítimo único continua ok.
+  const markedCompanyRef = useRef<string | null>(null)
   useEffect(() => {
-    markInProgress()
-  }, [markInProgress])
+    if (!company?.id || markedCompanyRef.current === company.id) return
+    markedCompanyRef.current = company.id
+    if (company.onboarding_status === 'in_progress') return
+    ;(async () => {
+      try {
+        await onboardingService.updateCompany(company.id, {
+          onboarding_status: 'in_progress',
+        })
+        setCompany((prev) => (prev ? { ...prev, onboarding_status: 'in_progress' } : prev))
+      } catch (_) {
+        // status permanece o atual; não bloqueia o fluxo
+      }
+    })()
+  }, [company])
 
   const careersUrl = useMemo(() => `${window.location.origin}/carreiras`, [])
 
@@ -258,13 +262,26 @@ function OnboardingPage() {
   }
 
   const handleComplete = async () => {
-    const ok = await saveBrand(true)
+    const ok = await guardedSaveBrand(true)
     if (!ok) return
     toast({
       title: 'Onboarding concluído!',
       description: 'Sua empresa está configurada. Bem-vindo ao painel.',
     })
     navigate('/')
+  }
+
+  // Guarda compartilhada: evita disparar dois salvamentos em paralelo
+  // (ex: clicar "Continuar" duas vezes rápido no mesmo passo).
+  const savingRef = useRef(false)
+  const guardedSaveBrand = async (finish: boolean): Promise<boolean> => {
+    if (savingRef.current) return false
+    savingRef.current = true
+    try {
+      return await saveBrand(finish)
+    } finally {
+      savingRef.current = false
+    }
   }
 
   const goStep = (n: number) => setStep(n)
@@ -468,7 +485,7 @@ function OnboardingPage() {
               </div>
 
               <StepNav
-                onNext={() => saveBrand(false).then((ok) => ok && goStep(2))}
+                onNext={() => guardedSaveBrand(false).then((ok) => ok && goStep(2))}
                 onSkip={handleSkip}
                 nextDisabled={saving}
                 nextLabel={saving ? 'Salvando...' : 'Continuar'}
