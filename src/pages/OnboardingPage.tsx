@@ -2,6 +2,12 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
+import pb from '@/lib/pocketbase/client'
+import StageOwnerSettings from '@/components/StageOwnerSettings'
+import { BellRing } from 'lucide-react'
+import { DEFAULT_STAGES } from '@/services/jobs'
+import { DEFAULT_STAGE_SETTINGS_JOB_ID } from '@/services/stageSettings'
+import type { User } from '@/types/ats'
 import {
   onboardingService,
   ROLE_LABELS,
@@ -47,7 +53,8 @@ const STEPS = [
   { n: 1, label: 'Dados da Empresa', icon: Building2 },
   { n: 2, label: 'Página de Carreiras', icon: Globe },
   { n: 3, label: 'Convidar Equipe', icon: Users },
-  { n: 4, label: 'Conclusão', icon: CheckCircle2 },
+  { n: 4, label: 'Responsáveis das Etapas', icon: BellRing },
+  { n: 5, label: 'Conclusão', icon: CheckCircle2 },
 ]
 
 const BRAND_PRESETS = ['#0284c7', '#4f46e5', '#059669', '#d97706', '#dc2626', '#7c3aed']
@@ -74,6 +81,9 @@ function OnboardingPage() {
   const [invites, setInvites] = useState<TeamInvite[]>([])
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState<UserRole>('recruiter')
+  const [teamMembers, setTeamMembers] = useState<User[]>([])
+  const [stageSaveSignal, setStageSaveSignal] = useState(0)
+  const [stageOwnersSaved, setStageOwnersSaved] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -93,6 +103,16 @@ function OnboardingPage() {
             setLogoPreview(onboardingService.getLogoUrl(comp))
           }
           setInvites(await onboardingService.listInvites())
+          // Equipe = usuários do sistema (exclui a conta de serviço de IA)
+          try {
+            const usersList = await pb.collection('users').getFullList<User>({
+              filter: "email != 'ai-service@ats.internal'",
+              sort: 'name',
+            })
+            setTeamMembers(usersList)
+          } catch (_) {
+            setTeamMembers([])
+          }
         }
       } catch (err) {
         console.error('Erro ao carregar onboarding:', err)
@@ -289,7 +309,7 @@ function OnboardingPage() {
           </Badge>
           <h1 className="text-2xl font-bold tracking-tight">Bem-vindo(a) ao ATS Inteligente PME</h1>
           <p className="text-sm text-slate-500 mt-1">
-            Vamos configurar sua empresa em 4 passos rápidos. Você pode pular agora e retomar depois
+            Vamos configurar sua empresa em 5 passos rápidos. Você pode pular agora e retomar depois
             pelo painel.
           </p>
         </div>
@@ -639,8 +659,48 @@ function OnboardingPage() {
             </div>
           )}
 
-          {/* PASSO 4: Conclusão */}
+          {/* PASSO 4: Responsáveis das etapas + notificações */}
           {step === 4 && (
+            <div className="space-y-5">
+              <div>
+                <h2 className="text-lg font-bold flex items-center gap-2">
+                  <BellRing className="w-5 h-5 text-sky-600" />
+                  Responsáveis e Notificações das Etapas
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Para cada etapa do processo de seleção, defina quem é o responsável (usuário da
+                  equipe e/ou e-mail livre). Esta pessoa receberá um e-mail quando um candidato
+                  entrar na etapa e lembretes periódicos enquanto estiver pendente.
+                </p>
+              </div>
+
+              <StageOwnerSettings
+                jobId={DEFAULT_STAGE_SETTINGS_JOB_ID}
+                stages={DEFAULT_STAGES}
+                teamMembers={teamMembers}
+                saveSignal={stageSaveSignal}
+                onSaved={() => setStageOwnersSaved(true)}
+              />
+
+              <p className="text-[11px] text-slate-400">
+                Estes responsáveis serão aplicados às vagas criadas a partir de agora. Depois é
+                possível ajustar por vaga no pipeline (botão "Responsáveis e notificações").
+              </p>
+
+              <StepNav
+                onBack={() => goStep(3)}
+                onNext={() => {
+                  setStageSaveSignal((n) => n + 1)
+                  goStep(5)
+                }}
+                onSkip={handleSkip}
+                nextLabel="Continuar"
+              />
+            </div>
+          )}
+
+          {/* PASSO 5: Conclusão */}
+          {step === 5 && (
             <div className="space-y-5">
               <div className="text-center py-2">
                 <div className="w-14 h-14 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mx-auto mb-3">
@@ -692,7 +752,7 @@ function OnboardingPage() {
               </div>
 
               <StepNav
-                onBack={() => goStep(3)}
+                onBack={() => goStep(4)}
                 onNext={handleComplete}
                 onSkip={handleSkip}
                 nextDisabled={saving}

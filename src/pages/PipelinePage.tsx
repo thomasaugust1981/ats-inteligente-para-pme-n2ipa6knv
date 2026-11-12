@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
+import pb from '@/lib/pocketbase/client'
 import { jobsService } from '@/services/jobs'
 import { applicationsService, auditService } from '@/services/candidates'
-import type { Job, Application, JobStage } from '@/types/ats'
+import type { Job, Application, JobStage, User } from '@/types/ats'
 import {
   Users,
   ArrowLeft,
@@ -43,7 +44,8 @@ import { useToast } from '@/hooks/use-toast'
 import { LoadingState } from '@/components/LoadingState'
 import { EmptyState } from '@/components/EmptyState'
 import { useCopyLink } from '@/hooks/use-copy-link'
-import { Plus } from 'lucide-react'
+import StageOwnerSettings from '@/components/StageOwnerSettings'
+import { Plus, BellRing } from 'lucide-react'
 
 export const PipelinePage: React.FC = () => {
   const { jobId } = useParams<{ jobId: string }>()
@@ -61,7 +63,27 @@ export const PipelinePage: React.FC = () => {
   const [selectedApp, setSelectedApp] = useState<Application | null>(null)
   const [targetStageId, setTargetStageId] = useState('')
   const [moveReason, setMoveReason] = useState('')
+  const [moveComment, setMoveComment] = useState('')
   const [moving, setMoving] = useState(false)
+
+  // Dialog de responsáveis e notificações por etapa (por vaga)
+  const [ownersModalOpen, setOwnersModalOpen] = useState(false)
+  const [ownersSaveSignal, setOwnersSaveSignal] = useState(0)
+  const [users, setUsers] = useState<User[]>([])
+
+  useEffect(() => {
+    if (!ownersModalOpen || users.length > 0) return
+    let cancelled = false
+    pb.collection('users')
+      .getFullList<User>({ filter: "email != 'ai-service@ats.internal'", sort: 'name' })
+      .then((list) => {
+        if (!cancelled) setUsers(list)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [ownersModalOpen, users.length])
 
   const loadPipeline = async (targetJobId: string) => {
     try {
@@ -107,6 +129,7 @@ export const PipelinePage: React.FC = () => {
     setSelectedApp(app)
     setTargetStageId(nextStageId)
     setMoveReason('')
+    setMoveComment('')
     setMoveModalOpen(true)
   }
 
@@ -130,6 +153,7 @@ export const PipelinePage: React.FC = () => {
         targetStageId,
         selectedApp.stage_id,
         moveReason.trim(),
+        moveComment.trim() || undefined,
       )
 
       toast({
@@ -280,6 +304,15 @@ export const PipelinePage: React.FC = () => {
               >
                 <Link2 className="w-3.5 h-3.5 mr-1" />
                 Copiar link
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs"
+                onClick={() => setOwnersModalOpen(true)}
+              >
+                <BellRing className="w-3.5 h-3.5 mr-1" />
+                Responsáveis e notificações
               </Button>
               <Link to={`/carreiras/vaga/${job.slug}`} target="_blank">
                 <Button variant="outline" size="sm" className="text-xs">
@@ -506,6 +539,23 @@ export const PipelinePage: React.FC = () => {
                 Essa justificativa fica gravada de forma permanente no histórico do candidato.
               </p>
             </div>
+
+            <div>
+              <Label htmlFor="move-comment" className="text-xs font-semibold">
+                Comentário da avaliação (opcional)
+              </Label>
+              <Textarea
+                id="move-comment"
+                rows={2}
+                placeholder="Ex: Comunicação clara, boas respostas técnicas sobre modelagem de dados..."
+                value={moveComment}
+                onChange={(e) => setMoveComment(e.target.value)}
+                className="mt-1 text-xs"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">
+                Registro opcional da sua avaliação sobre o candidato nesta etapa.
+              </p>
+            </div>
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
@@ -529,6 +579,53 @@ export const PipelinePage: React.FC = () => {
               }
             >
               {moving ? 'Gravando...' : 'Confirmar Movimentação'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Responsáveis e Notificações por etapa (da vaga aberta) */}
+      <Dialog open={ownersModalOpen} onOpenChange={setOwnersModalOpen}>
+        <DialogContent className="sm:max-w-lg bg-white max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <BellRing className="w-4 h-4 text-sky-600" />
+              Responsáveis e notificações das etapas
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Para cada etapa de <strong>{job?.title}</strong>, defina o responsável (usuário da
+              equipe e/ou e-mail livre). Esta pessoa recebe um e-mail quando um candidato entra na
+              etapa e lembretes periódicos enquanto estiver pendente.
+            </DialogDescription>
+          </DialogHeader>
+
+          {jobId && (
+            <StageOwnerSettings
+              jobId={jobId}
+              stages={stages}
+              teamMembers={users}
+              saveSignal={ownersSaveSignal}
+              onSaved={() => setOwnersModalOpen(false)}
+            />
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setOwnersModalOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={!jobId}
+              onClick={() => setOwnersSaveSignal((n) => n + 1)}
+              className="bg-sky-600 hover:bg-sky-700 text-white"
+            >
+              Salvar configuração
             </Button>
           </DialogFooter>
         </DialogContent>

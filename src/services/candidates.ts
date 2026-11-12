@@ -96,6 +96,7 @@ export const applicationsService = {
     toStage: string,
     fromStage?: string,
     reason?: string,
+    comment?: string,
   ): Promise<Application> {
     const user = pb.authStore.record
     const currentApp = await pb.collection('applications').getOne<Application>(applicationId)
@@ -111,6 +112,9 @@ export const applicationsService = {
 
     if (isRejected && reason) {
       updatePayload.rejection_reason = reason
+    }
+    if (comment) {
+      updatePayload.rejection_note = comment
     }
 
     const updated = await pb
@@ -134,7 +138,12 @@ export const applicationsService = {
       from_stage: fromStage || currentApp.stage_id,
       to_stage: toStage,
       reason: reason || undefined,
-      details: `Candidato movido de "${fromStage || currentApp.stage_id}" para "${toStage}".`,
+      details: [
+        `Candidato movido de "${fromStage || currentApp.stage_id}" para "${toStage}".`,
+        comment ? `Comentário da avaliação: ${comment}` : '',
+      ]
+        .filter(Boolean)
+        .join(' '),
     })
 
     return updated

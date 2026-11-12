@@ -51,6 +51,19 @@ export interface JobStage {
   color?: string
 }
 
+/** Configuração de responsável/notificações de uma etapa de uma vaga. */
+export interface StageSetting {
+  id: string
+  job_id: string
+  stage_id: string
+  owner_user_id?: string
+  owner_email?: string
+  reminder_enabled?: boolean
+  reminder_days?: number
+  created: string
+  updated: string
+}
+
 export interface Job {
   id: string
   title: string
@@ -158,6 +171,7 @@ export interface Application {
   rejection_reason?: string
   rejection_note?: string
   stage_updated_at?: string
+  last_stage_reminder_at?: string
   expand?: {
     candidate_id?: Candidate
     job_id?: Job
@@ -174,6 +188,8 @@ export type AuditAction =
   | 'note_added'
   | 'candidate_created'
   | 'candidate_deleted'
+  | 'stage_owner_assigned'
+  | 'evaluation_comment'
 
 export interface AuditLog {
   id: string

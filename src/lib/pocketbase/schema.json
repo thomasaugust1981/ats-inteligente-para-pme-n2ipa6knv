@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-12T17:34:12.814Z",
+  "generatedAt": "2026-11-12T18:33:08.345Z",
   "collections": [
     {
       "name": "users",
@@ -512,6 +512,12 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "last_stage_reminder_at",
+          "type": "date",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -679,6 +685,72 @@
         }
       ],
       "indexes": ["CREATE INDEX idx_team_invites_email ON team_invites (email)"]
+    },
+    {
+      "name": "stage_settings",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "job_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "stage_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "owner_user_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "owner_email",
+          "type": "email",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "reminder_enabled",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "reminder_days",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_stage_settings_job_stage ON stage_settings (job_id, stage_id)"
+      ]
     }
   ]
 }
