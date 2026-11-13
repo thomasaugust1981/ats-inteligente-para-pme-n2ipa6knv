@@ -24,6 +24,7 @@ import {
   BrainCircuit,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { useAuth } from '@/hooks/use-auth'
 import type { Job } from '@/types/ats'
 import {
   AVAILABILITY_LABELS,
@@ -39,6 +40,7 @@ interface SuggestedCandidatesPanelProps {
 /** Painel "Candidatos sugeridos para esta vaga" — ordenado por aderência. */
 export const SuggestedCandidatesPanel: React.FC<SuggestedCandidatesPanelProps> = ({ job }) => {
   const { toast } = useToast()
+  const { user } = useAuth()
   const [suggestions, setSuggestions] = useState<EnrichedSuggestion[]>([])
   const [loading, setLoading] = useState(true)
   const [inviting, setInviting] = useState<string | null>(null)
@@ -70,7 +72,7 @@ export const SuggestedCandidatesPanel: React.FC<SuggestedCandidatesPanelProps> =
     if (!toConfirm) return
     setInviting(toConfirm.candidate.id)
     try {
-      await inviteSuggestion(job, toConfirm)
+      await inviteSuggestion(job, toConfirm, user)
       setInvitedIds((prev) => new Set(prev).add(toConfirm.candidate.id))
       setSuggestions((prev) =>
         prev.map((s) =>
@@ -85,10 +87,7 @@ export const SuggestedCandidatesPanel: React.FC<SuggestedCandidatesPanelProps> =
       console.error('Erro ao inscrever candidato sugerido:', err)
       toast({
         title: 'Erro ao inscrever',
-        description:
-          err && typeof err === 'object' && 'response' in err
-            ? 'Não foi possível criar a candidatura. Tente novamente.'
-            : 'Não foi possível criar a candidatura. Tente novamente.',
+        description: 'Não foi possível criar a candidatura. Tente novamente.',
         variant: 'destructive',
       })
     } finally {

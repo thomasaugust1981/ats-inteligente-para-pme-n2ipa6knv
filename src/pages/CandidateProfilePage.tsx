@@ -46,6 +46,19 @@ export const CandidateProfilePage: React.FC = () => {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Última reprovação — mostra no topo do perfil (histórico mantém o candidato ativo no banco)
+  const latestRejectedApp = applications
+    .filter((a) => a.status === 'rejected')
+    .sort((a, b) => (a.created || '').localeCompare(b.created || ''))
+    .pop()
+  const latestRejection = latestRejectedApp
+    ? {
+        reason: latestRejectedApp.rejection_reason || '',
+        jobTitle: latestRejectedApp.expand?.job_id?.title,
+        created: latestRejectedApp.created,
+      }
+    : null
+
   // Anotação interna do recrutador
   const [newNote, setNewNote] = useState('')
   const [savingNote, setSavingNote] = useState(false)
@@ -223,12 +236,36 @@ export const CandidateProfilePage: React.FC = () => {
             </Button>
           </Link>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-2xl font-bold tracking-tight text-slate-900">{candidate.name}</h1>
               <Badge variant="secondary" className="text-xs uppercase">
                 {candidate.seniority || 'Geral'}
               </Badge>
+              {latestRejection && (
+                <Badge
+                  variant="outline"
+                  className="text-xs bg-rose-50 text-rose-700 border-rose-200 shrink-0"
+                >
+                  Reprovado
+                </Badge>
+              )}
             </div>
+            {latestRejection && (
+              <p className="text-[11px] text-rose-600 mt-1">
+                Última reprovação
+                {latestRejection.jobTitle ? (
+                  <>
+                    {' '}
+                    em <strong>{latestRejection.jobTitle}</strong>
+                  </>
+                ) : null}
+                {latestRejection.created
+                  ? ` — ${new Date(latestRejection.created).toLocaleDateString('pt-BR')}`
+                  : ''}
+                {latestRejection.reason ? ` · Motivo: ${latestRejection.reason}` : ''}
+                {' · '}mantém-se ativo no banco de talentos.
+              </p>
+            )}
             <p className="text-xs text-slate-500 mt-0.5">
               Cadastrado no Banco de Talentos em{' '}
               {new Date(candidate.created).toLocaleDateString('pt-BR')}

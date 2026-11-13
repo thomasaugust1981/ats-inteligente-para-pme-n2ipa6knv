@@ -61,6 +61,26 @@ export function mergeOptionalStages(
   return out
 }
 
+/** Converte o campo `stages` da vaga (JSON string ou array) em uma lista de etapas. */
+export function parseJobStages(
+  job: Pick<Job, 'stages' | 'optional_stages' | 'high_impact'>,
+): JobStage[] {
+  let parsedStages: JobStage[] | null = null
+  if (typeof job.stages === 'string') {
+    try {
+      parsedStages = JSON.parse(job.stages)
+    } catch (_) {
+      parsedStages = null
+    }
+  } else if (Array.isArray(job.stages)) {
+    parsedStages = job.stages
+  }
+  if (!Array.isArray(parsedStages) || parsedStages.length === 0) {
+    parsedStages = DEFAULT_STAGES
+  }
+  return mergeOptionalStages(parsedStages, job.optional_stages, Boolean(job.high_impact))
+}
+
 export const jobsService = {
   async listJobs(filter?: string, sort = '-created'): Promise<Job[]> {
     const records = await pb.collection('jobs').getFullList<Job>({
@@ -127,22 +147,6 @@ export const jobsService = {
   },
 
   normalizeStages(job: Job): Job {
-    let parsedStages: JobStage[] | null = null
-    if (typeof job.stages === 'string') {
-      try {
-        parsedStages = JSON.parse(job.stages)
-      } catch (_) {
-        parsedStages = null
-      }
-    } else if (Array.isArray(job.stages)) {
-      parsedStages = job.stages
-    }
-    if (!Array.isArray(parsedStages) || parsedStages.length === 0) {
-      parsedStages = DEFAULT_STAGES
-    }
-    return {
-      ...job,
-      stages: mergeOptionalStages(parsedStages, job.optional_stages, Boolean(job.high_impact)),
-    }
+    return { ...job, stages: parseJobStages(job) }
   },
 }

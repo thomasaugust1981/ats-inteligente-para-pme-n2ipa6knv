@@ -43,10 +43,18 @@ import { useToast } from '@/hooks/use-toast'
 import { LoadingState } from '@/components/LoadingState'
 import { EmptyState } from '@/components/EmptyState'
 import { useCopyLink } from '@/hooks/use-copy-link'
+import {
+  fetchAllApplications,
+  latestRejectionsByCandidate,
+  type RejectionInfo,
+} from '@/lib/candidateSuggest'
 
 export const CandidatesListPage: React.FC = () => {
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const [loading, setLoading] = useState(true)
+  const [rejections, setRejections] = useState<Map<string, RejectionInfo & { created: string }>>(
+    new Map(),
+  )
   const [searchParams] = useSearchParams()
   const { toast } = useToast()
   const { copyLink } = useCopyLink()
@@ -64,6 +72,8 @@ export const CandidatesListPage: React.FC = () => {
     try {
       setLoading(true)
       const list = await candidatesService.listCandidates()
+      const apps = await fetchAllApplications()
+      setRejections(latestRejectionsByCandidate(apps))
       setCandidates(list)
     } catch (err) {
       console.error('Erro ao carregar candidatos:', err)
@@ -314,6 +324,24 @@ export const CandidatesListPage: React.FC = () => {
                     {getSeniorityLabel(candidate.seniority)}
                   </Badge>
                 </div>
+                {rejections.get(candidate.id) && (
+                  <div className="flex items-center gap-1.5 mt-1.5">
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] bg-rose-50 text-rose-700 border-rose-200 shrink-0"
+                    >
+                      Reprovado
+                    </Badge>
+                    {rejections.get(candidate.id)!.reason && (
+                      <span
+                        className="text-[10px] text-rose-600 truncate"
+                        title={rejections.get(candidate.id)!.reason}
+                      >
+                        {rejections.get(candidate.id)!.reason}
+                      </span>
+                    )}
+                  </div>
+                )}
               </CardHeader>
 
               <CardContent className="flex-1 text-xs space-y-3 pb-3">

@@ -1,5 +1,6 @@
-import type { Job, Candidate, DiscResult, JobStage, User, Application } from '@/types/ats'
+import type { Job, Candidate, DiscResult, User, Application } from '@/types/ats'
 import pb from '@/lib/pocketbase/client'
+import { parseJobStages } from '@/services/jobs'
 
 // Motor de sugestão de candidatos: calcula a aderência (0–100) de cada candidato
 // do banco de talentos a uma vaga usando dados já existentes — skills vs
@@ -310,13 +311,32 @@ export async function loadSuggestions(job: Job): Promise<EnrichedSuggestion[]> {
   return buildSuggestions(job, candidatesRes, apps, disc)
 }
 
+/** Última reprovação por candidato (a mais recente; motivo pode ficar vazio). */
+export function latestRejectionsByCandidate(
+  apps: AppSummary[],
+): Map<string, RejectionInfo & { created: string }> {
+  const map = new Map<string, RejectionInfo & { created: string }>()
+  for (const a of apps) {
+    if (a.status !== 'rejected') continue
+    const current = map.get(a.candidate_id)
+    if (!current || (a.created || '') > current.created) {
+      map.set(a.candidate_id, {
+        reason: a.rejection_reason || '',
+        jobTitle: a.jobTitle,
+        created: a.created || '',
+      })
+    }
+  }
+  return map
+}
+
 /** Inscreve o candidato sugerido na vaga, na etapa de triagem, com origem e auditoria. */
 export async function inviteSuggestion(
   job: Job,
   sug: EnrichedSuggestion,
   user?: User | null,
 ): Promise<void> {
-  const firstStage = parseStages(job)[0]?.id || 'applied'
+  const firstStage = parseJobStages(job)[0]?.id || 'applied'
   const created = await pb.collection('applications').create<Application>({
     candidate_id: sug.candidate.id,
     job_id: job.id,
