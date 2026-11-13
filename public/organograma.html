@@ -60,6 +60,45 @@
         outline-offset: 1px;
       }
 
+      /* ---------- Indicador de sincronização (ATS / banco central) ---------- */
+      .sync-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.68rem;
+        font-weight: 600;
+        padding: 0.2rem 0.55rem;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        color: var(--muted);
+        margin-left: 0.5rem;
+        white-space: nowrap;
+        vertical-align: middle;
+      }
+      .sync-badge .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--accent);
+      }
+      .sync-badge[data-mode='local'] .dot {
+        background: var(--muted);
+      }
+      .sync-badge[data-mode='saving'] .dot {
+        background: var(--warn);
+      }
+      .sync-badge[data-mode='error'] .dot {
+        background: var(--danger);
+      }
+      .btn-ats {
+        border-color: var(--accent-border);
+        color: var(--accent);
+        background: var(--accent-soft);
+      }
+      .btn-ats:hover {
+        background: #e0e7ff;
+      }
+
       /* ---------- Header ---------- */
       .app-header {
         background: var(--panel);
@@ -928,7 +967,9 @@
           </div>
           <div>
             <h1>Organograma <span id="companyName"></span></h1>
-            <small>Gestão da estrutura organizacional · dados salvos neste navegador</small>
+            <small id="syncStatus"
+              >Gestão da estrutura organizacional · dados salvos neste navegador</small
+            >
           </div>
         </div>
         <div class="spacer"></div>
@@ -1324,6 +1365,175 @@
         clear() {
           localStorage.removeItem(STORAGE_KEY)
         },
+      }
+
+      /* ---------------- Integração ATS ↔ Organograma (banco central) ------------
+         Ao carregar, tenta buscar os nós em /api/collections/org_nodes/records.
+         - API no ar: banco central é a fonte; cada criação/edição/movimentação/
+           exclusão é salva de volta (POST/PATCH/DELETE) e espelhada no
+           localStorage (cache offline).
+         - API indisponível: cai no modo localStorage atual (módulo separado).
+         Ajuste API_BASE_URL se o organograma for servido de outro host. */
+      const API_BASE_URL = '' // ex.: 'https://seu-backend.goskip.app' — vazio = mesmo host
+      const API_COLLECTION = '/api/collections/org_nodes/records'
+      const API_URL = API_BASE_URL.replace(/\/$/, '') + API_COLLECTION
+      const api = {
+        available: false,
+        // id de record do PocketBase por node_key (id lógico do organograma)
+        recordIds: new Map(),
+        mapContract(v) {
+          const t = String(v || '').toLowerCase()
+          if (t.includes('estágio') || t === 'internship') return 'internship'
+          if (t.includes('tempor') || t === 'temporary') return 'temporary'
+          if (t === 'pj') return 'pj'
+          return 'clt'
+        },
+        mapContractBack(v) {
+          const map = {
+            clt: 'CLT',
+            pj: 'PJ',
+            internship: 'Estágio',
+            temporary: 'Temporário',
+          }
+          return map[v] || 'CLT'
+        },
+        recordToNode(r) {
+          return {
+            id: r.node_key,
+            parentId: r.manager || null,
+            nome: r.name,
+            cargo: r.role_title || '',
+            area: r.area || '',
+            email: r.email || '',
+            localidade: r.location || '',
+            tipoContrato: this.mapContractBack(r.contract_type),
+            dataInicio: r.start_date ? String(r.start_date).slice(0, 10) : '',
+            status: r.status || 'ativo',
+            foto: r.photo_url || '',
+            jobId: r.job_id || '',
+          }
+        },
+        nodePayload(n) {
+          const p = {
+            node_key: n.id,
+            name: n.nome || '',
+            role_title: n.cargo || '',
+            area: n.area || '',
+            manager: n.parentId || '',
+            email: n.email || '',
+            location: n.localidade || '',
+            contract_type: this.mapContract(n.tipoContrato),
+            start_date: n.dataInicio || '',
+            status: n.status || 'ativo',
+            photo_url: n.foto && n.foto.startsWith('http') ? n.foto : n.foto || '',
+            company: state.company || '',
+          }
+          if (n.jobId) p.job_id = n.jobId
+          return p
+        },
+        async list() {
+          const out = []
+          let page = 1
+          while (true) {
+            const res = await fetch(`${API_URL}?page=${page}&perPage=200&sort=node_key`)
+            if (!res.ok) throw new Error('API org_nodes indisponível (' + res.status + ')')
+            const data = await res.json()
+            for (const r of data.items || []) {
+              this.recordIds.set(r.node_key, r.id)
+              out.push(this.recordToNode(r))
+            }
+            if (page >= (data.totalPages || 1)) break
+            page++
+          }
+          return out
+        },
+        async create(node) {
+          const res = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(this.nodePayload(node)),
+          })
+          if (!res.ok) throw new Error('Falha ao criar nó no banco (' + res.status + ')')
+          const rec = await res.json()
+          this.recordIds.set(node.id, rec.id)
+          return rec
+        },
+        async update(node) {
+          const recId = this.recordIds.get(node.id)
+          if (!recId) {
+            // nó veio do localStorage ou de outra sessão: cria em vez de atualizar
+            return this.create(node)
+          }
+          const res = await fetch(`${API_URL}/${recId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(this.nodePayload(node)),
+          })
+          if (!res.ok) throw new Error('Falha ao atualizar nó no banco (' + res.status + ')')
+          return res.json()
+        },
+        async remove(id) {
+          const recId = this.recordIds.get(id)
+          if (!recId) return
+          const res = await fetch(`${API_URL}/${recId}`, { method: 'DELETE' })
+          if (!res.ok && res.status !== 404)
+            throw new Error('Falha ao excluir nó no banco (' + res.status + ')')
+          this.recordIds.delete(id)
+        },
+      }
+      function setSyncBadge(mode, text) {
+        const small = $('#syncStatus')
+        if (!small) return
+        let badge = document.getElementById('syncBadge')
+        if (!badge) {
+          badge = document.createElement('span')
+          badge.id = 'syncBadge'
+          badge.className = 'sync-badge'
+          badge.innerHTML = '<span class="dot"></span><span class="lbl"></span>'
+          small.after(badge)
+        }
+        badge.dataset.mode = mode
+        badge.querySelector('.lbl').textContent = text
+      }
+      /** Salva no banco central quando disponível; localStorage é sempre o cache local. */
+      async function persist() {
+        store.save(state)
+        if (!api.available) return
+        setSyncBadge('saving', 'Sincronizando…')
+        try {
+          const seen = new Set()
+          for (const n of state.nodes) {
+            seen.add(n.id)
+            if (api.recordIds.has(n.id)) await api.update(n)
+            else await api.create(n)
+          }
+          for (const key of [...api.recordIds.keys()]) {
+            if (!seen.has(key)) await api.remove(key)
+          }
+          const hist = Array.isArray(state.history) ? state.history.slice(-1)[0] : null
+          setSyncBadge('cloud', 'Sincronizado com o ATS' + (hist ? ' · ' + hist.oque : ''))
+          if (hist)
+            try {
+              await fetch(
+                API_BASE_URL.replace(/\/$/, '') + '/api/collections/org_sync_log/records',
+                {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ acao: hist.oque, autor: hist.autor }),
+                },
+              )
+            } catch (_) {
+              /* log de sync é best-effort */
+            }
+        } catch (e) {
+          api.available = false
+          setSyncBadge('error', 'Banco indisponível — modo local')
+          toast(
+            'Falha ao sincronizar com o banco central: alterações ficaram apenas neste navegador.',
+            'err',
+            5000,
+          )
+        }
       }
 
       /* ---------------- Dados de exemplo (empresa fictícia brasileira) --------- */

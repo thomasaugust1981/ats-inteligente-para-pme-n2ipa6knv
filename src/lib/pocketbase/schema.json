@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-13T16:40:35.194Z",
+  "generatedAt": "2026-11-13T17:09:09.930Z",
   "collections": [
     {
       "name": "users",
@@ -861,6 +861,119 @@
       "indexes": [
         "CREATE UNIQUE INDEX idx_disc_results_token ON disc_results (token)",
         "CREATE INDEX idx_disc_results_application ON disc_results (application_id)"
+      ]
+    },
+    {
+      "name": "org_nodes",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "",
+        "update": "",
+        "delete": ""
+      },
+      "fields": [
+        {
+          "name": "node_key",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "role_title",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "area",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "manager",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "email",
+          "type": "email",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "location",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "contract_type",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["clt", "pj", "internship", "temporary"]
+        },
+        {
+          "name": "start_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["ativo", "inativo", "vaga_aberta", "temporaria"]
+        },
+        {
+          "name": "photo_url",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "job_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "jobs"
+        },
+        {
+          "name": "company",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_org_nodes_key ON org_nodes (node_key)",
+        "CREATE INDEX idx_org_nodes_status ON org_nodes (status)",
+        "CREATE INDEX idx_org_nodes_job ON org_nodes (job_id)"
       ]
     }
   ]
