@@ -20,16 +20,21 @@ onRecordAfterCreateSuccess((e) => {
     const app = e.app
     const record = e.record
 
+    // Configuração específica da vaga prevalece; cai para o padrão do
+    // onboarding (job_id sentinela '__default__') quando a vaga não tem a sua.
     function findStageSettings(jobId, stageId) {
-      try {
-        return app.findFirstRecordByFilter(
-          'stage_settings',
-          'job_id = {:jobId} && stage_id = {:stageId}',
-          { jobId: jobId, stageId: stageId },
-        )
-      } catch (_) {
-        return null
+      function findOne(jid) {
+        try {
+          return app.findFirstRecordByFilter(
+            'stage_settings',
+            'job_id = {:jobId} && stage_id = {:stageId}',
+            { jobId: jid, stageId: stageId },
+          )
+        } catch (_) {
+          return null
+        }
       }
+      return findOne(jobId) || findOne('__default__')
     }
 
     function collectRecipients(settings) {
@@ -169,16 +174,21 @@ onRecordAfterUpdateSuccess((e) => {
     const app = e.app
     const record = e.record
 
+    // Mesma resolução do afterCreate: específica da vaga prevalece sobre o
+    // padrão do onboarding (job_id sentinela '__default__').
     function findStageSettings(jobId, stageId) {
-      try {
-        return app.findFirstRecordByFilter(
-          'stage_settings',
-          'job_id = {:jobId} && stage_id = {:stageId}',
-          { jobId: jobId, stageId: stageId },
-        )
-      } catch (_) {
-        return null
+      function findOne(jid) {
+        try {
+          return app.findFirstRecordByFilter(
+            'stage_settings',
+            'job_id = {:jobId} && stage_id = {:stageId}',
+            { jobId: jid, stageId: stageId },
+          )
+        } catch (_) {
+          return null
+        }
       }
+      return findOne(jobId) || findOne('__default__')
     }
 
     function collectRecipients(settings) {
@@ -332,16 +342,20 @@ cronAdd('stageReminders', '0 */6 * * *', () => {
   const app = $app
   const now = new Date()
 
+  // Específica da vaga prevalece sobre o padrão do onboarding ('__default__').
   function findStageSettings(jobId, stageId) {
-    try {
-      return app.findFirstRecordByFilter(
-        'stage_settings',
-        'job_id = {:jobId} && stage_id = {:stageId}',
-        { jobId: jobId, stageId: stageId },
-      )
-    } catch (_) {
-      return null
+    function findOne(jid) {
+      try {
+        return app.findFirstRecordByFilter(
+          'stage_settings',
+          'job_id = {:jobId} && stage_id = {:stageId}',
+          { jobId: jid, stageId: stageId },
+        )
+      } catch (_) {
+        return null
+      }
     }
+    return findOne(jobId) || findOne('__default__')
   }
 
   function collectRecipients(settings) {

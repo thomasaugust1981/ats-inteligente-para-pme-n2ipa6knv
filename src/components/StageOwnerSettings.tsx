@@ -112,24 +112,35 @@ export const StageOwnerSettings: React.FC<Props> = ({
     }
   }
 
-  // Salva quando o pai sinaliza (botão "Salvar" do passo/tela).
-  // Usa ref (não estado) para o contador: assim o salvamento dispara mesmo que o
-  // pai desmonte o componente no mesmo clique (ex: "Continuar" do onboarding avança
-  // de passo), o que com estado nunca chegava a rodar o efeito e perdia a configuração.
-  const firstSignal = useRef(true)
+  // Salva quando o pai sinaliza (botão "Salvar"/"Continuar" do passo/tela).
+  // Dois caminhos com dedupe pelo MESMO contador (handledSignalRef):
+  //  - efeito em [saveSignal]: o pai incrementa sem desmontar o componente
+  //    (ex: botão "Salvar configuração" do dialog no pipeline);
+  //  - cleanup do efeito de montagem: o pai incrementa E desmonta no mesmo clique
+  //    (ex: "Continuar" do onboarding avança de passo) — um efeito comum nunca
+  //    chegaria a rodar, e a configuração se perdia.
+  // O dedupe evita salvar duas vezes (efeito + cleanup) e evita salvar spuriously
+  // ao remontar com um sinal antigo (handledSignalRef começa no valor do mount).
   const saveSignalRef = useRef(saveSignal)
   saveSignalRef.current = saveSignal
+  const handledSignalRef = useRef(saveSignal)
   const handleSaveRef = useRef<(() => Promise<void>) | null>(null)
   handleSaveRef.current = handleSave
+  const triggerSaveIfSignalled = () => {
+    if (!saveSignalRef.current) return
+    if (saveSignalRef.current === handledSignalRef.current) return
+    handledSignalRef.current = saveSignalRef.current
+    void handleSaveRef.current?.()
+  }
+  useEffect(() => {
+    triggerSaveIfSignalled()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saveSignal])
   useEffect(() => {
     return () => {
-      if (firstSignal.current) {
-        firstSignal.current = false
-        return
-      }
-      if (!saveSignalRef.current) return
-      void handleSaveRef.current?.()
+      triggerSaveIfSignalled()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   if (loading) {
