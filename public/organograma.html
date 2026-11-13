@@ -1561,19 +1561,24 @@
         badge.dataset.mode = mode
         badge.querySelector('.lbl').textContent = text
       }
+      // Chaves de nós que o usuário excluiu EXPLICITAMENTE nesta sessão (via
+      // askDelete). Só elas são removidas do banco central no sweep — nós que
+      // apenas não estão no estado local (ex.: criados pelo hook do ATS em
+      // outra aba/sessão) NUNCA são apagados aqui.
+      const deletedKeys = new Set()
+
       /** Envia o estado local ao banco central (diff por node_key). */
       async function syncToCloud() {
         if (!api.available) return
         setSyncBadge('saving', 'Sincronizando…')
         try {
-          const seen = new Set()
           for (const n of state.nodes) {
-            seen.add(n.id)
             if (api.recordIds.has(n.id)) await api.update(n)
             else await api.create(n)
           }
-          for (const key of [...api.recordIds.keys()]) {
-            if (!seen.has(key)) await api.remove(key)
+          for (const key of [...deletedKeys]) {
+            await api.remove(key)
+            deletedKeys.delete(key)
           }
           const hist = Array.isArray(state.history) ? state.history.slice(-1)[0] : null
           setSyncBadge('cloud', 'Sincronizado com o ATS' + (hist ? ' · ' + hist.oque : ''))
@@ -3019,6 +3024,9 @@
           `Excluir <b>${esc(n.nome || 'este nó')}</b>${desc.length ? ` e <b>todos os ${desc.length} subordinados</b> abaixo dele` : ''}? Esta ação não pode ser desfeita.`,
           () => {
             const ids = new Set([id, ...desc.map((d) => d.id)])
+            // Marca para remoção no banco central (o sweep do syncToCloud só
+            // apaga o que está aqui — nunca nós criados remotamente).
+            for (const k of ids) deletedKeys.add(k)
             state.nodes = state.nodes.filter((x) => !ids.has(x.id))
             pushHistory(
               `Exclusão: ${n.nome}${desc.length ? ` (com ${desc.length} subordinados)` : ''}.`,
