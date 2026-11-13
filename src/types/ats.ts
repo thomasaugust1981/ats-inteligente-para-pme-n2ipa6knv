@@ -18,6 +18,8 @@ export interface Company {
   name: string
   trade_name?: string
   description?: string
+  vision?: string
+  mission?: string
   logo?: string
   website?: string
   city?: string
@@ -81,6 +83,7 @@ export interface Job {
   salary_disclosed?: boolean
   status: JobStatus
   stages?: string | JobStage[] // JSON string in PB, or parsed array in app
+  high_impact?: boolean
   manager_id?: string
   created_by?: string
   expand?: {
@@ -176,6 +179,24 @@ export interface Application {
     candidate_id?: Candidate
     job_id?: Job
   }
+  created: string
+  updated: string
+}
+
+/** Resultado do formulário DISC (e FIT cultural) de uma candidatura, por token público. */
+export interface DiscResult {
+  id: string
+  application_id: string
+  token: string
+  status?: 'pending' | 'completed' | string
+  score_d?: number
+  score_i?: number
+  score_s?: number
+  score_c?: number
+  profile?: string
+  fit_score?: number
+  fit_note?: string
+  completed_at?: string
   created: string
   updated: string
 }
