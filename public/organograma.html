@@ -1107,6 +1107,56 @@
         font-size: 0.66rem;
       }
 
+      /* ---------- Toolbar de versões ---------- */
+      #versionToolbar {
+        padding-top: 0.45rem;
+        border-top: 1px dashed var(--line);
+      }
+      #verSel {
+        max-width: 320px;
+      }
+      #verSel[data-status='RASCUNHO'] {
+        border-color: #cbd5e1;
+        color: #475569;
+      }
+      #verSel[data-status='EM_APROVACAO'] {
+        border-color: #fcd34d;
+        color: #92400e;
+        background: #fffbeb;
+      }
+      #verSel[data-status='APROVADA'] {
+        border-color: #6ee7b7;
+        color: #065f46;
+        background: #ecfdf5;
+      }
+      #verSel[data-status='SUBSTITUIDA'] {
+        border-color: #94a3b8;
+        color: #475569;
+        background: #f8fafc;
+      }
+      #verSel[data-status='REJEITADA'] {
+        border-color: #fca5a5;
+        color: #991b1b;
+        background: #fef2f2;
+      }
+      .version-banner.show {
+        display: flex;
+      }
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .btn:disabled:hover {
+        background: #fff;
+      }
+      .btn.danger {
+        border-color: #fca5a5;
+        color: #991b1b;
+      }
+      .btn.danger:hover {
+        background: #fef2f2;
+      }
+
       /* ---------- Print (exportar PDF) ---------- */
       @media print {
         body > * {
@@ -1326,6 +1376,35 @@
           ↺ Restaurar exemplo
         </button>
       </div>
+      <div class="header-row" id="versionToolbar">
+        <label for="verSel" style="font-size: 0.72rem; font-weight: 700; color: var(--muted)"
+          >Versão:</label
+        >
+        <select id="verSel" class="profile-select" data-status="RASCUNHO"></select>
+        <span id="verCurrentTag" class="vpill" data-status="APROVADA" style="display: none"
+          >Vigente</span
+        >
+        <button class="btn small" id="btnNewDraft" title="Cria um rascunho vazio">
+          ＋ Rascunho
+        </button>
+        <button
+          class="btn small"
+          id="btnCloneDraft"
+          title="Copia esta versão para um novo rascunho"
+        >
+          ⧉ Clonar como rascunho
+        </button>
+        <button class="btn small primary" id="btnSendAppr" title="Enviar para aprovação">
+          ➤ Enviar p/ aprovação
+        </button>
+        <button class="btn small" id="btnApprove">✔ Aprovar</button>
+        <button class="btn small danger" id="btnReject">✕ Rejeitar</button>
+        <span class="spacer"></span>
+        <button class="btn small" id="btnTimeline">🕓 Timeline</button>
+        <button class="btn small" id="btnCompare">⇄ Comparar</button>
+        <button class="btn small" id="btnPending">⏳ Pendências</button>
+      </div>
+      <div class="version-banner" id="versionBanner"></div>
     </header>
 
     <div id="viewport">
@@ -1363,6 +1442,46 @@
           <button class="close-x" data-close-panel="historyPanel">✕</button>
         </header>
         <div class="content" id="historyContent"></div>
+      </aside>
+
+      <aside class="side-panel wide" id="versionsPanel" aria-label="Linha do tempo de versões">
+        <header>
+          <h2>🕓 Versões e aprovações</h2>
+          <button class="close-x" data-close-panel="versionsPanel">✕</button>
+        </header>
+        <div class="content" id="versionsContent"></div>
+      </aside>
+
+      <aside class="side-panel wide" id="comparePanel" aria-label="Comparação entre versões">
+        <header>
+          <h2>⇄ Comparar versões</h2>
+          <button class="close-x" data-close-panel="comparePanel">✕</button>
+        </header>
+        <div class="content">
+          <div style="display: flex; gap: 0.4rem; margin-bottom: 0.6rem">
+            <select
+              id="cmpA"
+              class="profile-select"
+              style="max-width: none; flex: 1"
+              aria-label="Versão A"
+            ></select>
+            <select
+              id="cmpB"
+              class="profile-select"
+              style="max-width: none; flex: 1"
+              aria-label="Versão B"
+            ></select>
+          </div>
+          <div id="cmpContent"></div>
+        </div>
+      </aside>
+
+      <aside class="side-panel" id="pendingPanel" aria-label="Pendências de aprovação">
+        <header>
+          <h2>⏳ Pendências por papel</h2>
+          <button class="close-x" data-close-panel="pendingPanel">✕</button>
+        </header>
+        <div class="content" id="pendingContent"></div>
       </aside>
     </div>
 
@@ -1565,6 +1684,43 @@
           <button class="close-x" data-close="importModal">✕</button>
         </header>
         <div class="body" id="importBody"></div>
+      </div>
+    </div>
+
+    <!-- Modal: rejeitar versão (justificativa obrigatória) -->
+    <div class="modal-overlay" id="rejectModal">
+      <div class="modal" style="max-width: 460px">
+        <header>
+          <h2>⛔ Rejeitar versão</h2>
+          <button class="close-x" data-close="rejectModal">✕</button>
+        </header>
+        <div class="body">
+          <p
+            id="rejectInfo"
+            style="font-size: 0.76rem; color: var(--muted); margin: 0 0 0.7rem; line-height: 1.45"
+          ></p>
+          <label style="font-size: 0.72rem; font-weight: 700; color: #334155">
+            Justificativa <span class="req">*</span>
+          </label>
+          <textarea
+            id="rejectReason"
+            rows="4"
+            style="
+              width: 100%;
+              padding: 0.5rem;
+              border: 1px solid var(--line);
+              border-radius: 9px;
+              font-size: 0.76rem;
+              font-family: inherit;
+            "
+            placeholder="Ex.: A área de Tecnologia ficou sem gestor; corrija antes de reenviar."
+          ></textarea>
+          <span class="err" id="rejectErr" style="display: block; margin-top: 0.3rem"></span>
+        </div>
+        <footer>
+          <button class="btn" data-close="rejectModal">Cancelar</button>
+          <button class="btn danger" id="btnRejectYes">✕ Rejeitar versão</button>
+        </footer>
       </div>
     </div>
 
@@ -2267,6 +2423,12 @@
           return 'Você'
         }
       }
+      function editLockBlocked() {
+        return typeof window.orgCanEditStructure === 'function' && !window.orgCanEditStructure()
+      }
+      function warnLocked() {
+        toast('Versão somente leitura — carregue ou crie um rascunho para editar.', 'warn')
+      }
       function truncate(s, n) {
         s = s || ''
         return s.length > n ? s.slice(0, n - 1) + '…' : s
@@ -2348,6 +2510,7 @@
 
       /* ---------------- Persistência + histórico ------------------------------- */
       async function persist() {
+        if (typeof window.__orgPersistHook === 'function') return window.__orgPersistHook()
         store.save(state)
         await syncToCloud()
       }
@@ -2965,6 +3128,10 @@
         }
       }
       function moveNode(id, newParentId) {
+        if (editLockBlocked()) {
+          warnLocked()
+          return
+        }
         const n = nodeIndex.get(id)
         const target = nodeIndex.get(newParentId)
         if (!n || !target) return
@@ -3019,6 +3186,10 @@
 
       /* ---------------- Modal de nó ------------------------------------------------ */
       function openNodeModal(node, presetParent) {
+        if (editLockBlocked()) {
+          warnLocked()
+          return
+        }
         editingId = node ? node.id : null
         formStatus = node ? node.status || 'ativo' : 'ativo'
         formFoto = node ? node.foto || '' : ''
@@ -3216,6 +3387,10 @@
 
       /* ---------------- Excluir ---------------------------------------------------- */
       function askDelete(id) {
+        if (editLockBlocked()) {
+          warnLocked()
+          return
+        }
         const n = nodeIndex.get(id)
         if (!n) return
         const desc = descendantsOf(id)
@@ -3261,6 +3436,10 @@
       /* ---------------- Novo / restaurar ------------------------------------------ */
       $('#btnNew').addEventListener('click', () => openNodeModal(null))
       $('#btnReset').addEventListener('click', () => {
+        if (editLockBlocked()) {
+          warnLocked()
+          return
+        }
         confirmAction(
           'Restaurar dados de exemplo',
           'Isso <b>descarta todas as alterações</b> salvas neste navegador e recarrega a empresa de exemplo. Continuar?',
@@ -3458,6 +3637,10 @@
       ]
       let imp = { headers: [], rows: [], map: {}, mode: 'add' }
       $('#btnImport').addEventListener('click', () => {
+        if (editLockBlocked()) {
+          warnLocked()
+          return
+        }
         imp = { headers: [], rows: [], map: {}, mode: 'add' }
         renderImportStep1()
         $('#importModal').classList.add('open')
@@ -4146,12 +4329,871 @@
         }
         render()
         populateFilterOptions()
+        if (typeof window.orgInitVersioning === 'function') window.orgInitVersioning()
         // espera o layout assentar antes do ajuste inicial
         requestAnimationFrame(() => requestAnimationFrame(fitScreen))
       })()
       window.addEventListener('resize', () => {
         /* mantém transform; o usuário pode usar Ajustar */
       })
+    </script>
+
+    <script>
+      'use strict'
+      /* =====================================================================
+         Versionamento + workflow de aprovação do Organograma
+         ---------------------------------------------------------------------
+         Coleções: org_versions (snapshot nodes_json + estado) e
+         org_approvals (trilha de decisões). As transições (submit/approve/
+         reject/clone) são POSTs em org_versions validados pelo hook
+         org_versions_server no backend — este script só orquestra a UI.
+         ===================================================================== */
+      ;(function () {
+        if (window.__orgVersioning) return
+        window.__orgVersioning = true
+
+        const VER_URL = API_BASE_URL + '/api/collections/org_versions/records'
+        const APR_URL = API_BASE_URL + '/api/collections/org_approvals/records'
+        const PROFILE_KEY = 'organograma.papel'
+        const ROLES = [
+          { id: 'elab', name: 'Você', role: 'Elaboração' },
+          { id: 'rh', name: 'Fernanda Lima', role: 'Gerente de RH' },
+          { id: 'adm', name: 'Beatriz Nunes', role: 'Gerente Administrativo' },
+          { id: 'admin', name: 'Admin', role: 'admin' },
+        ]
+        const VSTATUS = {
+          RASCUNHO: 'Rascunho',
+          EM_APROVACAO: 'Em aprovação',
+          APROVADA: 'Aprovada',
+          SUBSTITUIDA: 'Substituída',
+          REJEITADA: 'Rejeitada',
+        }
+        const STEP_LABEL = {
+          ENVIO: 'Enviado para aprovação',
+          APROVACAO_1: 'Instância 1 · Gerente de RH',
+          APROVACAO_2: 'Instância 2 · Gerente Administrativo',
+          PUBLICACAO: 'Publicado (vigente)',
+          REJEICAO: 'Rejeitado',
+          RETORNO: 'Retornado ao autor',
+        }
+        const TYPE_LABEL = {
+          add: '＋ Adicionado',
+          rem: '− Removido',
+          mov: '⇄ Movido',
+          chg: '✎ Alterado',
+          same: 'Sem mudança',
+        }
+        const FIELD_LABEL = {
+          parentId: 'Gestor',
+          nome: 'Nome',
+          cargo: 'Cargo',
+          area: 'Área',
+          email: 'E-mail',
+          localidade: 'Localidade',
+          tipoContrato: 'Contrato',
+          dataInicio: 'Início',
+          status: 'Status',
+        }
+
+        let versions = []
+        let approvals = []
+        let currentNum = null
+        let initialized = false
+        let draftTimer = null
+        let rejectNum = null
+
+        /* ---------------- helpers ------------------------------------------ */
+        const company = () => state.company || 'Tecnobrasil'
+        function actor() {
+          const sel = $('#profileSelect')
+          const r = ROLES.find((x) => x.id === (sel && sel.value)) || ROLES[0]
+          return { name: r.name, role: r.role }
+        }
+        function currentVersion() {
+          return versions.find((v) => v.version_number === currentNum) || null
+        }
+        function maxVersion() {
+          return versions.reduce((m, v) => Math.max(m, +v.version_number || 0), 0)
+        }
+        function safeParse(s) {
+          try {
+            const v = JSON.parse(s || '[]')
+            return Array.isArray(v) ? v : []
+          } catch (e) {
+            return []
+          }
+        }
+        function fmtDT(iso) {
+          if (!iso) return '—'
+          const d = new Date(iso)
+          return isNaN(d)
+            ? String(iso)
+            : d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+        }
+        function canEditStructure() {
+          if (!API_BASE_URL || !api.available) return true // modo local: comportamento antigo
+          const v = currentVersion()
+          if (!v) return true // ainda sem versões
+          return v.status === 'RASCUNHO'
+        }
+        window.orgCanEditStructure = canEditStructure
+
+        /* ---------------- API ---------------------------------------------- */
+        async function versionAction(payload) {
+          const res = await fetch(VER_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          })
+          let data = null
+          try {
+            data = await res.json()
+          } catch (e) {}
+          if (!res.ok || (data && data.ok === false))
+            throw new Error((data && data.error) || 'Falha (' + res.status + ')')
+          return data
+        }
+        async function fetchVersions() {
+          const res = await fetch(`${VER_URL}?perPage=200&sort=-version_number`)
+          if (!res.ok) throw new Error('org_versions (' + res.status + ')')
+          const data = await res.json()
+          versions = (data.items || []).map((r) => ({
+            id: r.id,
+            version_number: r.version_number,
+            label: r.label || '',
+            status: r.status,
+            nodes: safeParse(r.nodes_json),
+            company: r.company || '',
+            created_by: r.created_by || '',
+            created_by_role: r.created_by_role || '',
+            submitted_by: r.submitted_by || '',
+            submitted_at: r.submitted_at || '',
+            published_at: r.published_at || '',
+            approved_by: r.approved_by || '',
+            rejection_reason: r.rejection_reason || '',
+            rejected_by: r.rejected_by || '',
+            next_approver_role: r.next_approver_role || '',
+            created: r.created || '',
+          }))
+          approvals = await fetchApprovals()
+        }
+        async function fetchApprovals() {
+          try {
+            const res = await fetch(`${APR_URL}?perPage=200&sort=-created`)
+            if (!res.ok) return []
+            const data = await res.json()
+            return (data.items || []).map((r) => ({
+              version_number: r.version_number,
+              step: r.step,
+              decision: r.decision,
+              user_name: r.user_name || '',
+              user_role: r.user_role || '',
+              comment: r.comment || '',
+              instance: r.instance,
+              created: r.created || '',
+            }))
+          } catch (e) {
+            return []
+          }
+        }
+
+        /* ---------------- persistência: rascunho grava na versão ------------ */
+        function persistHook() {
+          store.save(state)
+          if (!API_BASE_URL) return syncToCloud()
+          const v = currentVersion()
+          if (!v) return syncToCloud() // sem versionamento: comportamento legado
+          if (v.status === 'RASCUNHO') scheduleDraftSave()
+          // não-rascunho: somente leitura — NÃO espelha no org_nodes (o ATS
+          // continua na versão vigente até a publicação pelo servidor).
+          return Promise.resolve()
+        }
+        window.__orgPersistHook = persistHook
+        function scheduleDraftSave() {
+          clearTimeout(draftTimer)
+          draftTimer = setTimeout(saveDraftSnapshot, 900)
+        }
+        async function saveDraftSnapshot() {
+          const v = currentVersion()
+          if (!v || v.status !== 'RASCUNHO' || !api.available) return
+          try {
+            const res = await fetch(`${VER_URL}/${v.id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ nodes_json: JSON.stringify(state.nodes) }),
+            })
+            if (!res.ok) throw new Error('status ' + res.status)
+            v.nodes = state.nodes.map((n) => ({ ...n }))
+          } catch (e) {
+            toast('Falha ao salvar o rascunho no banco — ficou apenas neste navegador.', 'err')
+          }
+        }
+        async function flushDraft() {
+          const v = currentVersion()
+          if (!v || v.status !== 'RASCUNHO') return
+          clearTimeout(draftTimer)
+          await saveDraftSnapshot()
+        }
+
+        /* ---------------- troca de versão ----------------------------------- */
+        function enterVersion(num, opts = {}) {
+          const v = versions.find((x) => x.version_number === num)
+          if (!v) return
+          currentNum = num
+          if (Array.isArray(v.nodes) && v.nodes.length) {
+            state.nodes = v.nodes.map((n) => ({ ...n }))
+          } else if (v.status === 'RASCUNHO') {
+            state.nodes = [] // rascunho em branco
+          }
+          let maxSeq = 0
+          for (const n of state.nodes) {
+            const m = /(\d+)$/.exec(String(n.id || ''))
+            if (m) maxSeq = Math.max(maxSeq, +m[1] + 1)
+          }
+          state.seq = Math.max(state.seq || 0, maxSeq)
+          store.save(state)
+          rebuildIndex()
+          if (!opts.keepSelection) {
+            selectedId = null
+            focusRootId = null
+            btnClearFocus.style.display = 'none'
+          }
+          render()
+          refreshVersionUI()
+          requestAnimationFrame(() => fitScreen())
+        }
+
+        /* ---------------- toolbar / banner ---------------------------------- */
+        function refreshVersionUI() {
+          const sel = $('#verSel')
+          const pill = $('#versionPill')
+          const tag = $('#verCurrentTag')
+          const banner = $('#versionBanner')
+          const v = currentVersion()
+          const hasBackend = !!API_BASE_URL && api.available
+          if (sel) {
+            if (!hasBackend) {
+              sel.innerHTML = '<option value="">— sem versionamento (modo local) —</option>'
+              sel.disabled = true
+              sel.dataset.status = 'RASCUNHO'
+            } else {
+              sel.disabled = false
+              sel.innerHTML = versions
+                .map((x) => {
+                  let t = `v${x.version_number} · ${VSTATUS[x.status] || x.status}`
+                  if (x.status === 'APROVADA') t += ' (vigente)'
+                  if (x.label) t += ` — ${truncate(x.label, 38)}`
+                  return `<option value="${x.version_number}">${esc(t)}</option>`
+                })
+                .join('')
+              if (v) {
+                sel.value = String(v.version_number)
+                sel.dataset.status = v.status
+              }
+            }
+          }
+          if (pill) {
+            if (v && hasBackend) {
+              pill.style.display = ''
+              pill.dataset.status = v.status
+              pill.textContent = `v${v.version_number} · ${VSTATUS[v.status] || v.status}`
+              pill.title = 'Versão carregada no editor'
+            } else {
+              pill.style.display = 'none'
+            }
+          }
+          if (tag) tag.style.display = v && v.status === 'APROVADA' ? '' : 'none'
+          const editable = canEditStructure()
+          const inApproval = !!v && v.status === 'EM_APROVACAO'
+          const setDis = (id, dis) => {
+            const b = $('#' + id)
+            if (b) b.disabled = !!dis
+          }
+          setDis('btnNew', !editable)
+          setDis('btnNewDraft', !hasBackend)
+          setDis('btnCloneDraft', !hasBackend)
+          setDis('btnSendAppr', !hasBackend || !v || v.status !== 'RASCUNHO')
+          setDis('btnApprove', !hasBackend || !inApproval)
+          setDis('btnReject', !hasBackend || !inApproval)
+          if (banner) {
+            if (!hasBackend || !v) {
+              banner.classList.remove('show')
+            } else {
+              banner.classList.toggle('ok', v.status === 'APROVADA')
+              let msg = ''
+              if (v.status === 'RASCUNHO')
+                msg = `✏️ Editando o rascunho <b>v${v.version_number}</b> — as alterações são salvas na versão; o ATS segue na versão vigente até a aprovação.`
+              else if (v.status === 'EM_APROVACAO')
+                msg = `⏳ <b>v${v.version_number}</b> em aprovação — aguardando decisão de <b>${esc(v.next_approver_role || 'aprovação')}</b> · visualização somente leitura.`
+              else if (v.status === 'APROVADA')
+                msg = `✅ <b>v${v.version_number}</b> é a versão vigente — publicada em ${fmtDT(v.published_at || v.created)} e espelhada no ATS. Edite a partir de um rascunho.`
+              else if (v.status === 'SUBSTITUIDA')
+                msg = `🗂 <b>v${v.version_number}</b> foi substituída — visualização somente leitura.`
+              else if (v.status === 'REJEITADA')
+                msg = `⛔ <b>v${v.version_number}</b> foi rejeitada${v.rejected_by ? ' por ' + esc(v.rejected_by) : ''}${v.rejection_reason ? ': “' + esc(v.rejection_reason) + '”' : ''}. Corrija em um novo rascunho.`
+              banner.innerHTML = msg
+              banner.classList.add('show')
+            }
+          }
+        }
+
+        /* ---------------- ações do workflow --------------------------------- */
+        async function createBlankDraft() {
+          try {
+            const me = actor()
+            const num = maxVersion() + 1
+            await versionAction({
+              version_number: num,
+              label: 'Novo rascunho',
+              status: 'RASCUNHO',
+              nodes_json: '[]',
+              company: company(),
+              created_by: me.name,
+              created_by_role: me.role === 'admin' ? 'Elaboração' : me.role,
+              next_approver_role: '',
+            })
+            await fetchVersions()
+            enterVersion(num)
+            toast(
+              `Rascunho vazio v${num} criado — adicione colaboradores ou clone uma versão existente.`,
+              'ok',
+            )
+          } catch (e) {
+            toast('Não foi possível criar o rascunho: ' + e.message, 'err')
+          }
+        }
+        async function cloneVersion(srcNum) {
+          try {
+            const me = actor()
+            await flushDraft()
+            await versionAction({
+              action: 'clone',
+              version_number: srcNum,
+              company: company(),
+              actor_name: me.name,
+              actor_role: me.role,
+              label: 'Cópia da v' + srcNum,
+            })
+            await fetchVersions()
+            const newest = versions[0]
+            enterVersion(newest ? newest.version_number : currentNum)
+            toast(`Rascunho v${newest.version_number} criado a partir da v${srcNum}.`, 'ok')
+          } catch (e) {
+            toast('Não foi possível clonar: ' + e.message, 'err')
+          }
+        }
+        function submitForApproval() {
+          const v = currentVersion()
+          if (!v || v.status !== 'RASCUNHO') return
+          const me = actor()
+          confirmAction(
+            'Enviar para aprovação',
+            `Enviar o rascunho <b>v${v.version_number}</b> ao fluxo de aprovação?<br>Sequência: <b>Gerente de RH</b> → <b>Gerente Administrativo</b> → publicação.`,
+            async () => {
+              try {
+                await flushDraft()
+                await versionAction({
+                  action: 'submit',
+                  version_number: v.version_number,
+                  company: v.company || company(),
+                  actor_name: me.name,
+                  actor_role: me.role,
+                })
+                await fetchVersions()
+                refreshVersionUI()
+                toast(`v${v.version_number} enviada — aguardando o Gerente de RH.`, 'ok')
+              } catch (e) {
+                toast('Não foi possível enviar: ' + e.message, 'err')
+              }
+            },
+          )
+        }
+        function approveCurrent() {
+          const v = currentVersion()
+          if (!v || v.status !== 'EM_APROVACAO') return
+          const me = actor()
+          if (v.created_by && v.created_by === me.name) {
+            toast('O autor não pode aprovar a própria versão.', 'err')
+            return
+          }
+          const expected = v.next_approver_role || 'Gerente de RH'
+          if (me.role !== expected && me.role !== 'admin') {
+            toast(`Aguardando decisão de ${expected} (seu perfil é ${me.role}).`, 'warn')
+            return
+          }
+          const isLast = expected === 'Gerente Administrativo'
+          confirmAction(
+            'Aprovar versão',
+            `Aprovar <b>v${v.version_number}</b> como <b>${esc(me.role)}</b>?` +
+              (isLast
+                ? '<br>✅ Última instância — a versão será <b>publicada</b> e passa a ser a vigente no ATS.'
+                : '<br>Depois ainda falta a aprovação do <b>Gerente Administrativo</b>.'),
+            async () => {
+              try {
+                await versionAction({
+                  action: 'approve',
+                  version_number: v.version_number,
+                  company: v.company || company(),
+                  actor_name: me.name,
+                  actor_role: me.role,
+                })
+                await fetchVersions()
+                refreshVersionUI()
+                toast(
+                  isLast
+                    ? `v${v.version_number} aprovada e publicada — agora é a versão vigente.`
+                    : 'Instância 1 aprovada — falta o Gerente Administrativo.',
+                  'ok',
+                )
+              } catch (e) {
+                toast('Não foi possível aprovar: ' + e.message, 'err')
+              }
+            },
+          )
+        }
+        function rejectCurrent() {
+          const v = currentVersion()
+          if (!v || v.status !== 'EM_APROVACAO') return
+          const me = actor()
+          if (v.created_by && v.created_by === me.name) {
+            toast('O autor não pode rejeitar a própria versão.', 'err')
+            return
+          }
+          const expected = v.next_approver_role || 'Gerente de RH'
+          if (me.role !== expected && me.role !== 'admin') {
+            toast(`Aguardando decisão de ${expected} (seu perfil é ${me.role}).`, 'warn')
+            return
+          }
+          rejectNum = v.version_number
+          $('#rejectInfo').innerHTML = `Versão <b>v${v.version_number}</b> — ${esc(
+            v.label || 'sem rótulo',
+          )}<br>A devolução retorna a versão para <b>RASCUNHO</b> e notifica o autor (${esc(
+            v.created_by || '—',
+          )}).`
+          $('#rejectReason').value = ''
+          $('#rejectErr').textContent = ''
+          $('#rejectModal').classList.add('open')
+        }
+        async function confirmReject() {
+          const reason = ($('#rejectReason').value || '').trim()
+          if (!reason) {
+            $('#rejectErr').textContent = 'A justificativa é obrigatória para rejeitar.'
+            return
+          }
+          const me = actor()
+          try {
+            await versionAction({
+              action: 'reject',
+              version_number: rejectNum,
+              company: company(),
+              actor_name: me.name,
+              actor_role: me.role,
+              reason,
+            })
+            $('#rejectModal').classList.remove('open')
+            await fetchVersions()
+            refreshVersionUI()
+            toast(`v${rejectNum} rejeitada — voltou para rascunho.`, 'ok')
+          } catch (e) {
+            $('#rejectErr').textContent = e.message
+          }
+        }
+
+        /* ---------------- timeline de versões ------------------------------- */
+        function decIcon(d) {
+          if (d === 'APROVADO') return '<span class="t-ok">✅</span>'
+          if (d === 'REJEITADO') return '<span class="t-no">⛔</span>'
+          return '•'
+        }
+        function renderTimeline() {
+          const box = $('#versionsContent')
+          if (!box) return
+          if (!API_BASE_URL || !api.available) {
+            box.innerHTML =
+              '<p class="ver-meta">Versionamento indisponível — abra o organograma pelo ATS (banco conectado).</p>'
+            return
+          }
+          if (!versions.length) {
+            box.innerHTML = '<p class="ver-meta">Nenhuma versão registrada ainda.</p>'
+            return
+          }
+          const byVersion = {}
+          for (const a of approvals)
+            (byVersion[a.version_number] = byVersion[a.version_number] || []).push(a)
+          box.innerHTML = versions
+            .map((v) => {
+              const trail = (byVersion[v.version_number] || [])
+                .slice()
+                .sort((a, b) => String(a.created).localeCompare(String(b.created)))
+                .map(
+                  (a) =>
+                    `<div>${decIcon(a.decision)} ${esc(STEP_LABEL[a.step] || a.step)} — <b>${esc(
+                      a.user_name || '—',
+                    )}</b> <span style="color:var(--muted)">(${esc(a.user_role || '—')} · ${fmtDT(
+                      a.created,
+                    )})</span>${a.comment ? `<br><span style="color:#475569">“${esc(a.comment)}”</span>` : ''}</div>`,
+                )
+                .join('')
+              return `<div class="ver-card">
+              <div class="ver-head"><b>v${v.version_number}</b>
+                <span class="vpill" data-status="${v.status}">${esc(VSTATUS[v.status] || v.status)}</span>
+                ${v.status === 'APROVADA' ? '<span class="chip same">vigente</span>' : ''}
+              </div>
+              <div class="ver-meta">${esc(v.label || 'sem rótulo')}<br>
+                Autor: <b>${esc(v.created_by || '—')}</b>${v.created_by_role ? ' · ' + esc(v.created_by_role) : ''}
+                · criada em ${fmtDT(v.created)}
+                ${v.published_at ? '<br>Publicada em ' + fmtDT(v.published_at) : ''}
+                ${v.status === 'EM_APROVACAO' && v.next_approver_role ? '<br>Aguardando: <b>' + esc(v.next_approver_role) + '</b>' : ''}
+              </div>
+              ${trail ? `<div class="trail">${trail}</div>` : ''}
+              <div class="ver-actions">
+                <button class="btn small" data-ver-load="${v.version_number}">👁 Carregar</button>
+                <button class="btn small" data-ver-clone="${v.version_number}">⧉ Clonar</button>
+              </div>
+            </div>`
+            })
+            .join('')
+          box
+            .querySelectorAll('[data-ver-load]')
+            .forEach((b) => b.addEventListener('click', () => enterVersion(+b.dataset.verLoad)))
+          box
+            .querySelectorAll('[data-ver-clone]')
+            .forEach((b) => b.addEventListener('click', () => cloneVersion(+b.dataset.verClone)))
+        }
+
+        /* ---------------- comparação lado a lado ---------------------------- */
+        function nodeLabel(n) {
+          return (n && (n.nome || n.cargo)) || '(sem nome)'
+        }
+        function gestorName(n, map) {
+          if (!n.parentId) return 'raiz'
+          const p = map.get(n.parentId)
+          return p ? p.nome || p.id : n.parentId
+        }
+        function fieldDiffs(na, nb, mapA, mapB) {
+          const out = []
+          for (const k of Object.keys(FIELD_LABEL)) {
+            const before =
+              k === 'parentId' ? gestorName(na, mapA) : na[k] == null ? '' : String(na[k])
+            const after =
+              k === 'parentId' ? gestorName(nb, mapB) : nb[k] == null ? '' : String(nb[k])
+            if (before !== after) out.push(`${FIELD_LABEL[k]}: ${before || '—'} → ${after || '—'}`)
+          }
+          return out
+        }
+        function fillCompareSelects() {
+          const a = $('#cmpA')
+          const b = $('#cmpB')
+          if (!a || !b) return
+          const opts = versions
+            .slice()
+            .sort((x, y) => x.version_number - y.version_number)
+            .map(
+              (v) =>
+                `<option value="${v.version_number}">v${v.version_number} · ${esc(
+                  VSTATUS[v.status] || v.status,
+                )}</option>`,
+            )
+            .join('')
+          a.innerHTML = opts
+          b.innerHTML = opts
+          const vig = versions.find((v) => v.status === 'APROVADA')
+          const other = versions.find((v) => v.status === 'RASCUNHO') || versions[0]
+          if (vig && other) {
+            a.value = String(vig.version_number)
+            b.value = String(other.version_number)
+          }
+          renderCompareDiff()
+        }
+        function renderCompareDiff() {
+          const a = $('#cmpA')
+          const b = $('#cmpB')
+          const out = $('#cmpContent')
+          if (!a || !b || !out) return
+          const va = versions.find((v) => v.version_number === +a.value)
+          const vb = versions.find((v) => v.version_number === +b.value)
+          if (!va || !vb) {
+            out.innerHTML = '<p class="ver-meta">Selecione duas versões para comparar.</p>'
+            return
+          }
+          const mapA = new Map((va.nodes || []).map((n) => [n.id, n]))
+          const mapB = new Map((vb.nodes || []).map((n) => [n.id, n]))
+          const rows = []
+          for (const [id, nb] of mapB) {
+            const na = mapA.get(id)
+            if (!na) {
+              rows.push({
+                type: 'add',
+                node: nb,
+                detail: `${nodeLabel(nb)} entrou na estrutura (gestor: ${gestorName(nb, mapB)})`,
+              })
+              continue
+            }
+            const diffs = fieldDiffs(na, nb, mapA, mapB)
+            if (!diffs.length) {
+              rows.push({ type: 'same', node: nb, detail: 'Sem alterações' })
+            } else {
+              const moved = diffs.length === 1 && diffs[0].startsWith('Gestor:')
+              rows.push({ type: moved ? 'mov' : 'chg', node: nb, detail: diffs.join('; ') })
+            }
+          }
+          for (const [id, na] of mapA)
+            if (!mapB.has(id))
+              rows.push({ type: 'rem', node: na, detail: `${nodeLabel(na)} saiu da estrutura` })
+          const count = (t) => rows.filter((r) => r.type === t).length
+          const ORDER = { rem: 0, add: 1, mov: 2, chg: 3, same: 4 }
+          rows.sort(
+            (x, y) =>
+              ORDER[x.type] - ORDER[y.type] ||
+              nodeLabel(x.node).localeCompare(nodeLabel(y.node), 'pt-BR'),
+          )
+          out.innerHTML = `
+          <div class="cmp-summary">
+            <span class="chip add">＋ ${count('add')} adicionados</span>
+            <span class="chip rem">− ${count('rem')} removidos</span>
+            <span class="chip mov">⇄ ${count('mov')} movidos</span>
+            <span class="chip chg">✎ ${count('chg')} alterados</span>
+            <span class="chip same">= ${count('same')} iguais</span>
+          </div>
+          <div class="ver-meta" style="margin-bottom:.5rem">
+            Comparando <b>v${va.version_number}</b> ${esc(VSTATUS[va.status] || '')} →
+            <b>v${vb.version_number}</b> ${esc(VSTATUS[vb.status] || '')}
+          </div>
+          <table class="cmp-table">
+            <thead><tr><th>Nó</th><th>Situação</th><th>Detalhe</th></tr></thead>
+            <tbody>
+              ${rows
+                .map(
+                  (r) => `<tr class="${r.type}">
+                    <td><b>${esc(nodeLabel(r.node))}</b><br><span class="fld">${esc(
+                      r.node.cargo || '',
+                    )}</span></td>
+                    <td>${TYPE_LABEL[r.type]}</td>
+                    <td>${esc(r.detail)}</td>
+                  </tr>`,
+                )
+                .join('')}
+            </tbody>
+          </table>`
+        }
+
+        /* ---------------- pendências por papel ------------------------------ */
+        function renderPending() {
+          const box = $('#pendingContent')
+          if (!box) return
+          if (!API_BASE_URL || !api.available) {
+            box.innerHTML =
+              '<p class="ver-meta">Versionamento indisponível — abra o organograma pelo ATS (banco conectado).</p>'
+            return
+          }
+          const me = actor()
+          const waiting = versions.filter((v) => v.status === 'EM_APROVACAO')
+          let html = ''
+          if (!waiting.length) {
+            html =
+              '<div class="pending-box" style="border-color:#6ee7b7;background:#ecfdf5"><h3>✅ Nada pendente</h3>Nenhum organograma aguarda decisão neste momento.</div>'
+          } else {
+            for (const role of ['Gerente de RH', 'Gerente Administrativo']) {
+              const list = waiting.filter((v) => (v.next_approver_role || '') === role)
+              if (!list.length) continue
+              html += `<div class="pending-box"><h3>⏳ ${esc(role)}${
+                me.role === role ? ' — é o seu perfil atual' : ''
+              }</h3>${list
+                .map(
+                  (v) =>
+                    `<div style="margin-bottom:.5rem"><b>v${v.version_number}</b> — ${esc(
+                      v.label || 'sem rótulo',
+                    )}<br><span style="color:var(--muted)">Autor: ${esc(
+                      v.created_by || '—',
+                    )} · enviado por ${esc(v.submitted_by || '—')} em ${fmtDT(
+                      v.submitted_at || v.created,
+                    )}</span></div>`,
+                )
+                .join('')}<div class="ver-actions">${list
+                .map(
+                  (v) =>
+                    `<button class="btn small" data-ver-load="${v.version_number}">👁 Carregar v${v.version_number}</button>`,
+                )
+                .join('')}</div></div>`
+            }
+          }
+          const drafts = versions.filter((v) => v.status === 'RASCUNHO')
+          if (drafts.length)
+            html += `<div class="ver-card"><div class="ver-head"><b>📝 Em elaboração (rascunhos)</b></div><div class="ver-meta">${drafts
+              .map(
+                (v) =>
+                  `v${v.version_number} — ${esc(v.label || 'sem rótulo')} · autor ${esc(
+                    v.created_by || '—',
+                  )}`,
+              )
+              .join('<br>')}</div></div>`
+          box.innerHTML = html
+          box
+            .querySelectorAll('[data-ver-load]')
+            .forEach((b) => b.addEventListener('click', () => enterVersion(+b.dataset.verLoad)))
+        }
+
+        /* ---------------- seletor de perfil (simulação) --------------------- */
+        function populateProfileSelect() {
+          const sel = $('#profileSelect')
+          if (!sel) return
+          let saved = null
+          try {
+            saved = localStorage.getItem(PROFILE_KEY)
+          } catch (e) {}
+          sel.innerHTML = ROLES.map(
+            (r) => `<option value="${r.id}">${esc(r.name)} · ${esc(r.role)}</option>`,
+          ).join('')
+          if (saved && ROLES.some((r) => r.id === saved)) sel.value = saved
+          sel.title =
+            'Perfil usado para enviar/aprovar/rejeitar versões (simulação — no backend vale a autenticação)'
+          sel.addEventListener('change', () => {
+            try {
+              localStorage.setItem(PROFILE_KEY, sel.value)
+            } catch (e) {}
+          })
+        }
+
+        /* ---------------- seed de exemplo (sem versões no banco) ------------ */
+        async function seedDemoVersions() {
+          const snap = state.nodes
+          const c = company()
+          const me = actor()
+          // v1: versão vigente (aprovada e publicada)
+          await versionAction({
+            version_number: 1,
+            label: 'Estrutura inicial',
+            status: 'APROVADA',
+            nodes_json: JSON.stringify(snap),
+            company: c,
+            created_by: currentUser(),
+            created_by_role: 'Elaboração',
+            next_approver_role: '',
+            published_at: new Date().toISOString(),
+          })
+          // trilha de exemplo da v1
+          const trailSeed = [
+            {
+              step: 'ENVIO',
+              decision: '—',
+              user_name: currentUser(),
+              user_role: 'Elaboração',
+              instance: 0,
+              comment: 'Envio inicial da estrutura.',
+            },
+            {
+              step: 'APROVACAO_1',
+              decision: 'APROVADO',
+              user_name: 'Fernanda Lima',
+              user_role: 'Gerente de RH',
+              instance: 1,
+              comment: '',
+            },
+            {
+              step: 'APROVACAO_2',
+              decision: 'APROVADO',
+              user_name: 'Beatriz Nunes',
+              user_role: 'Gerente Administrativo',
+              instance: 2,
+              comment: 'Estrutura consistente.',
+            },
+          ]
+          for (const t of trailSeed) {
+            try {
+              await fetch(APR_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ version_number: 1, company: c, ...t }),
+              })
+            } catch (e) {}
+          }
+          // v2: rascunho com uma alteração de exemplo (um nó novo + ajuste)
+          const draftNodes = JSON.parse(JSON.stringify(snap))
+          const target = draftNodes.find((n) => n.id === 'n7') || draftNodes[0]
+          if (target)
+            target.cargo = target.cargo === 'Gerente de RH' ? 'Gerente Sênior de RH' : target.cargo
+          draftNodes.push({
+            id: 'd1',
+            parentId: target ? target.id : null,
+            nome: 'Paula Menezes',
+            cargo: 'Coordenadora de DP',
+            area: (target && target.area) || 'RH',
+            email: 'paula.menezes@tecnobrasil.com.br',
+            localidade: 'São Paulo',
+            tipoContrato: 'CLT',
+            dataInicio: '2026-01-05',
+            status: 'ativo',
+            foto: '',
+          })
+          await versionAction({
+            version_number: 2,
+            label: 'Ajustes de estrutura',
+            status: 'RASCUNHO',
+            nodes_json: JSON.stringify(draftNodes),
+            company: c,
+            created_by: me.name,
+            created_by_role: 'Elaboração',
+            next_approver_role: '',
+          })
+        }
+
+        /* ---------------- init ---------------------------------------------- */
+        function bindUI() {
+          const on = (id, ev, fn) => {
+            const n = $('#' + id)
+            if (n) n.addEventListener(ev, fn)
+          }
+          on('verSel', 'change', (e) => {
+            const n = +e.target.value
+            if (n) enterVersion(n)
+          })
+          on('btnNewDraft', 'click', createBlankDraft)
+          on('btnCloneDraft', 'click', () => {
+            const v = currentVersion()
+            if (v) cloneVersion(v.version_number)
+          })
+          on('btnSendAppr', 'click', submitForApproval)
+          on('btnApprove', 'click', approveCurrent)
+          on('btnReject', 'click', rejectCurrent)
+          on('btnRejectYes', 'click', confirmReject)
+          on('btnTimeline', 'click', () => {
+            renderTimeline()
+            togglePanel('versionsPanel')
+          })
+          on('btnCompare', 'click', () => {
+            fillCompareSelects()
+            togglePanel('comparePanel')
+          })
+          on('btnPending', 'click', () => {
+            renderPending()
+            togglePanel('pendingPanel')
+          })
+          on('cmpA', 'change', renderCompareDiff)
+          on('cmpB', 'change', renderCompareDiff)
+        }
+        async function initVersioning() {
+          if (initialized) return
+          initialized = true
+          populateProfileSelect()
+          bindUI()
+          refreshVersionUI()
+          if (!API_BASE_URL) return
+          try {
+            await fetchVersions()
+            if (!versions.length) {
+              await seedDemoVersions()
+              await fetchVersions()
+            }
+            const vig = versions.find((v) => v.status === 'APROVADA') || versions[0]
+            if (vig) enterVersion(vig.version_number)
+            toast(`Versionamento ativo — ${versions.length} versão(ões) no banco.`, 'ok')
+          } catch (e) {
+            console.warn('[organograma] versionamento indisponível:', e)
+            refreshVersionUI()
+          }
+        }
+        window.orgInitVersioning = initVersioning
+      })()
     </script>
   </body>
 </html>
