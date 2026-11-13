@@ -1266,6 +1266,62 @@
       </div>
     </div>
 
+    <!-- Modal: iniciar processo seletivo no ATS a partir de nó de vaga aberta -->
+    <div class="modal-overlay" id="atsModal">
+      <div class="modal" style="max-width: 460px">
+        <header>
+          <h2 id="atsModalTitle">▶ Iniciar processo seletivo no ATS</h2>
+          <button class="close-x" data-close="atsModal">✕</button>
+        </header>
+        <div class="body">
+          <form id="atsForm" novalidate>
+            <p
+              style="
+                font-size: 0.76rem;
+                color: var(--muted);
+                margin: 0 0 0.75rem;
+                line-height: 1.45;
+              "
+            >
+              Cria a vaga no ATS como <b>rascunho</b>, vinculada a este nó. Complete os detalhes
+              (requisitos, salário, etapas) e publique por lá.
+            </p>
+            <div class="form-grid">
+              <div class="form-field full">
+                <label>Título da vaga <span class="req">*</span></label>
+                <input name="titulo" autocomplete="off" placeholder="Ex.: Analista de RH" />
+                <span class="err" data-err="titulo"></span>
+              </div>
+              <div class="form-field">
+                <label>Senioridade</label>
+                <select name="senioridade">
+                  <option value="">— Não informada —</option>
+                  <option value="intern">Estágio</option>
+                  <option value="junior">Júnior</option>
+                  <option value="mid">Pleno</option>
+                  <option value="senior">Sênior</option>
+                  <option value="lead">Líder</option>
+                  <option value="specialist">Especialista</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label>Localidade</label>
+                <input name="localidade" autocomplete="off" placeholder="Ex.: São Paulo / Remoto" />
+              </div>
+              <div class="form-field full">
+                <label>Área / Departamento</label>
+                <input name="area" autocomplete="off" placeholder="Ex.: Tecnologia" />
+              </div>
+            </div>
+          </form>
+        </div>
+        <footer>
+          <button class="btn" data-close="atsModal">Cancelar</button>
+          <button class="btn primary" id="btnAtsCreate">▶ Criar vaga no ATS</button>
+        </footer>
+      </div>
+    </div>
+
     <!-- Modal: confirmação -->
     <div class="modal-overlay" id="confirmModal">
       <div class="modal" style="max-width: 430px">
@@ -1374,9 +1430,19 @@
            localStorage (cache offline).
          - API indisponível: cai no modo localStorage atual (módulo separado).
          Ajuste API_BASE_URL se o organograma for servido de outro host. */
-      const API_BASE_URL = '' // ex.: 'https://seu-backend.goskip.app' — vazio = mesmo host
+      // O backend (PocketBase) roda em host próprio — informado pelo pai via
+      // querystring (?api=...), pois o iframe é servido na origem do app
+      // (estático, sem proxy /api).
+      const API_BASE_URL = (() => {
+        try {
+          const qs = new URLSearchParams(location.search)
+          return String(qs.get('api') || '').replace(/\/+$/, '')
+        } catch (e) {
+          return ''
+        }
+      })()
       const API_COLLECTION = '/api/collections/org_nodes/records'
-      const API_URL = API_BASE_URL.replace(/\/$/, '') + API_COLLECTION
+      const API_URL = API_BASE_URL + API_COLLECTION
       const api = {
         available: false,
         // id de record do PocketBase por node_key (id lógico do organograma)
@@ -1495,9 +1561,8 @@
         badge.dataset.mode = mode
         badge.querySelector('.lbl').textContent = text
       }
-      /** Salva no banco central quando disponível; localStorage é sempre o cache local. */
-      async function persist() {
-        store.save(state)
+      /** Envia o estado local ao banco central (diff por node_key). */
+      async function syncToCloud() {
         if (!api.available) return
         setSyncBadge('saving', 'Sincronizando…')
         try {
@@ -1512,19 +1577,6 @@
           }
           const hist = Array.isArray(state.history) ? state.history.slice(-1)[0] : null
           setSyncBadge('cloud', 'Sincronizado com o ATS' + (hist ? ' · ' + hist.oque : ''))
-          if (hist)
-            try {
-              await fetch(
-                API_BASE_URL.replace(/\/$/, '') + '/api/collections/org_sync_log/records',
-                {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ acao: hist.oque, autor: hist.autor }),
-                },
-              )
-            } catch (_) {
-              /* log de sync é best-effort */
-            }
         } catch (e) {
           api.available = false
           setSyncBadge('error', 'Banco indisponível — modo local')
@@ -2090,8 +2142,9 @@
       }
 
       /* ---------------- Persistência + histórico ------------------------------- */
-      function persist() {
+      async function persist() {
         store.save(state)
+        await syncToCloud()
       }
       function pushHistory(desc) {
         state.history.push({ quando: nowBR(), autor: currentUser(), oque: desc })
@@ -2457,6 +2510,7 @@
         }
         const parent = n.parentId ? nodeIndex.get(n.parentId) : null
         const subs = childrenOf(n.id).length
+        const showAts = n.status === 'vaga_aberta' && !n.jobId
         box.innerHTML = `
     <b>${esc(n.nome || 'Sem nome')}</b>
     <div>${esc(n.cargo || '—')} · ${esc(n.area || '—')}</div>
@@ -2469,7 +2523,8 @@
       <button class="btn small" data-act="edit">✎ Editar</button>
       <button class="btn small" data-act="focus">🎯 Ramo</button>
       <button class="btn small danger" data-act="del">🗑 Excluir</button>
-    </div>`
+    </div>
+    ${showAts ? '<div class="row-actions" style="margin-top:.35rem"><button class="btn small btn-ats" data-act="ats">▶ Iniciar processo seletivo no ATS</button></div>' : ''}`
         box.classList.add('show')
         box.querySelectorAll('[data-act]').forEach((b) =>
           b.addEventListener('click', () => {
@@ -2477,6 +2532,7 @@
             if (act === 'edit') openNodeModal(nodeIndex.get(selectedId))
             else if (act === 'focus') enterFocus(selectedId)
             else if (act === 'del') askDelete(selectedId)
+            else if (act === 'ats') startAtsJob(selectedId)
           }),
         )
       }
@@ -3698,12 +3754,193 @@
         viewport.appendChild(d)
       })()
 
+      /* ---------------- Ação ATS: iniciar processo seletivo a partir do nó -------- */
+      // O token do PocketBase vive no localStorage do PAI (mesma origem: o
+      // organograma roda em iframe do próprio app). Chave registrada pelo
+      // pocketbase js-sdk: 'pocketbase_auth' ({ token, record }).
+      function atsAuth() {
+        const out = { token: '', userId: '' }
+        try {
+          const raw = parent.localStorage.getItem('pocketbase_auth')
+          if (raw) {
+            const data = JSON.parse(raw)
+            out.token = (data && data.token) || ''
+            out.userId = (data && data.record && data.record.id) || ''
+          }
+        } catch (e) {
+          /* sem acesso ao parent (fora do iframe) ou sem sessão */
+        }
+        return out
+      }
+      function mapEmployment(t) {
+        const s = String(t || '').toLowerCase()
+        if (s.includes('estágio') || s === 'internship') return 'internship'
+        if (s.includes('tempor') || s === 'temporary') return 'temporary'
+        if (s === 'pj') return 'pj'
+        return 'clt'
+      }
+      // slug único: base derivada do título + sufixo curto (evita colisão no POST)
+      function slugify(t) {
+        return String(t)
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '')
+      }
+      let atsNodeId = null
+      function startAtsJob(nodeId) {
+        const n = nodeIndex.get(nodeId)
+        if (!n || n.status !== 'vaga_aberta' || n.jobId) return
+        if (!atsAuth().token) {
+          toast(
+            'Sessão do ATS não encontrada — abra o organograma pelo menu do ATS (logado).',
+            'err',
+            5000,
+          )
+          return
+        }
+        atsNodeId = nodeId
+        const form = $('#atsForm')
+        form.reset()
+        form.elements['titulo'].value = n.cargo || n.nome || ''
+        form.elements['senioridade'].value = 'mid'
+        form.elements['localidade'].value = n.localidade || ''
+        form.elements['area'].value = n.area || ''
+        document.querySelectorAll('#atsForm .err').forEach((s) => (s.textContent = ''))
+        $('#atsModal').classList.add('open')
+        form.elements['titulo'].focus()
+      }
+      async function submitAtsJob() {
+        const n = atsNodeId && nodeIndex.get(atsNodeId)
+        if (!n) return
+        const form = $('#atsForm')
+        const titulo = form.elements['titulo'].value.trim()
+        const errEl = document.querySelector('#atsForm [data-err="titulo"]')
+        if (errEl) errEl.textContent = ''
+        if (!titulo) {
+          if (errEl) errEl.textContent = 'Informe o título da vaga.'
+          return
+        }
+        const payload = {
+          title: titulo,
+          slug:
+            slugify(titulo) +
+            '-' +
+            Date.now().toString(36).slice(-4) +
+            Math.random().toString(36).slice(2, 4),
+          description:
+            'Posição aberta no organograma' +
+            (n.area ? ' — área ' + n.area : '') +
+            (n.localidade ? ', ' + n.localidade : '') +
+            '.',
+          department: form.elements['area'].value.trim(),
+          location: form.elements['localidade'].value.trim(),
+          seniority: form.elements['senioridade'].value || '',
+          status: 'draft',
+          employment_type: mapEmployment(n.tipoContrato),
+          source: 'manual',
+        }
+        const auth = atsAuth()
+        if (auth.userId) payload.created_by = auth.userId
+        const btn = $('#btnAtsCreate')
+        btn.disabled = true
+        btn.textContent = 'Criando…'
+        try {
+          const res = await fetch(API_BASE_URL + '/api/collections/jobs/records', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: auth.token,
+            },
+            body: JSON.stringify(payload),
+          })
+          if (!res.ok) {
+            const body = await res.json().catch(() => null)
+            throw new Error(
+              'HTTP ' + res.status + (body && body.message ? ' — ' + body.message : ''),
+            )
+          }
+          const job = await res.json()
+          n.jobId = job.id
+          $('#atsModal').classList.remove('open')
+          persist()
+          render()
+          toast('Vaga "' + titulo + '" criada no ATS como rascunho.', 'ok', 5000)
+          confirmAction(
+            'Processo seletivo criado no ATS',
+            `A vaga <b>${esc(titulo)}</b> foi criada como <b>rascunho</b> e vinculada ao nó.` +
+              `<br>Ao publicá-la no ATS, o nó passa a "vaga aberta" automaticamente.`,
+            () => {
+              try {
+                parent.location.href = parent.location.origin + '/vagas/editar/' + job.id
+              } catch (e) {
+                toast('Vaga criada: /vagas/editar/' + job.id, 'ok', 6000)
+              }
+            },
+          )
+        } catch (err) {
+          toast('Não foi possível criar a vaga no ATS: ' + err.message, 'err', 5000)
+        } finally {
+          btn.disabled = false
+          btn.textContent = '▶ Criar vaga no ATS'
+        }
+      }
+      $('#btnAtsCreate').addEventListener('click', submitAtsJob)
+      $('#atsForm').addEventListener('submit', (e) => {
+        e.preventDefault()
+        submitAtsJob()
+      })
+
       /* ---------------- Inicialização -------------------------------------------------- */
-      $('#companyName').textContent = state.company ? '· ' + state.company : ''
-      render()
-      populateFilterOptions()
-      // espera o layout assentar antes do ajuste inicial
-      requestAnimationFrame(() => requestAnimationFrame(fitScreen))
+      // Boot: tenta adotar o banco central. Se ele tem nós, prevalece sobre o
+      // localStorage (o banco é a fonte da verdade); exemplo de 33 nós só
+      // quando não há dados em lugar nenhum. API fora → modo local (o próximo
+      // persist() tenta ressincronizar).
+      ;(async () => {
+        try {
+          const recs = await api.list() // só é bem-sucedida com o backend respondendo
+          const local = store.load()
+          const hasLocal = local && Array.isArray(local.nodes) && local.nodes.length > 0
+          api.available = true
+          if (recs.length > 0) {
+            state = {
+              company: local?.company || '',
+              nodes: recs.map((n) => ({ ...n, foto: n.foto || '' })),
+              history:
+                local && Array.isArray(local.history) && local.history.length
+                  ? local.history
+                  : [
+                      {
+                        quando: nowBR(),
+                        autor: currentUser(),
+                        oque: 'Carregado do banco central do ATS.',
+                      },
+                    ],
+            }
+            $('#companyName').textContent = state.company ? '· ' + state.company : ''
+            persist()
+            toast('Organograma carregado do banco central (' + recs.length + ' nós).', 'ok')
+          } else if (hasLocal) {
+            $('#companyName').textContent = state.company ? '· ' + state.company : ''
+            await syncToCloud()
+            toast('Banco vazio — conteúdo local enviado ao ATS.', 'ok')
+          } else {
+            state = sampleData()
+            $('#companyName').textContent = state.company ? '· ' + state.company : ''
+            persist()
+            toast('Primeiro acesso: dados de exemplo salvos no banco central.', 'ok')
+          }
+        } catch (e) {
+          api.available = false
+          setSyncBadge('local', 'modo local')
+          console.warn('[organograma] banco indisponível, seguindo em modo local:', e)
+        }
+        render()
+        populateFilterOptions()
+        // espera o layout assentar antes do ajuste inicial
+        requestAnimationFrame(() => requestAnimationFrame(fitScreen))
+      })()
       window.addEventListener('resize', () => {
         /* mantém transform; o usuário pode usar Ajustar */
       })
