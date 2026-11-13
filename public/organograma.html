@@ -1,0 +1,3502 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Organograma Organizacional</title>
+    <style>
+      :root {
+        --accent: #4f46e5;
+        --accent-soft: #eef2ff;
+        --accent-border: #c7d2fe;
+        --bg: #f1f5f9;
+        --panel: #ffffff;
+        --text: #0f172a;
+        --muted: #64748b;
+        --line: #e2e8f0;
+        --danger: #dc2626;
+        --ok: #059669;
+        --warn: #d97706;
+        --radius: 12px;
+        --shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 4px 12px rgba(15, 23, 42, 0.08);
+        font-size: 15px;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        font-family:
+          'Segoe UI',
+          system-ui,
+          -apple-system,
+          Roboto,
+          Arial,
+          sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      button {
+        font-family: inherit;
+        cursor: pointer;
+      }
+      input,
+      select,
+      textarea {
+        font-family: inherit;
+        font-size: 0.9rem;
+        color: var(--text);
+      }
+      :focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+      }
+
+      /* ---------- Header ---------- */
+      .app-header {
+        background: var(--panel);
+        border-bottom: 1px solid var(--line);
+        padding: 0.55rem 0.9rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        z-index: 20;
+      }
+      .header-row {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        min-width: 0;
+      }
+      .brand .logo {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        background: var(--accent);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .brand h1 {
+        font-size: 0.98rem;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        white-space: nowrap;
+      }
+      .brand small {
+        display: block;
+        font-size: 0.68rem;
+        color: var(--muted);
+        font-weight: 400;
+      }
+      .spacer {
+        flex: 1;
+      }
+      .search-wrap {
+        position: relative;
+      }
+      .search-wrap input {
+        width: 250px;
+        padding: 0.45rem 0.7rem 0.45rem 2rem;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: #f8fafc;
+      }
+      .search-wrap input:focus {
+        background: #fff;
+        border-color: var(--accent-border);
+      }
+      .search-wrap svg {
+        position: absolute;
+        left: 0.55rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--muted);
+      }
+      .search-count {
+        font-size: 0.7rem;
+        color: var(--muted);
+        margin-left: 0.25rem;
+        white-space: nowrap;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.42rem 0.7rem;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: #fff;
+        color: var(--text);
+        font-size: 0.78rem;
+        font-weight: 600;
+        white-space: nowrap;
+        transition:
+          background 0.12s,
+          border-color 0.12s;
+      }
+      .btn:hover {
+        background: #f8fafc;
+        border-color: #cbd5e1;
+      }
+      .btn.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+      .btn.primary:hover {
+        background: #4338ca;
+      }
+      .btn.danger {
+        background: #fff;
+        border-color: #fecaca;
+        color: var(--danger);
+      }
+      .btn.danger:hover {
+        background: #fef2f2;
+      }
+      .btn.ghost {
+        border-color: transparent;
+        background: transparent;
+      }
+      .btn.ghost:hover {
+        background: #f1f5f9;
+      }
+      .btn.small {
+        padding: 0.3rem 0.55rem;
+        font-size: 0.72rem;
+      }
+      .btn.active {
+        background: var(--accent-soft);
+        border-color: var(--accent-border);
+        color: var(--accent);
+      }
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .zoom-ctl {
+        display: flex;
+        align-items: center;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: #fff;
+        overflow: hidden;
+      }
+      .zoom-ctl button {
+        border: none;
+        background: transparent;
+        padding: 0.4rem 0.55rem;
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .zoom-ctl button:hover {
+        background: #f1f5f9;
+      }
+      .zoom-ctl .pct {
+        font-size: 0.7rem;
+        color: var(--muted);
+        min-width: 42px;
+        text-align: center;
+        padding: 0 0.2rem;
+      }
+      .seg {
+        display: inline-flex;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: #fff;
+        overflow: hidden;
+      }
+      .seg button {
+        border: none;
+        background: transparent;
+        padding: 0.42rem 0.7rem;
+        font-size: 0.76rem;
+        font-weight: 600;
+        color: var(--muted);
+      }
+      .seg button + button {
+        border-left: 1px solid var(--line);
+      }
+      .seg button.active {
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+      .icon-btn-count {
+        background: var(--danger);
+        color: #fff;
+        border-radius: 99px;
+        font-size: 0.62rem;
+        min-width: 16px;
+        height: 16px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 4px;
+      }
+
+      /* ---------- Viewport ---------- */
+      #viewport {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+        background: radial-gradient(circle, #dbe2ea 1px, transparent 1px);
+        background-size: 24px 24px;
+        cursor: grab;
+        touch-action: none;
+      }
+      #viewport.panning {
+        cursor: grabbing;
+      }
+      #canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        transform-origin: 0 0;
+        will-change: transform;
+      }
+      #chart {
+        display: block;
+        overflow: visible;
+      }
+      .hint {
+        position: absolute;
+        bottom: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(15, 23, 42, 0.82);
+        color: #fff;
+        font-size: 0.72rem;
+        padding: 0.4rem 0.9rem;
+        border-radius: 99px;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.25s;
+        white-space: nowrap;
+      }
+      .hint.show {
+        opacity: 1;
+      }
+      .selected-info {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 0.6rem 0.75rem;
+        font-size: 0.75rem;
+        max-width: 240px;
+        display: none;
+      }
+      .selected-info.show {
+        display: block;
+      }
+      .selected-info b {
+        display: block;
+        font-size: 0.82rem;
+        margin-bottom: 0.15rem;
+      }
+      .selected-info .row-actions {
+        display: flex;
+        gap: 0.4rem;
+        margin-top: 0.5rem;
+      }
+
+      /* ---------- SVG nodes ---------- */
+      .node {
+        cursor: pointer;
+      }
+      .node .card {
+        transition: filter 0.15s;
+      }
+      .node:hover .card {
+        filter: brightness(0.97);
+      }
+      .node.focused .card {
+        stroke: var(--accent);
+        stroke-width: 2.5;
+      }
+      .node.dimmed {
+        opacity: 0.22;
+        pointer-events: none;
+      }
+      .node.search-hit .card {
+        stroke: var(--accent);
+        stroke-width: 2.5;
+        filter: drop-shadow(0 0 4px rgba(79, 70, 229, 0.55));
+      }
+      .node.drop-target .card {
+        stroke: var(--ok);
+        stroke-width: 3;
+        stroke-dasharray: 5 3;
+      }
+      .node.dragging {
+        opacity: 0.55;
+      }
+      .edge {
+        fill: none;
+        stroke: #b6c2d1;
+        stroke-width: 1.6;
+        transition: opacity 0.15s;
+      }
+      .edge.dimmed {
+        opacity: 0.15;
+      }
+
+      /* ---------- Panels ---------- */
+      .side-panel {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 330px;
+        background: var(--panel);
+        border-left: 1px solid var(--line);
+        box-shadow: -8px 0 24px rgba(15, 23, 42, 0.08);
+        transform: translateX(105%);
+        transition: transform 0.22s ease;
+        z-index: 15;
+        display: flex;
+        flex-direction: column;
+      }
+      .side-panel.open {
+        transform: translateX(0);
+      }
+      .side-panel header {
+        padding: 0.85rem 1rem;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .side-panel header h2 {
+        font-size: 0.92rem;
+      }
+      .side-panel .content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 0.9rem 1rem;
+      }
+      .metric-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.55rem;
+        margin-bottom: 1rem;
+      }
+      .metric {
+        background: #f8fafc;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 0.6rem 0.7rem;
+      }
+      .metric .num {
+        font-size: 1.25rem;
+        font-weight: 800;
+        color: var(--accent);
+        line-height: 1.1;
+      }
+      .metric .lbl {
+        font-size: 0.68rem;
+        color: var(--muted);
+        margin-top: 0.15rem;
+      }
+      .metric.wide {
+        grid-column: 1/-1;
+      }
+      .dist-title {
+        font-size: 0.78rem;
+        font-weight: 700;
+        margin: 0.9rem 0 0.45rem;
+      }
+      .bar-row {
+        display: grid;
+        grid-template-columns: 110px 1fr 34px;
+        align-items: center;
+        gap: 0.45rem;
+        margin-bottom: 0.32rem;
+        font-size: 0.72rem;
+      }
+      .bar-row .name {
+        color: var(--muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        text-align: right;
+      }
+      .bar-track {
+        background: #eef2f7;
+        border-radius: 99px;
+        height: 9px;
+        overflow: hidden;
+      }
+      .bar-fill {
+        height: 100%;
+        background: var(--accent);
+        border-radius: 99px;
+      }
+      .bar-row .val {
+        font-weight: 700;
+        font-size: 0.7rem;
+      }
+      .inc-list {
+        list-style: none;
+      }
+      .inc-list li {
+        border: 1px solid #fecaca;
+        background: #fff5f5;
+        border-radius: 9px;
+        padding: 0.5rem 0.6rem;
+        margin-bottom: 0.45rem;
+        font-size: 0.74rem;
+        display: flex;
+        gap: 0.45rem;
+      }
+      .inc-list li.ok {
+        border-color: #a7f3d0;
+        background: #f0fdf4;
+      }
+      .inc-list li svg {
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+      .inc-list .fix {
+        font-size: 0.68rem;
+        color: var(--muted);
+      }
+      .hist-item {
+        border-left: 3px solid var(--accent-border);
+        padding: 0.35rem 0 0.35rem 0.7rem;
+        margin-bottom: 0.6rem;
+        font-size: 0.75rem;
+      }
+      .hist-item .when {
+        font-size: 0.66rem;
+        color: var(--muted);
+        margin-bottom: 0.1rem;
+      }
+      .hist-item .who {
+        font-weight: 700;
+        font-size: 0.7rem;
+      }
+      .hist-item .what {
+        color: #334155;
+      }
+
+      /* ---------- Modals ---------- */
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.45);
+        z-index: 50;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 1.2rem;
+      }
+      .modal-overlay.open {
+        display: flex;
+      }
+      .modal {
+        background: var(--panel);
+        border-radius: 16px;
+        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.3);
+        width: 100%;
+        max-width: 560px;
+        max-height: 88vh;
+        display: flex;
+        flex-direction: column;
+        animation: pop 0.16s ease;
+      }
+      .modal.wide {
+        max-width: 860px;
+      }
+      @keyframes pop {
+        from {
+          transform: scale(0.96);
+          opacity: 0;
+        }
+        to {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+      .modal header {
+        padding: 0.95rem 1.15rem;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .modal header h2 {
+        font-size: 0.98rem;
+      }
+      .modal .body {
+        padding: 1rem 1.15rem;
+        overflow-y: auto;
+      }
+      .modal footer {
+        padding: 0.8rem 1.15rem;
+        border-top: 1px solid var(--line);
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+      .close-x {
+        border: none;
+        background: transparent;
+        color: var(--muted);
+        font-size: 1.15rem;
+        line-height: 1;
+        padding: 0.2rem;
+      }
+      .close-x:hover {
+        color: var(--text);
+      }
+      .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.7rem;
+      }
+      .form-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+      }
+      .form-field.full {
+        grid-column: 1/-1;
+      }
+      .form-field label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: #334155;
+      }
+      .form-field label .req {
+        color: var(--danger);
+      }
+      .form-field input,
+      .form-field select {
+        padding: 0.45rem 0.6rem;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: #f8fafc;
+        width: 100%;
+      }
+      .form-field input:focus,
+      .form-field select:focus {
+        background: #fff;
+        border-color: var(--accent-border);
+        outline: none;
+      }
+      .form-field .err {
+        font-size: 0.68rem;
+        color: var(--danger);
+      }
+      .form-field input.invalid,
+      .form-field select.invalid {
+        border-color: var(--danger);
+        background: #fff5f5;
+      }
+      .status-pills {
+        display: flex;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+      }
+      .status-pills button {
+        border: 1px solid var(--line);
+        border-radius: 99px;
+        padding: 0.3rem 0.7rem;
+        font-size: 0.72rem;
+        font-weight: 600;
+        background: #fff;
+        color: var(--muted);
+      }
+      .status-pills button.active {
+        background: var(--accent-soft);
+        border-color: var(--accent-border);
+        color: var(--accent);
+      }
+      .avatar-upload {
+        display: flex;
+        align-items: center;
+        gap: 0.7rem;
+      }
+      .avatar-preview {
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        background: var(--accent-soft);
+        color: var(--accent);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 0.95rem;
+        overflow: hidden;
+        flex-shrink: 0;
+        border: 1px solid var(--accent-border);
+      }
+      .avatar-preview img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .confirm-body {
+        display: flex;
+        gap: 0.8rem;
+        align-items: flex-start;
+      }
+      .confirm-body .warn-ic {
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        background: #fef2f2;
+        color: var(--danger);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .confirm-body p {
+        font-size: 0.85rem;
+        color: #334155;
+        line-height: 1.5;
+      }
+
+      /* ---------- Import wizard ---------- */
+      .wiz-steps {
+        display: flex;
+        gap: 0.4rem;
+        margin-bottom: 1rem;
+      }
+      .wiz-steps .step {
+        flex: 1;
+        text-align: center;
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: var(--muted);
+        padding: 0.4rem;
+        border-bottom: 3px solid var(--line);
+      }
+      .wiz-steps .step.active {
+        color: var(--accent);
+        border-bottom-color: var(--accent);
+      }
+      .map-table,
+      .prev-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.74rem;
+      }
+      .map-table th,
+      .map-table td,
+      .prev-table th,
+      .prev-table td {
+        border: 1px solid var(--line);
+        padding: 0.35rem 0.5rem;
+        text-align: left;
+        vertical-align: top;
+      }
+      .prev-table th {
+        background: #f8fafc;
+        position: sticky;
+        top: 0;
+      }
+      .map-table select {
+        width: 100%;
+        padding: 0.3rem 0.4rem;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: #fff;
+      }
+      .prev-table td.trunc {
+        max-width: 140px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .radio-line {
+        display: flex;
+        gap: 1rem;
+        font-size: 0.78rem;
+        margin: 0.4rem 0 0.9rem;
+      }
+      .radio-line label {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        cursor: pointer;
+      }
+      .file-drop {
+        border: 2px dashed var(--accent-border);
+        border-radius: 12px;
+        background: var(--accent-soft);
+        padding: 1.6rem;
+        text-align: center;
+        font-size: 0.8rem;
+        color: #4338ca;
+        cursor: pointer;
+      }
+      .file-drop:hover {
+        background: #e0e7ff;
+      }
+      .file-drop b {
+        display: block;
+        font-size: 0.9rem;
+        margin-bottom: 0.2rem;
+        color: var(--accent);
+      }
+      .drop-drag {
+        border-color: var(--accent);
+        background: #e0e7ff;
+      }
+
+      .node:focus-visible .card {
+        stroke: var(--accent);
+        stroke-width: 2.5;
+      }
+      .filter-menu {
+        position: absolute;
+        right: 0;
+        top: 110%;
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        box-shadow: var(--shadow);
+        min-width: 230px;
+        z-index: 30;
+        padding: 0.7rem;
+        display: none;
+      }
+      .filter-menu.open {
+        display: block;
+      }
+      .filter-menu label {
+        display: block;
+        font-size: 0.68rem;
+        font-weight: 700;
+        color: #334155;
+        margin: 0.4rem 0 0.15rem;
+      }
+      .filter-menu select {
+        width: 100%;
+        padding: 0.35rem 0.5rem;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+      }
+
+      /* ---------- Toast ---------- */
+      #toasts {
+        position: fixed;
+        bottom: 16px;
+        right: 16px;
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      .toast {
+        background: #0f172a;
+        color: #fff;
+        padding: 0.6rem 0.9rem;
+        border-radius: 10px;
+        font-size: 0.78rem;
+        box-shadow: var(--shadow);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        max-width: 340px;
+        animation: slidein 0.2s ease;
+      }
+      .toast.ok {
+        background: var(--ok);
+      }
+      .toast.err {
+        background: var(--danger);
+      }
+      .toast.warn {
+        background: var(--warn);
+      }
+      @keyframes slidein {
+        from {
+          transform: translateX(30px);
+          opacity: 0;
+        }
+        to {
+          transform: none;
+          opacity: 1;
+        }
+      }
+
+      .legend {
+        position: absolute;
+        bottom: 12px;
+        left: 12px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        box-shadow: var(--shadow);
+        padding: 0.5rem 0.7rem;
+        font-size: 0.68rem;
+        color: var(--muted);
+        display: flex;
+        gap: 0.9rem;
+      }
+      .legend span {
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+      }
+      .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 3px;
+        display: inline-block;
+      }
+
+      /* ---------- Print (exportar PDF) ---------- */
+      @media print {
+        body > * {
+          display: none !important;
+        }
+        #printArea {
+          display: block !important;
+          position: static;
+        }
+        #printArea svg {
+          width: 100%;
+          height: auto;
+        }
+      }
+      #printArea {
+        display: none;
+      }
+
+      @media (max-width: 820px) {
+        .search-wrap input {
+          width: 170px;
+        }
+        .side-panel {
+          width: 280px;
+        }
+        .form-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="header-row">
+        <div class="brand">
+          <div class="logo">
+            <svg
+              width="19"
+              height="19"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            >
+              <circle cx="12" cy="5" r="2.4" />
+              <circle cx="5" cy="19" r="2.4" />
+              <circle cx="19" cy="19" r="2.4" />
+              <path d="M12 7.5v4M12 11.5H5v5.1M12 11.5h7v5.1" />
+            </svg>
+          </div>
+          <div>
+            <h1>Organograma <span id="companyName"></span></h1>
+            <small>Gestão da estrutura organizacional · dados salvos neste navegador</small>
+          </div>
+        </div>
+        <div class="spacer"></div>
+        <div class="search-wrap">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="11" cy="11" r="7" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+          <input
+            id="searchInput"
+            type="search"
+            placeholder="Buscar nome, cargo ou área…"
+            aria-label="Buscar no organograma"
+          />
+        </div>
+        <span class="search-count" id="searchCount"></span>
+        <button
+          class="btn"
+          id="btnFocus"
+          title="Mostrar apenas o ramo do colaborador selecionado"
+          style="display: none"
+        >
+          🎯 Focar ramo
+        </button>
+        <button
+          class="btn ghost"
+          id="btnClearFocus"
+          title="Voltar à visão completa"
+          style="display: none"
+        >
+          ✕ Sair do foco
+        </button>
+      </div>
+      <div class="header-row">
+        <div class="seg" role="group" aria-label="Modo de exibição">
+          <button data-view="vertical" class="active" title="Vertical (top-down)">
+            ⬇ Vertical
+          </button>
+          <button data-view="horizontal" title="Horizontal (esquerda-direita)">➡ Horizontal</button>
+          <button data-view="compact" title="Compacto">▦ Compacto</button>
+        </div>
+        <div class="zoom-ctl">
+          <button id="zoomOut" aria-label="Diminuir zoom">−</button>
+          <span class="pct" id="zoomPct">100%</span>
+          <button id="zoomIn" aria-label="Aumentar zoom">+</button>
+        </div>
+        <button class="btn" id="btnFit" title="Ajustar à tela">⤢ Ajustar</button>
+        <div class="spacer"></div>
+        <div style="position: relative" id="filterWrap">
+          <button class="btn" id="btnFilters">
+            ⛏ Filtros <span class="icon-btn-count" id="filterBadge" style="display: none">0</span>
+          </button>
+          <div class="filter-menu" id="filterMenu">
+            <label for="fArea">Área / Departamento</label>
+            <select id="fArea">
+              <option value="">Todas</option>
+            </select>
+            <label for="fLoc">Localidade</label>
+            <select id="fLoc">
+              <option value="">Todas</option>
+            </select>
+            <label for="fContrato">Tipo de contrato</label>
+            <select id="fContrato">
+              <option value="">Todos</option>
+            </select>
+            <label for="fStatus">Status</label>
+            <select id="fStatus">
+              <option value="">Todos</option>
+              <option value="ativo">Ativo</option>
+              <option value="inativo">Inativo</option>
+              <option value="vaga_aberta">Vaga aberta</option>
+              <option value="temporaria">Temporária</option>
+            </select>
+            <button
+              class="btn small"
+              id="btnClearFilters"
+              style="margin-top: 0.6rem; width: 100%; justify-content: center"
+            >
+              ✕ Limpar filtros
+            </button>
+          </div>
+        </div>
+        <button class="btn" id="btnMetrics">📊 Métricas</button>
+        <button class="btn" id="btnInconsistencies">
+          ⚠️ Inconsistências
+          <span class="icon-btn-count" id="incCount" style="display: none">0</span>
+        </button>
+        <button class="btn" id="btnHistory">🕓 Histórico</button>
+        <button class="btn" id="btnImport">📥 Importar</button>
+        <div style="position: relative" id="exportWrap">
+          <button class="btn" id="btnExport">📤 Exportar ▾</button>
+          <div
+            id="exportMenu"
+            style="
+              display: none;
+              position: absolute;
+              right: 0;
+              top: 110%;
+              background: #fff;
+              border: 1px solid var(--line);
+              border-radius: 10px;
+              box-shadow: var(--shadow);
+              min-width: 180px;
+              z-index: 30;
+              overflow: hidden;
+            "
+          >
+            <button
+              class="btn ghost"
+              style="width: 100%; justify-content: flex-start; border-radius: 0"
+              id="expPng"
+            >
+              🖼️ Imagem PNG
+            </button>
+            <button
+              class="btn ghost"
+              style="
+                width: 100%;
+                justify-content: flex-start;
+                border-radius: 0;
+                border-top: 1px solid var(--line);
+              "
+              id="expPdf"
+            >
+              📄 PDF (imprimir)
+            </button>
+            <button
+              class="btn ghost"
+              style="
+                width: 100%;
+                justify-content: flex-start;
+                border-radius: 0;
+                border-top: 1px solid var(--line);
+              "
+              id="expCsv"
+            >
+              📋 Dados CSV
+            </button>
+          </div>
+        </div>
+        <button class="btn primary" id="btnNew">＋ Novo colaborador</button>
+        <button
+          class="btn ghost small"
+          id="btnReset"
+          title="Descarta as alterações e recarrega os dados de exemplo"
+        >
+          ↺ Restaurar exemplo
+        </button>
+      </div>
+    </header>
+
+    <div id="viewport">
+      <div id="canvas"><svg id="chart" xmlns="http://www.w3.org/2000/svg"></svg></div>
+      <div class="selected-info" id="selectedInfo"></div>
+      <div class="legend">
+        <span><i class="dot" style="background: #fff; border: 1.5px solid #94a3b8"></i> Ativo</span>
+        <span
+          ><i class="dot" style="background: #f1f5f9; border: 1.5px dashed #64748b"></i>
+          Inativo</span
+        >
+        <span
+          ><i class="dot" style="background: #fffbeb; border: 1.5px dashed #d97706"></i> Vaga
+          aberta</span
+        >
+        <span
+          ><i class="dot" style="background: #f5f3ff; border: 1.5px solid #7c3aed"></i>
+          Temporária</span
+        >
+        <span>Arraste um cartão até outro gestor para mudar o reporte · duplo clique edita</span>
+      </div>
+      <div class="hint" id="hint"></div>
+
+      <aside class="side-panel" id="metricsPanel" aria-label="Painel de métricas">
+        <header>
+          <h2>📊 Métricas da estrutura</h2>
+          <button class="close-x" data-close-panel="metricsPanel">✕</button>
+        </header>
+        <div class="content" id="metricsContent"></div>
+      </aside>
+
+      <aside class="side-panel" id="historyPanel" aria-label="Histórico de alterações">
+        <header>
+          <h2>🕓 Histórico de alterações</h2>
+          <button class="close-x" data-close-panel="historyPanel">✕</button>
+        </header>
+        <div class="content" id="historyContent"></div>
+      </aside>
+    </div>
+
+    <!-- Modal: formulário de nó -->
+    <div class="modal-overlay" id="nodeModal">
+      <div class="modal">
+        <header>
+          <h2 id="nodeModalTitle">Novo colaborador</h2>
+          <button class="close-x" data-close="nodeModal">✕</button>
+        </header>
+        <div class="body">
+          <form id="nodeForm" novalidate>
+            <div class="form-grid">
+              <div class="form-field full">
+                <label>Nome completo <span class="req">*</span></label>
+                <input name="nome" autocomplete="off" placeholder="Ex.: Maria Silva" />
+                <span class="err" data-err="nome"></span>
+              </div>
+              <div class="form-field">
+                <label>Cargo <span class="req">*</span></label>
+                <input name="cargo" autocomplete="off" placeholder="Ex.: Analista de RH" />
+                <span class="err" data-err="cargo"></span>
+              </div>
+              <div class="form-field">
+                <label>Área / Departamento <span class="req">*</span></label>
+                <input
+                  name="area"
+                  list="areaList"
+                  autocomplete="off"
+                  placeholder="Ex.: Tecnologia"
+                />
+                <datalist id="areaList"></datalist>
+                <span class="err" data-err="area"></span>
+              </div>
+              <div class="form-field full">
+                <label>Gestor imediato</label>
+                <select name="parentId">
+                  <option value="">— Sem gestor (raiz) —</option>
+                </select>
+                <span class="err" data-err="parentId"></span>
+              </div>
+              <div class="form-field">
+                <label>E-mail</label>
+                <input
+                  name="email"
+                  type="email"
+                  autocomplete="off"
+                  placeholder="nome@empresa.com.br"
+                />
+                <span class="err" data-err="email"></span>
+              </div>
+              <div class="form-field">
+                <label>Localidade</label>
+                <input
+                  name="localidade"
+                  list="locList"
+                  autocomplete="off"
+                  placeholder="Ex.: São Paulo / Remoto"
+                />
+                <datalist id="locList"></datalist>
+                <span class="err" data-err="localidade"></span>
+              </div>
+              <div class="form-field">
+                <label>Tipo de contrato</label>
+                <select name="tipoContrato">
+                  <option value="CLT">CLT</option>
+                  <option value="PJ">PJ</option>
+                  <option value="Estágio">Estágio</option>
+                  <option value="Temporário">Temporário</option>
+                  <option value="Aprendiz">Aprendiz</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label>Data de início</label>
+                <input name="dataInicio" type="date" />
+              </div>
+              <div class="form-field full">
+                <label>Status</label>
+                <div class="status-pills" id="statusPills">
+                  <button type="button" data-status="ativo" class="active">Ativo</button>
+                  <button type="button" data-status="inativo">Inativo</button>
+                  <button type="button" data-status="vaga_aberta">Vaga aberta</button>
+                  <button type="button" data-status="temporaria">Temporária</button>
+                </div>
+              </div>
+              <div class="form-field full">
+                <label>Foto (opcional)</label>
+                <div class="avatar-upload">
+                  <div class="avatar-preview" id="avatarPreview"></div>
+                  <input type="file" id="fotoInput" accept="image/*" style="font-size: 0.72rem" />
+                  <button type="button" class="btn small" id="btnRemoveFoto">Remover foto</button>
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+        <footer>
+          <button class="btn" data-close="nodeModal">Cancelar</button>
+          <button class="btn primary" id="btnSaveNode">💾 Salvar</button>
+        </footer>
+      </div>
+    </div>
+
+    <!-- Modal: confirmação -->
+    <div class="modal-overlay" id="confirmModal">
+      <div class="modal" style="max-width: 430px">
+        <header>
+          <h2 id="confirmTitle">Confirmar</h2>
+          <button class="close-x" data-close="confirmModal">✕</button>
+        </header>
+        <div class="body">
+          <div class="confirm-body">
+            <div class="warn-ic">
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+              >
+                <path d="M12 9v4M12 17h.01" />
+                <path
+                  d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"
+                />
+              </svg>
+            </div>
+            <p id="confirmText"></p>
+          </div>
+        </div>
+        <footer>
+          <button class="btn" data-close="confirmModal">Cancelar</button>
+          <button class="btn danger" id="btnConfirmYes">Sim, confirmar</button>
+        </footer>
+      </div>
+    </div>
+
+    <!-- Modal: importação -->
+    <div class="modal-overlay" id="importModal">
+      <div class="modal wide">
+        <header>
+          <h2>📥 Importar dados (CSV / XLSX simples)</h2>
+          <button class="close-x" data-close="importModal">✕</button>
+        </header>
+        <div class="body" id="importBody"></div>
+      </div>
+    </div>
+
+    <div id="toasts" aria-live="polite"></div>
+    <div id="printArea"></div>
+
+    <!-- defs compartilhados (sombra dos cartões) — referenciado por url(#cardShadow) -->
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true" focusable="false">
+      <defs>
+        <filter id="cardShadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow
+            dx="0"
+            dy="1.5"
+            stdDeviation="2.2"
+            flood-color="#0f172a"
+            flood-opacity="0.16"
+          />
+        </filter>
+      </defs>
+    </svg>
+
+    <script>
+      'use strict'
+      /* =====================================================================
+   Organograma Organizacional — app autocontido (sem dependências)
+   Modelo de dados: nó = { id, parentId, nome, cargo, area, email,
+   localidade, tipoContrato, dataInicio, status, foto? }
+   Persistência: localStorage — arquitetura pronta para trocar por API
+   (todas as leituras/escritas passam por store.* )
+   ===================================================================== */
+
+      /* ---------------- Store (camada de persistência — trocar por API aqui) --- */
+      const STORAGE_KEY = 'organograma.dados.v1'
+      const store = {
+        load() {
+          try {
+            const raw = localStorage.getItem(STORAGE_KEY)
+            if (raw) {
+              const data = JSON.parse(raw)
+              if (Array.isArray(data.nodes) && data.nodes.length) return data
+            }
+          } catch (e) {
+            /* dados corrompidos: recarrega exemplo */
+          }
+          return null
+        },
+        save(data) {
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+          } catch (e) {
+            toast('Não foi possível salvar no navegador (armazenamento cheio?)', 'err')
+          }
+        },
+        clear() {
+          localStorage.removeItem(STORAGE_KEY)
+        },
+      }
+
+      /* ---------------- Dados de exemplo (empresa fictícia brasileira) --------- */
+      const SAMPLE_COMPANY = 'TecnoBrasil Soluções Ltda.'
+      function sampleData() {
+        const mk = (
+          id,
+          parentId,
+          nome,
+          cargo,
+          area,
+          localidade,
+          tipoContrato,
+          dataInicio,
+          status,
+        ) => ({
+          id,
+          parentId,
+          nome,
+          cargo,
+          area,
+          email: status === 'vaga_aberta' ? '' : slugEmail(nome),
+          localidade,
+          tipoContrato,
+          dataInicio,
+          status,
+          foto: '',
+        })
+        const nodes = [
+          mk(
+            'n1',
+            null,
+            'Maria Silva',
+            'CEO',
+            'Diretoria',
+            'São Paulo',
+            'CLT',
+            '2015-03-02',
+            'ativo',
+          ),
+          mk(
+            'n2',
+            'n1',
+            'Carlos Mendes',
+            'Diretor Financeiro',
+            'Diretoria',
+            'São Paulo',
+            'CLT',
+            '2016-05-09',
+            'ativo',
+          ),
+          mk(
+            'n3',
+            'n1',
+            'Ana Souza',
+            'Diretora de RH',
+            'Diretoria',
+            'São Paulo',
+            'CLT',
+            '2016-01-11',
+            'ativo',
+          ),
+          mk(
+            'n4',
+            'n1',
+            'Paulo Oliveira',
+            'Diretor Comercial',
+            'Diretoria',
+            'Rio de Janeiro',
+            'CLT',
+            '2017-08-01',
+            'ativo',
+          ),
+          mk(
+            'n5',
+            'n1',
+            'João Costa',
+            'Diretor de Operações',
+            'Diretoria',
+            'Belo Horizonte',
+            'CLT',
+            '2015-07-20',
+            'ativo',
+          ),
+          mk(
+            'n6',
+            'n1',
+            'Ricardo Alves',
+            'Diretor de Tecnologia (CTO)',
+            'Diretoria',
+            'Remoto',
+            'PJ',
+            '2018-02-05',
+            'ativo',
+          ),
+          mk(
+            'n7',
+            'n3',
+            'Fernanda Lima',
+            'Gerente de RH',
+            'RH',
+            'São Paulo',
+            'CLT',
+            '2019-04-15',
+            'ativo',
+          ),
+          mk(
+            'n8',
+            'n7',
+            'Gabriel Santos',
+            'Analista de Recrutamento',
+            'RH',
+            'São Paulo',
+            'CLT',
+            '2021-09-06',
+            'ativo',
+          ),
+          mk(
+            'n9',
+            'n7',
+            'Larissa Rocha',
+            'Analista de DP',
+            'RH',
+            'São Paulo',
+            'CLT',
+            '2022-01-24',
+            'ativo',
+          ),
+          mk(
+            'n10',
+            'n7',
+            'A Definir',
+            'Analista de Treinamento',
+            'RH',
+            'São Paulo',
+            'CLT',
+            '',
+            'vaga_aberta',
+          ),
+          mk(
+            'n11',
+            'n2',
+            'Beatriz Nunes',
+            'Gerente Financeira',
+            'Financeiro',
+            'São Paulo',
+            'CLT',
+            '2018-10-01',
+            'ativo',
+          ),
+          mk(
+            'n12',
+            'n11',
+            'Tiago Pereira',
+            'Analista de Contas a Pagar',
+            'Financeiro',
+            'São Paulo',
+            'CLT',
+            '2022-03-14',
+            'ativo',
+          ),
+          mk(
+            'n13',
+            'n11',
+            'Camila Ferreira',
+            'Analista de Contas a Receber',
+            'Financeiro',
+            'Remoto',
+            'PJ',
+            '2023-06-05',
+            'ativo',
+          ),
+          mk(
+            'n14',
+            'n4',
+            'Marcos Antunes',
+            'Gerente Comercial',
+            'Comercial',
+            'Rio de Janeiro',
+            'CLT',
+            '2019-11-18',
+            'ativo',
+          ),
+          mk(
+            'n15',
+            'n14',
+            'Juliana Castro',
+            'Executiva de Vendas',
+            'Comercial',
+            'Rio de Janeiro',
+            'CLT',
+            '2020-02-03',
+            'ativo',
+          ),
+          mk(
+            'n16',
+            'n14',
+            'Rafael Dias',
+            'Executivo de Vendas',
+            'Comercial',
+            'São Paulo',
+            'CLT',
+            '2021-07-12',
+            'ativo',
+          ),
+          mk(
+            'n17',
+            'n14',
+            'Patrícia Gomes',
+            'Pré-Vendas (SDR)',
+            'Comercial',
+            'Remoto',
+            'Estágio',
+            '2024-01-08',
+            'ativo',
+          ),
+          mk(
+            'n18',
+            'n14',
+            'A Definir',
+            'Executivo de Vendas Interior',
+            'Comercial',
+            'Belo Horizonte',
+            'CLT',
+            '',
+            'vaga_aberta',
+          ),
+          mk(
+            'n19',
+            'n5',
+            'Sandra Ribeiro',
+            'Gerente de Operações',
+            'Operações',
+            'Belo Horizonte',
+            'CLT',
+            '2017-04-10',
+            'ativo',
+          ),
+          mk(
+            'n20',
+            'n19',
+            'Bruno Martins',
+            'Supervisor de Logística',
+            'Operações',
+            'Belo Horizonte',
+            'CLT',
+            '2020-08-17',
+            'ativo',
+          ),
+          mk(
+            'n21',
+            'n20',
+            'Aline Cardoso',
+            'Analista de Logística',
+            'Operações',
+            'Belo Horizonte',
+            'CLT',
+            '2022-05-02',
+            'ativo',
+          ),
+          mk(
+            'n22',
+            'n20',
+            'Diego Nunes',
+            'Operador de Centro de Distribuição',
+            'Operações',
+            'Belo Horizonte',
+            'CLT',
+            '2023-09-11',
+            'ativo',
+          ),
+          mk(
+            'n23',
+            'n19',
+            'Eduardo Prado',
+            'Supervisor de Produção',
+            'Operações',
+            'Belo Horizonte',
+            'CLT',
+            '2019-06-24',
+            'ativo',
+          ),
+          mk(
+            'n24',
+            'n23',
+            'Felícia Moraes',
+            'Assistente de Produção',
+            'Operações',
+            'Belo Horizonte',
+            'Temporário',
+            '2025-11-03',
+            'temporaria',
+          ),
+          mk(
+            'n25',
+            'n23',
+            'Gustavo Barros',
+            'Operador de Máquinas',
+            'Operações',
+            'Belo Horizonte',
+            'CLT',
+            '2021-02-15',
+            'ativo',
+          ),
+          mk(
+            'n26',
+            'n6',
+            'Helena Braga',
+            'Gerente de Engenharia',
+            'Tecnologia',
+            'Remoto',
+            'PJ',
+            '2019-01-21',
+            'ativo',
+          ),
+          mk(
+            'n27',
+            'n26',
+            'Igor Ramos',
+            'Tech Lead',
+            'Tecnologia',
+            'Remoto',
+            'PJ',
+            '2020-10-05',
+            'ativo',
+          ),
+          mk(
+            'n28',
+            'n27',
+            'Karen Farias',
+            'Desenvolvedora Sênior',
+            'Tecnologia',
+            'Remoto',
+            'PJ',
+            '2021-03-22',
+            'ativo',
+          ),
+          mk(
+            'n29',
+            'n27',
+            'Leandro Pires',
+            'Desenvolvedor Pleno',
+            'Tecnologia',
+            'São Paulo',
+            'CLT',
+            '2022-08-08',
+            'ativo',
+          ),
+          mk(
+            'n30',
+            'n27',
+            'Mônica Teixeira',
+            'Desenvolvedora Júnior',
+            'Tecnologia',
+            'São Paulo',
+            'Estágio',
+            '2024-07-01',
+            'ativo',
+          ),
+          mk(
+            'n31',
+            'n26',
+            'Nelson Brito',
+            'Engenheiro DevOps',
+            'Tecnologia',
+            'Remoto',
+            'PJ',
+            '2021-11-29',
+            'ativo',
+          ),
+          mk(
+            'n32',
+            'n26',
+            'A Definir',
+            'Analista de QA',
+            'Tecnologia',
+            'Remoto',
+            'CLT',
+            '',
+            'vaga_aberta',
+          ),
+          mk(
+            'n33',
+            'n26',
+            'Olívia Ramos',
+            'Analista de Suporte',
+            'Tecnologia',
+            'São Paulo',
+            'CLT',
+            '2020-04-13',
+            'inativo',
+          ),
+        ]
+        return { company: SAMPLE_COMPANY, nodes, history: [], seq: 34 }
+      }
+      function slugEmail(nome) {
+        const slug = (nome || '')
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase()
+          .replace(/[^a-z ]/g, '')
+          .trim()
+          .replace(/\s+/g, '.')
+        return slug ? slug + '@tecnobrasil.com.br' : ''
+      }
+
+      /* ---------------- Estado ------------------------------------------------ */
+      let state = store.load() || sampleData()
+      let view = 'vertical' // vertical | horizontal | compact
+      let transform = { x: 0, y: 0, k: 1 }
+      let selectedId = null
+      let focusRootId = null // visão focada em um ramo
+      let searchHits = new Set()
+      let filters = { area: '', localidade: '', tipoContrato: '', status: '' }
+      let editingId = null // id em edição no modal
+      let formStatus = 'ativo'
+      let formFoto = ''
+      let nodeIndex = new Map() // id -> node
+      let childrenMap = new Map() // id -> [nodes]
+      let currentConfirm = null
+
+      /* ---------------- Utilidades -------------------------------------------- */
+      const $ = (sel) => document.querySelector(sel)
+      const el = (tag, attrs = {}, children = []) => {
+        const n = document.createElementNS('http://www.w3.org/2000/svg', tag)
+        for (const [k, v] of Object.entries(attrs)) {
+          if (k === 'text') n.textContent = v
+          else n.setAttribute(k, v)
+        }
+        for (const c of children) n.appendChild(c)
+        return n
+      }
+      function esc(s) {
+        const d = document.createElement('div')
+        d.textContent = s == null ? '' : String(s)
+        return d.innerHTML
+      }
+      function initials(nome) {
+        const parts = (nome || '').trim().split(/\s+/).filter(Boolean)
+        if (!parts.length) return '?'
+        return (
+          (parts[0][0] || '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')
+        ).toUpperCase()
+      }
+      const AREA_COLORS = {
+        Diretoria: '#4f46e5',
+        RH: '#059669',
+        Financeiro: '#0284c7',
+        Comercial: '#d97706',
+        Operações: '#0891b2',
+        Tecnologia: '#7c3aed',
+      }
+      function areaColor(area) {
+        return AREA_COLORS[area] || '#64748b'
+      }
+      const STATUS_LABEL = {
+        ativo: 'Ativo',
+        inativo: 'Inativo',
+        vaga_aberta: 'Vaga aberta',
+        temporaria: 'Temporária',
+      }
+      function fmtDate(iso) {
+        if (!iso) return '—'
+        const [y, m, d] = iso.split('-')
+        return isNaN(+y) ? iso : `${d}/${m}/${y}`
+      }
+      function nowBR() {
+        return new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+      }
+      function currentUser() {
+        try {
+          return localStorage.getItem('organograma.autor') || 'Você'
+        } catch (e) {
+          return 'Você'
+        }
+      }
+      function truncate(s, n) {
+        s = s || ''
+        return s.length > n ? s.slice(0, n - 1) + '…' : s
+      }
+
+      /* ---------------- Consultas ao modelo ----------------------------------- */
+      function rebuildIndex() {
+        nodeIndex = new Map(state.nodes.map((n) => [n.id, n]))
+        childrenMap = new Map()
+        for (const n of state.nodes) {
+          const key = n.parentId || '__root__'
+          if (!childrenMap.has(key)) childrenMap.set(key, [])
+          childrenMap.get(key).push(n)
+        }
+        for (const list of childrenMap.values()) {
+          list.sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'))
+        }
+      }
+      function childrenOf(id) {
+        return childrenMap.get(id) || []
+      }
+      function descendantsOf(id) {
+        const out = []
+        const walk = (pid) => {
+          for (const c of childrenOf(pid)) {
+            out.push(c)
+            walk(c.id)
+          }
+        }
+        walk(id)
+        return out
+      }
+      function isDescendant(maybeChildId, ancestorId) {
+        let cur = nodeIndex.get(maybeChildId)
+        const guard = new Set()
+        while (cur && cur.parentId && !guard.has(cur.id)) {
+          guard.add(cur.id)
+          if (cur.parentId === ancestorId) return true
+          cur = nodeIndex.get(cur.parentId)
+        }
+        return false
+      }
+      function createsCycle(nodeId, newParentId) {
+        if (!newParentId) return false
+        if (newParentId === nodeId) return true // reportar a si mesma
+        return isDescendant(newParentId, nodeId) // reportar a um subordinado
+      }
+      function roots() {
+        return childrenOf('__root__')
+      }
+      function depthOf(node) {
+        let d = 0,
+          cur = node
+        const guard = new Set()
+        while (cur && cur.parentId && !guard.has(cur.id)) {
+          guard.add(cur.id)
+          cur = nodeIndex.get(cur.parentId)
+          d++
+        }
+        return d
+      }
+      /* ---------------- Referências DOM ---------------------------------------- */
+      const viewport = $('#viewport'),
+        canvasEl = $('#canvas'),
+        chartEl = $('#chart')
+      const zoomPct = $('#zoomPct'),
+        searchInput = $('#searchInput'),
+        searchCount = $('#searchCount')
+      const btnFocus = $('#btnFocus'),
+        btnClearFocus = $('#btnClearFocus')
+      const incCount = $('#incCount')
+
+      /* ---------------- Tamanhos por modo -------------------------------------- */
+      const SIZES = {
+        vertical: { w: 196, h: 66, levelGap: 92, sibGap: 18, av: 36 },
+        horizontal: { w: 196, h: 66, levelGap: 70, sibGap: 20, av: 36 },
+        compact: { w: 150, h: 46, levelGap: 58, sibGap: 10, av: 26 },
+      }
+
+      /* ---------------- Persistência + histórico ------------------------------- */
+      function persist() {
+        store.save(state)
+      }
+      function pushHistory(desc) {
+        state.history.push({ quando: nowBR(), autor: currentUser(), oque: desc })
+        if (state.history.length > 300) state.history.shift()
+        persist()
+      }
+
+      /* ---------------- Visibilidade (visão focada) ----------------------------- */
+      function visibleNodes() {
+        if (focusRootId && nodeIndex.has(focusRootId)) {
+          const root = nodeIndex.get(focusRootId)
+          return [root, ...descendantsOf(root.id)]
+        }
+        return state.nodes
+      }
+      function matchesFilters(n) {
+        if (filters.area && (n.area || '') !== filters.area) return false
+        if (filters.localidade && (n.localidade || '') !== filters.localidade) return false
+        if (filters.tipoContrato && (n.tipoContrato || '') !== filters.tipoContrato) return false
+        if (filters.status && n.status !== filters.status) return false
+        return true
+      }
+      function hasActiveFilters() {
+        return !!(filters.area || filters.localidade || filters.tipoContrato || filters.status)
+      }
+
+      /* ---------------- Layout -------------------------------------------------- */
+      let lastLayout = new Map() // id -> {x,y,w,h}
+      function computeLayout() {
+        const size = SIZES[view]
+        const horizontal = view === 'horizontal'
+        const visible = visibleNodes()
+        const visSet = new Set(visible.map((n) => n.id))
+        const crossSize = horizontal ? size.h : size.w // dimensão no eixo "de varredura"
+        const alongSize = horizontal ? size.w : size.h // dimensão no eixo da profundidade
+        const ext = new Map()
+        const kidsOf = (id) => childrenOf(id).filter((c) => visSet.has(c.id))
+        function measure(id) {
+          const kids = kidsOf(id)
+          let total = 0
+          for (const c of kids) total += measure(c.id)
+          if (kids.length) total += size.sibGap * (kids.length - 1)
+          const e = Math.max(crossSize, total)
+          ext.set(id, e)
+          return e
+        }
+        const layout = new Map()
+        let offset = 0,
+          maxAlong = 0,
+          maxCross = 0
+        const ROOT_GAP = 56
+        const rootList = roots().filter((r) => visSet.has(r.id))
+        for (const r of rootList) {
+          const e = measure(r.id)
+          place(r.id, offset, 0)
+          offset += e + ROOT_GAP
+          maxCross = Math.max(maxCross, offset - ROOT_GAP)
+        }
+        function place(id, crossStart, depth) {
+          const e = ext.get(id)
+          const kids = kidsOf(id)
+          let crossPos
+          if (kids.length) {
+            let tot = 0
+            for (const c of kids) tot += ext.get(c.id)
+            tot += size.sibGap * (kids.length - 1)
+            let c0 = crossStart + (e - tot) / 2
+            for (const c of kids) {
+              place(c.id, c0, depth + 1)
+              c0 += ext.get(c.id) + size.sibGap
+            }
+            crossPos = crossStart + (e - crossSize) / 2
+          } else {
+            crossPos = crossStart + (e - crossSize) / 2
+          }
+          const along = depth * (alongSize + size.levelGap)
+          maxAlong = Math.max(maxAlong, along + alongSize)
+          layout.set(
+            id,
+            horizontal
+              ? { x: along, y: crossPos, w: size.w, h: size.h }
+              : { x: crossPos, y: along, w: size.w, h: size.h },
+          )
+        }
+        const bounds = { w: Math.max(maxCross, 300), h: Math.max(maxAlong, 200) }
+        return { layout, bounds }
+      }
+
+      /* ---------------- Render -------------------------------------------------- */
+      function render() {
+        rebuildIndex()
+        const { layout, bounds } = computeLayout()
+        lastLayout = layout
+        chartEl.innerHTML = ''
+        chartEl.setAttribute('width', bounds.w)
+        chartEl.setAttribute('height', bounds.h)
+        chartEl.setAttribute('viewBox', `0 0 ${bounds.w} ${bounds.h}`)
+        const visible = visibleNodes()
+        const visSet = new Set(visible.map((n) => n.id))
+        const highlightActive = searchHits.size > 0 || hasActiveFilters()
+
+        const gEdges = el('g')
+        const horizontal = view === 'horizontal'
+        for (const n of visible) {
+          if (!n.parentId || !visSet.has(n.parentId)) continue
+          const p = layout.get(n.parentId),
+            c = layout.get(n.id)
+          if (!p || !c) continue
+          let d
+          if (horizontal) {
+            const x1 = p.x + p.w,
+              y1 = p.y + p.h / 2,
+              x2 = c.x,
+              y2 = c.y + c.h / 2
+            const mx = (x1 + x2) / 2
+            d = `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`
+          } else {
+            const x1 = p.x + p.w / 2,
+              y1 = p.y + p.h,
+              x2 = c.x + c.w / 2,
+              y2 = c.y
+            const my = (y1 + y2) / 2
+            d = `M ${x1} ${y1} C ${x1} ${my}, ${x2} ${my}, ${x2} ${y2}`
+          }
+          const dim =
+            highlightActive &&
+            ((searchHits.size && !searchHits.has(n.id)) ||
+              (hasActiveFilters() && !matchesFilters(n)))
+          const path = el('path', { d, class: 'edge' + (dim ? ' dimmed' : '') })
+          gEdges.appendChild(path)
+        }
+        chartEl.appendChild(gEdges)
+
+        const gNodes = el('g')
+        for (const n of visible) {
+          gNodes.appendChild(drawNode(n, layout.get(n.id), highlightActive, visSet))
+        }
+        chartEl.appendChild(gNodes)
+
+        updateSelectedInfo()
+        updateIncBadge()
+        updateSearchCount()
+        $('#emptyState') && ($('#emptyState').style.display = state.nodes.length ? 'none' : 'flex')
+        updateFilterBadge()
+      }
+      function drawNode(n, box, highlightActive, visSet) {
+        const size = SIZES[view]
+        const g = el('g', {
+          class: 'node',
+          'data-id': n.id,
+          tabindex: '0',
+          role: 'treeitem',
+          'aria-label': `${n.nome || 'Sem nome'}, ${n.cargo || 'sem cargo'}, ${n.area || 'sem área'}`,
+        })
+        if (!box) return g
+        g.setAttribute('transform', `translate(${box.x},${box.y})`)
+        const hit = searchHits.has(n.id)
+        const dim = highlightActive && !hit && !matchesFilters(n)
+        if (dim) g.setAttribute('class', 'node dimmed')
+        else if (hit) g.setAttribute('class', 'node search-hit')
+
+        const st = n.status
+        let fill = '#ffffff',
+          stroke = '#cbd5e1',
+          dash = ''
+        if (st === 'vaga_aberta') {
+          fill = '#fffbeb'
+          stroke = '#d97706'
+          dash = '5 3'
+        } else if (st === 'temporaria') {
+          fill = '#f5f3ff'
+          stroke = '#7c3aed'
+          dash = ''
+        } else if (st === 'inativo') {
+          fill = '#f1f5f9'
+          stroke = '#94a3b8'
+          dash = '4 3'
+        }
+
+        const card = el('rect', {
+          class: 'card',
+          width: size.w,
+          height: size.h,
+          rx: 12,
+          fill,
+          stroke,
+          'stroke-width': 1.4,
+          ...(dash ? { 'stroke-dasharray': dash } : {}),
+          filter: 'url(#cardShadow)',
+        })
+        if (st === 'inativo') card.setAttribute('opacity', '.82')
+        g.appendChild(card)
+        // faixa da área
+        g.appendChild(
+          el('rect', {
+            x: 1.5,
+            y: 10,
+            width: 4,
+            height: size.h - 20,
+            rx: 2,
+            fill: areaColor(n.area),
+          }),
+        )
+
+        // avatar
+        const av = size.av,
+          ax = 12,
+          ay = (size.h - av) / 2
+        const clipId = 'clip-' + n.id
+        const clip = el('clipPath', { id: clipId })
+        clip.appendChild(el('circle', { cx: ax + av / 2, cy: ay + av / 2, r: av / 2 }))
+        const defs = el('defs')
+        defs.appendChild(clip)
+        g.appendChild(defs)
+        if (n.foto) {
+          const img = el('image', {
+            href: n.foto,
+            x: ax,
+            y: ay,
+            width: av,
+            height: av,
+            'clip-path': `url(#${clipId})`,
+            preserveAspectRatio: 'xMidYMid slice',
+          })
+          g.appendChild(img)
+        } else {
+          g.appendChild(
+            el('circle', {
+              cx: ax + av / 2,
+              cy: ay + av / 2,
+              r: av / 2,
+              fill: st === 'vaga_aberta' ? '#fef3c7' : '#eef2ff',
+              stroke: st === 'vaga_aberta' ? '#d97706' : '#c7d2fe',
+              'stroke-width': 1,
+            }),
+          )
+          const init = el('text', {
+            x: ax + av / 2,
+            y: ay + av / 2,
+            'text-anchor': 'middle',
+            'dominant-baseline': 'central',
+            'font-size': av * 0.36,
+            'font-weight': 700,
+            fill: st === 'vaga_aberta' ? '#b45309' : '#4f46e5',
+            'font-family': 'inherit',
+          })
+          init.textContent = st === 'vaga_aberta' ? '+' : initials(n.nome)
+          g.appendChild(init)
+        }
+
+        const tx = ax + av + 9,
+          tw = size.w - tx - 8
+        const name = el('text', {
+          x: tx,
+          y: size.h * 0.34,
+          'font-size': view === 'compact' ? 11.5 : 13,
+          'font-weight': 700,
+          fill: '#0f172a',
+          'font-family': 'inherit',
+        })
+        name.textContent = truncate(n.nome || 'Sem nome', 16)
+        g.appendChild(name)
+        const role = el('text', {
+          x: tx,
+          y: size.h * 0.58,
+          'font-size': view === 'compact' ? 10 : 11,
+          fill: '#475569',
+          'font-family': 'inherit',
+        })
+        role.textContent = truncate(n.cargo || '—', 20)
+        g.appendChild(role)
+        const subs = childrenOf(n.id).length
+        const foot = el('text', {
+          x: tx,
+          y: size.h * 0.82,
+          'font-size': view === 'compact' ? 9 : 10,
+          fill: '#64748b',
+          'font-family': 'inherit',
+        })
+        foot.textContent =
+          truncate(n.area || '—', 13) +
+          '  ·  ' +
+          subs +
+          (subs === 1 ? ' subordinado' : ' subordinados')
+        g.appendChild(foot)
+        return g
+      }
+
+      /* ---------------- Zoom / pan ---------------------------------------------- */
+      function applyTransform() {
+        canvasEl.style.transform = `translate(${transform.x}px,${transform.y}px) scale(${transform.k})`
+        zoomPct.textContent = Math.round(transform.k * 100) + '%'
+      }
+      function fitScreen() {
+        const bb = chartEl.getBoundingClientRect()
+        const canvasRect = canvasEl.getBoundingClientRect()
+        const vw = viewport.clientWidth,
+          vh = viewport.clientHeight
+        const w = chartEl.getAttribute('width') * 1,
+          h = chartEl.getAttribute('height') * 1
+        if (!w || !h) return
+        const k = Math.min((vw - 60) / w, (vh - 60) / h, 1.25)
+        transform.k = Math.max(k, 0.12)
+        transform.x = (vw - w * transform.k) / 2
+        transform.y = (vh - h * transform.k) / 2
+        applyTransform()
+      }
+      function zoomAt(factor, cx, cy) {
+        const rect = viewport.getBoundingClientRect()
+        const px = cx == null ? rect.width / 2 : cx - rect.left
+        const py = cy == null ? rect.height / 2 : cy - rect.top
+        const k2 = Math.min(3, Math.max(0.12, transform.k * factor))
+        const ratio = k2 / transform.k
+        transform.x = px - (px - transform.x) * ratio
+        transform.y = py - (py - transform.y) * ratio
+        transform.k = k2
+        applyTransform()
+      }
+      viewport.addEventListener(
+        'wheel',
+        (e) => {
+          e.preventDefault()
+          zoomAt(Math.exp(-e.deltaY * 0.0016), e.clientX, e.clientY)
+        },
+        { passive: false },
+      )
+      $('#zoomIn').addEventListener('click', () => zoomAt(1.2))
+      $('#zoomOut').addEventListener('click', () => zoomAt(1 / 1.2))
+      $('#btnFit').addEventListener('click', fitScreen)
+
+      /* pan no fundo */
+      let pan = null
+      viewport.addEventListener('pointerdown', (e) => {
+        if (e.target.closest('.node') || e.target.closest('.side-panel')) return
+        pan = { x: e.clientX, y: e.clientY, tx: transform.x, ty: transform.y }
+        viewport.classList.add('panning')
+      })
+      window.addEventListener('pointermove', (e) => {
+        if (!pan) return
+        transform.x = pan.tx + (e.clientX - pan.x)
+        transform.y = pan.ty + (e.clientY - pan.y)
+        applyTransform()
+      })
+      window.addEventListener('pointerup', () => {
+        pan = null
+        viewport.classList.remove('panning')
+      })
+
+      /* ---------------- Seleção / detalhes -------------------------------------- */
+      function selectNode(id) {
+        selectedId = id
+        updateSelectedInfo()
+        btnFocus.style.display = id ? '' : 'none'
+        for (const g of chartEl.querySelectorAll('.node'))
+          g.classList.toggle('focused', g.dataset.id === id)
+      }
+      function updateSelectedInfo() {
+        const box = $('#selectedInfo')
+        const n = selectedId && nodeIndex.get(selectedId)
+        if (!n) {
+          box.classList.remove('show')
+          return
+        }
+        const parent = n.parentId ? nodeIndex.get(n.parentId) : null
+        const subs = childrenOf(n.id).length
+        box.innerHTML = `
+    <b>${esc(n.nome || 'Sem nome')}</b>
+    <div>${esc(n.cargo || '—')} · ${esc(n.area || '—')}</div>
+    <div style="color:var(--muted);margin-top:.15rem">
+      Gestor: ${esc(parent ? parent.nome : '— (raiz)')} ·
+      ${subs} subordinado${subs === 1 ? '' : 's'} direto${subs === 1 ? '' : 's'}
+    </div>
+    <div style="color:var(--muted)">${esc(n.localidade || '—')} · ${esc(n.tipoContrato || '—')} · início ${fmtDate(n.dataInicio)}</div>
+    <div class="row-actions">
+      <button class="btn small" data-act="edit">✎ Editar</button>
+      <button class="btn small" data-act="focus">🎯 Ramo</button>
+      <button class="btn small danger" data-act="del">🗑 Excluir</button>
+    </div>`
+        box.classList.add('show')
+        box.querySelectorAll('[data-act]').forEach((b) =>
+          b.addEventListener('click', () => {
+            const act = b.dataset.act
+            if (act === 'edit') openNodeModal(nodeIndex.get(selectedId))
+            else if (act === 'focus') enterFocus(selectedId)
+            else if (act === 'del') askDelete(selectedId)
+          }),
+        )
+      }
+      function enterFocus(id) {
+        focusRootId = id
+        selectedId = null
+        btnClearFocus.style.display = ''
+        render()
+        fitScreen()
+      }
+      btnClearFocus.addEventListener('click', () => {
+        focusRootId = null
+        btnClearFocus.style.display = 'none'
+        render()
+        fitScreen()
+      })
+
+      /* ---------------- Busca ---------------------------------------------------- */
+      function computeSearch() {
+        const q = searchInput.value.trim().toLowerCase()
+        searchHits = new Set()
+        if (!q) {
+          render()
+          return
+        }
+        const norm = (s) =>
+          (s || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+        for (const n of state.nodes) {
+          if (norm(n.nome).includes(q) || norm(n.cargo).includes(q) || norm(n.area).includes(q))
+            searchHits.add(n.id)
+        }
+        render()
+      }
+      searchInput.addEventListener('input', computeSearch)
+      searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && searchHits.size) {
+          const first = state.nodes.find((n) => searchHits.has(n.id))
+          if (first && lastLayout.has(first.id)) {
+            const b = lastLayout.get(first.id)
+            const vw = viewport.clientWidth,
+              vh = viewport.clientHeight
+            transform.k = Math.max(transform.k, 0.9)
+            transform.x = vw / 2 - (b.x + b.w / 2) * transform.k
+            transform.y = vh / 2 - (b.y + b.h / 2) * transform.k
+            applyTransform()
+            selectNode(first.id)
+          }
+        }
+      })
+      function updateSearchCount() {
+        const q = searchInput.value.trim()
+        searchCount.textContent = q
+          ? searchHits.size
+            ? `${searchHits.size} encontrado${searchHits.size === 1 ? '' : 's'}`
+            : 'nenhum resultado'
+          : ''
+      }
+
+      /* ---------------- Filtros -------------------------------------------------- */
+      function populateFilterOptions() {
+        const areas = [...new Set(state.nodes.map((n) => n.area).filter(Boolean))].sort((a, b) =>
+          a.localeCompare(b, 'pt-BR'),
+        )
+        const locs = [...new Set(state.nodes.map((n) => n.localidade).filter(Boolean))].sort(
+          (a, b) => a.localeCompare(b, 'pt-BR'),
+        )
+        const contratos = [
+          ...new Set(state.nodes.map((n) => n.tipoContrato).filter(Boolean)),
+        ].sort()
+        const fill = (sel, list, cur) => {
+          sel.innerHTML =
+            '<option value="">' +
+            (sel.id === 'fContrato'
+              ? 'Todos'
+              : sel.id === 'fLoc'
+                ? 'Todas'
+                : sel.id === 'fArea'
+                  ? 'Todas'
+                  : 'Todos') +
+            '</option>' +
+            list
+              .map(
+                (v) =>
+                  `<option value="${esc(v)}"${v === cur ? ' selected' : ''}>${esc(v)}</option>`,
+              )
+              .join('')
+        }
+        fill($('#fArea'), areas, filters.area)
+        fill($('#fLoc'), locs, filters.localidade)
+        fill($('#fContrato'), contratos, filters.tipoContrato)
+        fill($('#fStatus'), ['ativo', 'inativo', 'vaga_aberta', 'temporaria'], filters.status)
+        $('#fStatus')
+          .querySelectorAll('option')
+          .forEach((o) => {
+            if (o.value) o.textContent = STATUS_LABEL[o.value]
+          })
+      }
+      function updateFilterBadge() {
+        const count = [
+          filters.area,
+          filters.localidade,
+          filters.tipoContrato,
+          filters.status,
+        ].filter(Boolean).length
+        const b = $('#filterBadge')
+        b.style.display = count ? '' : 'none'
+        b.textContent = count
+      }
+      $('#btnFilters').addEventListener('click', (e) => {
+        e.stopPropagation()
+        populateFilterOptions()
+        $('#filterMenu').classList.toggle('open')
+        $('#exportMenu').style.display = 'none'
+      })
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('#filterWrap')) $('#filterMenu').classList.remove('open')
+        if (!e.target.closest('#exportWrap')) $('#exportMenu').style.display = 'none'
+      })
+      for (const [id, key] of [
+        ['fArea', 'area'],
+        ['fLoc', 'localidade'],
+        ['fContrato', 'tipoContrato'],
+        ['fStatus', 'status'],
+      ]) {
+        $('#' + id).addEventListener('change', (e) => {
+          filters[key] = e.target.value
+          render()
+        })
+      }
+      $('#btnClearFilters').addEventListener('click', () => {
+        filters = { area: '', localidade: '', tipoContrato: '', status: '' }
+        render()
+      })
+
+      /* ---------------- Modos de exibição ---------------------------------------- */
+      document.querySelectorAll('.seg button[data-view]').forEach((b) =>
+        b.addEventListener('click', () => {
+          document
+            .querySelectorAll('.seg button[data-view]')
+            .forEach((x) => x.classList.remove('active'))
+          b.classList.add('active')
+          view = b.dataset.view
+          render()
+          fitScreen()
+        }),
+      )
+
+      /* ---------------- Arrastar e soltar (mudar reporte) ------------------------ */
+      let drag = null
+      chartEl.addEventListener('pointerdown', (e) => {
+        const g = e.target.closest('.node')
+        if (!g) return
+        drag = { id: g.dataset.id, started: false, sx: e.clientX, sy: e.clientY, targetId: null }
+      })
+      window.addEventListener('pointermove', (e) => {
+        if (!drag) return
+        if (!drag.started) {
+          if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 6) return
+          drag.started = true
+          chartEl
+            .querySelector(`.node[data-id="${CSS.escape(drag.id)}"]`)
+            ?.classList.add('dragging')
+          showHint('Solte sobre o novo gestor · Esc cancela')
+        }
+        const p = clientToCanvas(e.clientX, e.clientY)
+        let target = null
+        for (const [id, b] of lastLayout) {
+          if (id === drag.id) continue
+          if (p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h) {
+            target = id
+            break
+          }
+        }
+        if (target !== drag.targetId) {
+          drag.targetId = target
+          for (const g of chartEl.querySelectorAll('.node.drop-target'))
+            g.classList.remove('drop-target')
+          if (target)
+            chartEl
+              .querySelector(`.node[data-id="${CSS.escape(target)}"]`)
+              ?.classList.add('drop-target')
+        }
+      })
+      window.addEventListener('pointerup', () => {
+        if (!drag) return
+        if (drag.started) {
+          chartEl
+            .querySelector(`.node[data-id="${CSS.escape(drag.id)}"]`)
+            ?.classList.remove('dragging')
+          for (const g of chartEl.querySelectorAll('.node.drop-target'))
+            g.classList.remove('drop-target')
+          hideHint()
+          if (drag.targetId) moveNode(drag.id, drag.targetId)
+          drag = null
+          return
+        }
+        const id = drag.id
+        drag = null
+        selectNode(id)
+      })
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          if (drag && drag.started) {
+            chartEl
+              .querySelector(`.node[data-id="${CSS.escape(drag.id)}"]`)
+              ?.classList.remove('dragging')
+            for (const g of chartEl.querySelectorAll('.node.drop-target'))
+              g.classList.remove('drop-target')
+            hideHint()
+          }
+          drag = null
+          pan = null
+          $('#filterMenu').classList.remove('open')
+          $('#exportMenu').style.display = 'none'
+        }
+      })
+      function clientToCanvas(cx, cy) {
+        const rect = viewport.getBoundingClientRect()
+        return {
+          x: (cx - rect.left - transform.x) / transform.k,
+          y: (cy - rect.top - transform.y) / transform.k,
+        }
+      }
+      function moveNode(id, newParentId) {
+        const n = nodeIndex.get(id)
+        const target = nodeIndex.get(newParentId)
+        if (!n || !target) return
+        if (n.parentId === newParentId) return
+        if (createsCycle(id, newParentId)) {
+          toast(
+            `Movimento inválido: ${n.nome || 'este nó'} não pode reportar-se a ${target.nome} (criaria um ciclo na hierarquia).`,
+            'err',
+          )
+          return
+        }
+        const before = n.parentId ? nodeIndex.get(n.parentId)?.nome || '—' : 'raiz'
+        n.parentId = newParentId
+        pushHistory(`Movimentação: ${n.nome} agora reporta-se a ${target.nome} (antes: ${before}).`)
+        persist()
+        render()
+        toast(`${n.nome} agora reporta-se a ${target.nome}.`, 'ok')
+      }
+      chartEl.addEventListener('dblclick', (e) => {
+        const g = e.target.closest('.node')
+        if (g) openNodeModal(nodeIndex.get(g.dataset.id))
+      })
+      /* acessibilidade por teclado nos nós */
+      chartEl.addEventListener('keydown', (e) => {
+        const g = e.target.closest('.node')
+        if (!g) return
+        const id = g.dataset.id
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          selectNode(id)
+        } else if (e.key.toLowerCase() === 'e') {
+          e.preventDefault()
+          openNodeModal(nodeIndex.get(id))
+        } else if (e.key === 'Delete') {
+          e.preventDefault()
+          askDelete(id)
+        }
+      })
+
+      /* ---------------- Hint ------------------------------------------------------ */
+      let hintTimer = null
+      function showHint(msg, ms = 2600) {
+        const h = $('#hint')
+        h.textContent = msg
+        h.classList.add('show')
+        clearTimeout(hintTimer)
+        if (ms) hintTimer = setTimeout(hideHint, ms)
+      }
+      function hideHint() {
+        $('#hint').classList.remove('show')
+      }
+
+      /* ---------------- Modal de nó ------------------------------------------------ */
+      function openNodeModal(node, presetParent) {
+        editingId = node ? node.id : null
+        formStatus = node ? node.status || 'ativo' : 'ativo'
+        formFoto = node ? node.foto || '' : ''
+        $('#nodeModalTitle').textContent = node ? 'Editar colaborador' : 'Novo colaborador'
+        const form = $('#nodeForm')
+        form.reset()
+        form.elements['nome'].value = node?.nome || ''
+        form.elements['cargo'].value = node?.cargo || ''
+        form.elements['area'].value = node?.area || ''
+        form.elements['email'].value = node?.email || ''
+        form.elements['localidade'].value = node?.localidade || ''
+        form.elements['tipoContrato'].value = node?.tipoContrato || 'CLT'
+        form.elements['dataInicio'].value = node?.dataInicio || ''
+        // opções de gestor (exclui o próprio nó e seus descendentes)
+        const sel = form.elements['parentId']
+        const exclude = new Set(node ? [node.id, ...descendantsOf(node.id).map((d) => d.id)] : [])
+        sel.innerHTML =
+          '<option value="">— Sem gestor (raiz) —</option>' +
+          state.nodes
+            .filter((n) => !exclude.has(n.id))
+            .sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'))
+            .map(
+              (n) =>
+                `<option value="${esc(n.id)}">${esc(n.nome || 'Sem nome')} — ${esc(n.cargo || 'sem cargo')}</option>`,
+            )
+            .join('')
+        sel.value = node ? node.parentId || '' : presetParent || selectedId || ''
+        // datalists
+        $('#areaList').innerHTML = [...new Set(state.nodes.map((n) => n.area).filter(Boolean))]
+          .sort()
+          .map((a) => `<option value="${esc(a)}">`)
+          .join('')
+        $('#locList').innerHTML = [...new Set(state.nodes.map((n) => n.localidade).filter(Boolean))]
+          .sort()
+          .map((a) => `<option value="${esc(a)}">`)
+          .join('')
+        // status pills
+        $('#statusPills')
+          .querySelectorAll('button')
+          .forEach((b) => b.classList.toggle('active', b.dataset.status === formStatus))
+        updateAvatarPreview()
+        document.querySelectorAll('#nodeForm .err').forEach((s) => (s.textContent = ''))
+        document
+          .querySelectorAll('#nodeForm .invalid')
+          .forEach((s) => s.classList.remove('invalid'))
+        $('#nodeModal').classList.add('open')
+        setTimeout(() => form.elements['nome'].focus(), 60)
+      }
+      $('#statusPills').addEventListener('click', (e) => {
+        const b = e.target.closest('button[data-status]')
+        if (!b) return
+        formStatus = b.dataset.status
+        $('#statusPills')
+          .querySelectorAll('button')
+          .forEach((x) => x.classList.toggle('active', x === b))
+      })
+      $('#fotoInput').addEventListener('change', (e) => {
+        const f = e.target.files && e.target.files[0]
+        if (!f) return
+        const reader = new FileReader()
+        reader.onload = () => {
+          formFoto = reader.result
+          updateAvatarPreview()
+        }
+        reader.readAsDataURL(f)
+      })
+      $('#btnRemoveFoto').addEventListener('click', () => {
+        formFoto = ''
+        $('#fotoInput').value = ''
+        updateAvatarPreview()
+      })
+      function updateAvatarPreview() {
+        const p = $('#avatarPreview')
+        p.innerHTML = formFoto ? `<img src="${formFoto}" alt="Prévia da foto" />` : esc(' ?')
+      }
+      document.querySelectorAll('[data-close]').forEach((b) =>
+        b.addEventListener('click', () => {
+          $('#' + b.dataset.close).classList.remove('open')
+        }),
+      )
+      document.querySelectorAll('[data-close-panel]').forEach((b) =>
+        b.addEventListener('click', () => {
+          $('#' + b.dataset.closePanel).classList.remove('open')
+        }),
+      )
+
+      $('#btnSaveNode').addEventListener('click', saveNode)
+      $('#nodeForm').addEventListener('submit', (e) => {
+        e.preventDefault()
+        saveNode()
+      })
+      function saveNode() {
+        const form = $('#nodeForm')
+        const v = {
+          nome: form.elements['nome'].value.trim(),
+          cargo: form.elements['cargo'].value.trim(),
+          area: form.elements['area'].value.trim(),
+          parentId: form.elements['parentId'].value || null,
+          email: form.elements['email'].value.trim(),
+          localidade: form.elements['localidade'].value.trim(),
+          tipoContrato: form.elements['tipoContrato'].value,
+          dataInicio: form.elements['dataInicio'].value,
+          status: formStatus,
+          foto: formFoto,
+        }
+        const errs = {}
+        if (!v.nome) errs.nome = 'Informe o nome.'
+        if (!v.cargo) errs.cargo = 'Informe o cargo.'
+        if (!v.area) errs.area = 'Informe a área.'
+        if (v.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.email)) errs.email = 'E-mail inválido.'
+        if (v.dataInicio && isNaN(Date.parse(v.dataInicio))) errs.dataInicio = 'Data inválida.'
+        if (v.parentId) {
+          if (editingId && createsCycle(editingId, v.parentId))
+            errs.parentId = 'Um nó não pode reportar-se a si mesmo ou a um subordinado (ciclo).'
+          else if (!editingId && v.parentId === editingId) errs.parentId = 'Ciclo inválido.'
+          else if (!nodeIndex.get(v.parentId)) errs.parentId = 'Gestor não encontrado.'
+        }
+        document.querySelectorAll('#nodeForm .err').forEach((s) => (s.textContent = ''))
+        document
+          .querySelectorAll('#nodeForm .invalid')
+          .forEach((s) => s.classList.remove('invalid'))
+        if (Object.keys(errs).length) {
+          for (const [k, msg] of Object.entries(errs)) {
+            const e = document.querySelector(`#nodeForm [data-err="${k}"]`)
+            if (e) e.textContent = msg
+            const input = form.elements[k]
+            if (input) input.classList.add('invalid')
+          }
+          toast('Corrija os campos destacados antes de salvar.', 'warn')
+          return
+        }
+        if (editingId) {
+          const n = nodeIndex.get(editingId)
+          const diffs = []
+          for (const k of [
+            'nome',
+            'cargo',
+            'area',
+            'parentId',
+            'email',
+            'localidade',
+            'tipoContrato',
+            'dataInicio',
+            'status',
+          ]) {
+            const before = n[k] == null ? '' : String(n[k])
+            const after = v[k] == null ? '' : String(v[k])
+            if (before !== after) {
+              const label =
+                k === 'parentId'
+                  ? 'Gestor'
+                  : {
+                      nome: 'Nome',
+                      cargo: 'Cargo',
+                      area: 'Área',
+                      email: 'E-mail',
+                      localidade: 'Localidade',
+                      tipoContrato: 'Contrato',
+                      dataInicio: 'Início',
+                      status: 'Status',
+                    }[k]
+              const fmt = (val) =>
+                k === 'parentId' ? nodeIndex.get(val)?.nome || (val ? '—' : 'raiz') : val || '—'
+              diffs.push(`${label}: ${fmt(before)} → ${fmt(after)}`)
+            }
+          }
+          Object.assign(n, v)
+          pushHistory(
+            diffs.length
+              ? `Edição de ${n.nome}: ${diffs.join('; ')}.`
+              : `Edição de ${n.nome} (foto).`,
+          )
+          toast('Colaborador atualizado.', 'ok')
+        } else {
+          const node = { id: 'u' + state.seq++, ...v }
+          state.nodes.push(node)
+          const gestor = v.parentId ? nodeIndex.get(v.parentId)?.nome : null
+          pushHistory(
+            `Criação: ${node.nome} (${node.cargo})${gestor ? ', reportando-se a ' + gestor : ', como raiz'}.`,
+          )
+          toast(`${node.nome} adicionado ao organograma.`, 'ok')
+          selectedId = node.id
+        }
+        persist()
+        $('#nodeModal').classList.remove('open')
+        render()
+        if (!editingId && lastLayout.has(selectedId)) {
+          const b = lastLayout.get(selectedId)
+          transform.x = viewport.clientWidth / 2 - (b.x + b.w / 2) * transform.k
+          transform.y = viewport.clientHeight / 2 - (b.y + b.h / 2) * transform.k
+          applyTransform()
+          updateSelectedInfo()
+        }
+      }
+
+      /* ---------------- Excluir ---------------------------------------------------- */
+      function askDelete(id) {
+        const n = nodeIndex.get(id)
+        if (!n) return
+        const desc = descendantsOf(id)
+        confirmAction(
+          'Excluir do organograma',
+          `Excluir <b>${esc(n.nome || 'este nó')}</b>${desc.length ? ` e <b>todos os ${desc.length} subordinados</b> abaixo dele` : ''}? Esta ação não pode ser desfeita.`,
+          () => {
+            const ids = new Set([id, ...desc.map((d) => d.id)])
+            state.nodes = state.nodes.filter((x) => !ids.has(x.id))
+            pushHistory(
+              `Exclusão: ${n.nome}${desc.length ? ` (com ${desc.length} subordinados)` : ''}.`,
+            )
+            if (selectedId && ids.has(selectedId)) selectNode(null)
+            if (focusRootId && ids.has(focusRootId)) {
+              focusRootId = null
+              btnClearFocus.style.display = 'none'
+            }
+            persist()
+            render()
+            fitScreen()
+            toast('Registro(s) excluído(s).', 'ok')
+          },
+        )
+      }
+      function confirmAction(title, html, onYes) {
+        $('#confirmTitle').textContent = title
+        $('#confirmText').innerHTML = html
+        currentConfirm = onYes
+        $('#confirmModal').classList.add('open')
+      }
+      $('#btnConfirmYes').addEventListener('click', () => {
+        $('#confirmModal').classList.remove('open')
+        if (currentConfirm) {
+          const fn = currentConfirm
+          currentConfirm = null
+          fn()
+        }
+      })
+
+      /* ---------------- Novo / restaurar ------------------------------------------ */
+      $('#btnNew').addEventListener('click', () => openNodeModal(null))
+      $('#btnReset').addEventListener('click', () => {
+        confirmAction(
+          'Restaurar dados de exemplo',
+          'Isso <b>descarta todas as alterações</b> salvas neste navegador e recarrega a empresa de exemplo. Continuar?',
+          () => {
+            store.clear()
+            state = sampleData()
+            persist()
+            render()
+            fitScreen()
+            toast('Dados de exemplo restaurados.', 'ok')
+          },
+        )
+      })
+
+      /* ---------------- Painéis (métricas / histórico) ----------------------------- */
+      function togglePanel(id) {
+        const p = $('#' + id)
+        const wasOpen = p.classList.contains('open')
+        document.querySelectorAll('.side-panel').forEach((x) => x.classList.remove('open'))
+        if (!wasOpen) p.classList.add('open')
+      }
+      $('#btnMetrics').addEventListener('click', () => {
+        renderMetrics()
+        togglePanel('metricsPanel')
+      })
+      $('#btnHistory').addEventListener('click', () => {
+        renderHistory()
+        togglePanel('historyPanel')
+      })
+      function renderMetrics() {
+        $('#metricsPanel h2').textContent = '📊 Métricas da estrutura'
+        const nodes = state.nodes
+        const ativos = nodes.filter((n) => n.status !== 'vaga_aberta').length
+        const vagas = nodes.filter((n) => n.status === 'vaga_aberta').length
+        const temporarias = nodes.filter((n) => n.status === 'temporaria').length
+        const inativos = nodes.filter((n) => n.status === 'inativo').length
+        const areas = [...new Set(nodes.map((n) => n.area).filter(Boolean))]
+        const gestores = nodes.filter((n) => childrenOf(n.id).length > 0)
+        const spanMedio = gestores.length
+          ? gestores.reduce((s, g) => s + childrenOf(g.id).length, 0) / gestores.length
+          : 0
+        const profundidade = nodes.length ? Math.max(...nodes.map((n) => depthOf(n))) + 1 : 0
+        const byArea = countBy(nodes.map((n) => n.area || '(sem área)'))
+        const byLoc = countBy(nodes.map((n) => n.localidade || '(sem localidade)'))
+        const bar = (rows) =>
+          rows
+            .map(([k, v]) => {
+              const pct = Math.round((v / Math.max(1, nodes.length)) * 100)
+              return `<div class="bar-row"><span class="name" title="${esc(k)}">${esc(k)}</span>
+      <span class="bar-track"><span class="bar-fill" style="width:${pct}%"></span></span>
+      <span class="val">${v}</span></div>`
+            })
+            .join('')
+        $('#metricsContent').innerHTML = `
+    <div class="metric-grid">
+      <div class="metric"><div class="num">${ativos}</div><div class="lbl">Colaboradores (excl. vagas)</div></div>
+      <div class="metric"><div class="num">${areas.length}</div><div class="lbl">Áreas / departamentos</div></div>
+      <div class="metric"><div class="num">${vagas}</div><div class="lbl">Vagas abertas</div></div>
+      <div class="metric"><div class="num">${spanMedio.toFixed(1)}</div><div class="lbl">Span of control médio</div></div>
+      <div class="metric"><div class="num">${profundidade}</div><div class="lbl">Profundidade da hierarquia</div></div>
+      <div class="metric"><div class="num">${nodes.length}</div><div class="lbl">Total de nós</div></div>
+      <div class="metric"><div class="num">${temporarias}</div><div class="lbl">Posições temporárias</div></div>
+      <div class="metric"><div class="num">${inativos}</div><div class="lbl">Inativos</div></div>
+    </div>
+    <div class="dist-title">Distribuição por área</div>${bar(Object.entries(byArea).sort((a, b) => b[1] - a[1]))}
+    <div class="dist-title">Distribuição por localidade</div>${bar(Object.entries(byLoc).sort((a, b) => b[1] - a[1]))}`
+      }
+      function countBy(arr) {
+        const m = {}
+        for (const v of arr) m[v] = (m[v] || 0) + 1
+        return m
+      }
+      function renderHistory() {
+        const list = [...state.history].reverse()
+        $('#historyContent').innerHTML = list.length
+          ? list
+              .map(
+                (h) => `<div class="hist-item"><div class="when">${esc(h.quando)}</div>
+        <div class="who">${esc(h.autor)}</div><div class="what">${esc(h.oque)}</div></div>`,
+              )
+              .join('')
+          : '<p style="font-size:.8rem;color:var(--muted)">Nenhuma alteração registrada ainda. Edições, movimentações, criações e exclusões aparecem aqui com data, autor e o que mudou.</p>'
+      }
+
+      /* ---------------- Inconsistências -------------------------------------------- */
+      function detectInconsistencies() {
+        const issues = []
+        const rootsList = roots()
+        if (rootsList.length > 1) {
+          issues.push({
+            type: 'warn',
+            title: `${rootsList.length} raízes na hierarquia`,
+            detail:
+              'Nós sem gestor: ' +
+              rootsList.map((r) => r.nome || '(sem nome)').join(', ') +
+              '. Verifique se cada uma deveria ser independente.',
+          })
+        }
+        for (const n of state.nodes) {
+          if (n.parentId && !nodeIndex.has(n.parentId)) {
+            issues.push({
+              type: 'err',
+              title: `Nó órfão: ${n.nome || '(sem nome)'}`,
+              detail: `O gestor informado (id ${n.parentId}) não existe. ReDefina o gestor ou remova o vínculo.`,
+            })
+          }
+          if (!n.nome || !n.cargo || !n.area) {
+            const faltam = [!n.nome && 'nome', !n.cargo && 'cargo', !n.area && 'área'].filter(
+              Boolean,
+            )
+            issues.push({
+              type: 'err',
+              title: `Campos obrigatórios vazios em ${n.nome || '(sem nome)'}`,
+              detail: 'Faltam: ' + faltam.join(', ') + '.',
+            })
+          }
+        }
+        // ciclos
+        const inCycle = new Set()
+        for (const n of state.nodes) {
+          const seen = new Set()
+          let cur = n,
+            cyc = false
+          while (cur && cur.parentId) {
+            if (seen.has(cur.id) || cur.parentId === n.id) {
+              cyc = true
+              break
+            }
+            seen.add(cur.id)
+            cur = nodeIndex.get(cur.parentId)
+            if (!cur) break
+          }
+          if (cyc) inCycle.add(n.id)
+        }
+        if (inCycle.size) {
+          const names = state.nodes
+            .filter((n) => inCycle.has(n.id))
+            .map((n) => n.nome)
+            .join(', ')
+          issues.push({
+            type: 'err',
+            title: `Ciclo na hierarquia (${inCycle.size} nós)`,
+            detail:
+              'Envolvidos: ' + names + '. Ajuste os gestores para eliminar a referência circular.',
+          })
+        }
+        return issues
+      }
+      function updateIncBadge() {
+        const n = detectInconsistencies().length
+        incCount.style.display = n ? '' : 'none'
+        incCount.textContent = n
+      }
+      $('#btnInconsistencies').addEventListener('click', () => {
+        const issues = detectInconsistencies()
+        const icon = (t) =>
+          t === 'err'
+            ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>'
+            : '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>'
+        $('#metricsContent') && 0
+        // reutiliza painel de métricas com o conteúdo de inconsistências
+        $('#metricsPanel').querySelector('h2').textContent = '⚠ Inconsistências detectadas'
+        $('#metricsContent').innerHTML = issues.length
+          ? `<ul class="inc-list">${issues.map((i) => `<li class="${i.type === 'err' ? '' : 'ok'}">${icon(i.type)}<div><b>${esc(i.title)}</b><div class="fix">${esc(i.detail)}</div></div></li>`).join('')}</ul>`
+          : '<div class="inc-list"><li class="ok">' +
+            icon('ok') +
+            '<div><b>Nenhuma inconsistência encontrada.</b><div class="fix">A estrutura está consistente: sem órfãos, ciclos ou campos obrigatórios vazios.</div></div></li></div>'
+        togglePanel('metricsPanel')
+      })
+
+      /* ---------------- Toast ------------------------------------------------------- */
+      function toast(msg, type = 'ok') {
+        const t = document.createElement('div')
+        t.className = 'toast ' + type
+        t.textContent = msg
+        $('#toasts').appendChild(t)
+        setTimeout(() => {
+          t.style.opacity = '0'
+          t.style.transition = 'opacity .3s'
+          setTimeout(() => t.remove(), 320)
+        }, 3200)
+      }
+
+      /* ---------------- Importação (CSV) -------------------------------------------- */
+      const IMPORT_FIELDS = [
+        { key: 'nome', label: 'Nome *' },
+        { key: 'cargo', label: 'Cargo *' },
+        { key: 'area', label: 'Área *' },
+        { key: 'email', label: 'E-mail' },
+        { key: 'localidade', label: 'Localidade' },
+        { key: 'tipoContrato', label: 'Tipo de contrato' },
+        { key: 'dataInicio', label: 'Data de início' },
+        { key: 'status', label: 'Status' },
+        { key: 'gestor', label: 'Gestor (nome)' },
+      ]
+      let imp = { headers: [], rows: [], map: {}, mode: 'add' }
+      $('#btnImport').addEventListener('click', () => {
+        imp = { headers: [], rows: [], map: {}, mode: 'add' }
+        renderImportStep1()
+        $('#importModal').classList.add('open')
+      })
+
+      function renderImportStep1() {
+        $('#importBody').innerHTML = `
+    <div class="wiz-steps">
+      <div class="step active">1 · Arquivo</div><div class="step">2 · Mapeamento</div><div class="step">3 · Pré-visualizar</div>
+    </div>
+    <div class="file-drop" id="fileDrop" tabindex="0" role="button" aria-label="Selecionar arquivo CSV">
+      <b>Clique para escolher um arquivo CSV</b>
+      ou arraste-o aqui
+      <div style="font-size:.72rem;margin-top:.4rem;color:#64748b">
+        Formato aceito: <b>.csv</b> (separador vírgula, ponto-e-vírgula ou tabulação).<br>
+        Para planilhas do Excel: use <i>Arquivo → Salvar como → CSV UTF-8</i> e importe o CSV gerado.
+      </div>
+    </div>
+    <input type="file" id="fileInput" accept=".csv,.txt" style="display:none" />
+    <div style="margin-top:.9rem">
+      <label style="font-size:.72rem;font-weight:700;color:#334155">…ou cole o conteúdo CSV aqui</label>
+      <textarea id="pasteCsv" rows="5" style="width:100%;padding:.5rem;border:1px solid var(--line);border-radius:9px;font-family:monospace;font-size:.72rem" placeholder="nome;cargo;area;email;localidade;tipo_contrato;data_inicio;gestor&#10;Maria Silva;CEO;Diretoria;maria@empresa.com;São Paulo;CLT;02/03/2015;"></textarea>
+      <button class="btn primary" id="btnParsePaste" style="margin-top:.5rem">Usar texto colado</button>
+    </div>`
+        const drop = $('#fileDrop'),
+          input = $('#fileInput')
+        drop.addEventListener('click', () => input.click())
+        drop.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            input.click()
+          }
+        })
+        drop.addEventListener('dragover', (e) => {
+          e.preventDefault()
+          drop.classList.add('drop-drag')
+        })
+        drop.addEventListener('dragleave', () => drop.classList.remove('drop-drag'))
+        drop.addEventListener('drop', (e) => {
+          e.preventDefault()
+          drop.classList.remove('drop-drag')
+          const f = e.dataTransfer.files && e.dataTransfer.files[0]
+          if (f) readFile(f)
+        })
+        input.addEventListener('change', () => {
+          if (input.files[0]) readFile(input.files[0])
+        })
+        $('#btnParsePaste').addEventListener('click', () => {
+          const txt = $('#pasteCsv').value
+          if (!txt.trim()) {
+            toast('Cole algum conteúdo CSV primeiro.', 'warn')
+            return
+          }
+          ingestCSV(txt, 'texto colado')
+        })
+      }
+      function readFile(f) {
+        const name = (f.name || '').toLowerCase()
+        if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
+          toast(
+            'Arquivos .xlsx não são suportados nesta versão offline. No Excel, salve a planilha como CSV e importe o .csv.',
+            'err',
+            6000,
+          )
+          return
+        }
+        const reader = new FileReader()
+        reader.onload = () => ingestCSV(String(reader.result), f.name)
+        reader.readAsText(f, 'utf-8')
+      }
+      function ingestCSV(text, sourceName) {
+        const rows = parseCSV(text)
+        if (rows.length < 2) {
+          toast(
+            'Não foi possível ler linhas de dados do arquivo (precisa de cabeçalho + ao menos 1 linha).',
+            'err',
+          )
+          return
+        }
+        imp.headers = rows[0].map((h) => h.trim())
+        imp.rows = rows.slice(1)
+        imp.map = {}
+        for (const h of imp.headers) {
+          const hn = (h || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+          let guess = ''
+          if (hn.includes('nome') || hn === 'colaborador') guess = 'nome'
+          else if (
+            hn.includes('cargo') ||
+            hn.includes('função') ||
+            hn.includes('funcao') ||
+            hn.includes('titul')
+          )
+            guess = 'cargo'
+          else if (hn.includes('area') || hn.includes('depart') || hn.includes('setor'))
+            guess = 'area'
+          else if (hn.includes('email') || hn.includes('e-mail')) guess = 'email'
+          else if (
+            hn.includes('local') ||
+            hn.includes('cidade') ||
+            hn.includes('filial') ||
+            hn.includes('unidade')
+          )
+            guess = 'localidade'
+          else if (hn.includes('contrato') || hn.includes('regime')) guess = 'tipoContrato'
+          else if (hn.includes('inicio') || hn.includes('admiss') || hn.includes('data'))
+            guess = 'dataInicio'
+          else if (hn.includes('status') || hn.includes('situa')) guess = 'status'
+          else if (
+            hn.includes('gestor') ||
+            hn.includes('lider') ||
+            hn.includes('report') ||
+            hn.includes('chefe')
+          )
+            guess = 'gestor'
+          imp.map[h] = guess
+        }
+        renderImportStep2()
+        toast(`Arquivo "${sourceName}" lido: ${imp.rows.length} linha(s).`, 'ok')
+      }
+      function parseCSV(text) {
+        text = text.replace(/^\uFEFF/, '')
+        const nl = text.indexOf('\n')
+        const firstLine = nl === -1 ? text : text.slice(0, nl)
+        const counts = {
+          ',': (firstLine.match(/,/g) || []).length,
+          ';': (firstLine.match(/;/g) || []).length,
+          '\t': (firstLine.match(/\t/g) || []).length,
+        }
+        let delim = ','
+        let best = 0
+        for (const [d, c] of Object.entries(counts))
+          if (c > best) {
+            best = c
+            delim = d
+          }
+        const rows = []
+        let row = [],
+          cur = '',
+          inQ = false
+        for (let i = 0; i < text.length; i++) {
+          const ch = text[i]
+          if (inQ) {
+            if (ch === '"') {
+              if (text[i + 1] === '"') {
+                cur += '"'
+                i++
+              } else inQ = false
+            } else cur += ch
+          } else if (ch === '"') inQ = true
+          else if (ch === delim) {
+            row.push(cur)
+            cur = ''
+          } else if (ch === '\n') {
+            row.push(cur)
+            rows.push(row)
+            row = []
+            cur = ''
+          } else if (ch === '\r') {
+            /* ignora */
+          } else cur += ch
+        }
+        if (cur !== '' || row.length) {
+          row.push(cur)
+          rows.push(row)
+        }
+        return rows.filter((r) => r.some((c) => String(c).trim() !== ''))
+      }
+      function renderImportStep2() {
+        const opts = (sel) =>
+          '<option value="">— ignorar coluna —</option>' +
+          IMPORT_FIELDS.map(
+            (f) =>
+              `<option value="${f.key}"${f.key === sel ? ' selected' : ''}>${f.label}</option>`,
+          ).join('')
+        $('#importBody').innerHTML = `
+    <div class="wiz-steps">
+      <div class="step">1 · Arquivo</div><div class="step active">2 · Mapeamento</div><div class="step">3 · Pré-visualizar</div>
+    </div>
+    <p style="font-size:.76rem;color:var(--muted);margin-bottom:.6rem">
+      Relacione cada coluna do arquivo a um campo do organograma. Campos marcados com * são obrigatórios
+      (linhas sem eles serão ignoradas na importação). A coluna <b>Gestor (nome)</b> vincula cada linha a um
+      colaborador já existente pelo nome exato.
+    </p>
+    <table class="map-table">
+      <thead><tr><th>Coluna do arquivo</th><th>Campo do organograma</th></tr></thead>
+      <tbody>
+        ${imp.headers
+          .map(
+            (h) => `<tr><td>${esc(h || '(coluna vazia)')}</td>
+          <td><select data-col="${esc(h)}">${opts(imp.map[h])}</select></td></tr>`,
+          )
+          .join('')}
+      </tbody>
+    </table>
+    <div class="radio-line" style="margin-top:.9rem">
+      <label><input type="radio" name="impMode" value="add" checked> Adicionar à estrutura atual</label>
+      <label><input type="radio" name="impMode" value="replace"> Substituir todos os dados</label>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:.5rem;margin-top:.6rem">
+      <button class="btn" id="btnImpBack1">← Voltar</button>
+      <button class="btn primary" id="btnImpPreview">Pré-visualizar →</button>
+    </div>`
+        $('#btnImpBack1').addEventListener('click', renderImportStep1)
+        $('#btnImpPreview').addEventListener('click', () => {
+          for (const sel of document.querySelectorAll('#importBody select[data-col]')) {
+            imp.map[sel.dataset.col] = sel.value
+          }
+          imp.mode = document.querySelector('input[name="impMode"]:checked').value
+          if (!Object.values(imp.map).includes('nome')) {
+            toast('Mapeie pelo menos uma coluna como Nome.', 'warn')
+            return
+          }
+          renderImportStep3()
+        })
+      }
+      function normalizeStatus(v) {
+        const s = (v || '')
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .trim()
+        if (!s) return 'ativo'
+        if (s.includes('vaga') || s.includes('aberta') || s.includes('aberto')) return 'vaga_aberta'
+        if (s.includes('tempor')) return 'temporaria'
+        if (s.includes('inat') || s.includes('afast') || s.includes('licen')) return 'inativo'
+        if (s.includes('at')) return 'ativo'
+        return 'ativo'
+      }
+      function parseDateBR(v) {
+        const s = (v || '').trim()
+        if (!s) return ''
+        if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
+        const m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/)
+        if (m) {
+          let y = m[3]
+          if (y.length === 2) y = '20' + y
+          return `${y}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`
+        }
+        return ''
+      }
+      function buildMappedNodes() {
+        const byName = new Map()
+        for (const n of state.nodes) byName.set((n.nome || '').trim().toLowerCase(), n.id)
+        const out = []
+        let skipped = 0,
+          unmatchedGestor = 0
+        for (const r of imp.rows) {
+          const rec = {}
+          for (const h of imp.headers) {
+            const key = imp.map[h]
+            if (key && key !== 'gestor') rec[key] = String(r[imp.headers.indexOf(h)] || '').trim()
+          }
+          const gestorName =
+            imp.map.__gestorCol != null
+              ? ''
+              : (() => {
+                  const h = imp.headers.find((hh) => imp.map[hh] === 'gestor')
+                  return h ? String(r[imp.headers.indexOf(h)] || '').trim() : ''
+                })()
+          if (!rec.nome || !rec.cargo || !rec.area) {
+            skipped++
+            continue
+          }
+          out.push({
+            nome: rec.nome,
+            cargo: rec.cargo,
+            area: rec.area,
+            email: rec.email || '',
+            localidade: rec.localidade || '',
+            tipoContrato: rec.tipoContrato || 'CLT',
+            dataInicio: parseDateBR(rec.dataInicio),
+            status: normalizeStatus(rec.status),
+            gestorName,
+          })
+          if (gestorName && !byName.has(gestorName.toLowerCase())) unmatchedGestor++
+        }
+        return { nodes: out, skipped, unmatchedGestor }
+      }
+      function renderImportStep3() {
+        const { nodes, skipped, unmatchedGestor } = buildMappedNodes()
+        const sample = nodes.slice(0, 6)
+        $('#importBody').innerHTML = `
+    <div class="wiz-steps">
+      <div class="step">1 · Arquivo</div><div class="step">2 · Mapeamento</div><div class="step active">3 · Pré-visualizar</div>
+    </div>
+    <p style="font-size:.78rem;margin-bottom:.5rem">
+      <b>${nodes.length}</b> linha(s) válidas para importação
+      (${imp.mode === 'replace' ? 'substituindo a estrutura atual' : 'adicionando à estrutura atual'}).
+      ${skipped ? `<span style="color:var(--warn)">${skipped} linha(s) serão ignoradas por falta de nome, cargo ou área.</span>` : ''}
+      ${unmatchedGestor ? `<span style="color:var(--warn)">${unmatchedGestor} linha(s) com gestor não encontrado ficarão sem gestor (raiz).</span>` : ''}
+    </p>
+    <div style="max-height:230px;overflow:auto;border:1px solid var(--line);border-radius:9px">
+      <table class="prev-table">
+        <thead><tr><th>Nome</th><th>Cargo</th><th>Área</th><th>E-mail</th><th>Localidade</th><th>Contrato</th><th>Início</th><th>Status</th><th>Gestor</th></tr></thead>
+        <tbody>
+          ${sample
+            .map(
+              (n) => `<tr>
+            <td class="trunc">${esc(n.nome)}</td><td class="trunc">${esc(n.cargo)}</td><td class="trunc">${esc(n.area)}</td>
+            <td class="trunc">${esc(n.email)}</td><td class="trunc">${esc(n.localidade)}</td><td>${esc(n.tipoContrato)}</td>
+            <td>${fmtDate(n.dataInicio)}</td><td>${STATUS_LABEL[n.status]}</td><td class="trunc">${esc(n.gestorName || '—')}</td>
+          </tr>`,
+            )
+            .join('')}
+        </tbody>
+      </table>
+    </div>
+    ${nodes.length > 6 ? `<p style="font-size:.7rem;color:var(--muted);margin-top:.3rem">Mostrando as 6 primeiras de ${nodes.length} linhas.</p>` : ''}
+    <div style="display:flex;justify-content:flex-end;gap:.5rem;margin-top:.9rem">
+      <button class="btn" id="btnImpBack2">← Voltar</button>
+      <button class="btn primary" id="btnImpConfirm" ${nodes.length ? '' : 'disabled'}>✔ Confirmar importação</button>
+    </div>`
+        $('#btnImpBack2').addEventListener('click', renderImportStep2)
+        $('#btnImpConfirm').addEventListener('click', () => {
+          const { nodes: list } = buildMappedNodes()
+          if (!list.length) return
+          if (imp.mode === 'replace') {
+            state.nodes = list.map((n) => ({
+              id: 'u' + state.seq++,
+              parentId: null,
+              foto: '',
+              ...n,
+              gestorName: n.gestorName,
+            }))
+            state.history = state.history.slice(-50)
+            pushHistory(`Importação: estrutura substituída por ${list.length} registro(s) do CSV.`)
+          } else {
+            const created = list.map((n) => ({
+              id: 'u' + state.seq++,
+              parentId: null,
+              foto: '',
+              ...n,
+            }))
+            state.nodes.push(...created)
+            pushHistory(`Importação: ${created.length} registro(s) adicionados do CSV.`)
+          }
+          // resolve gestores pelo nome
+          const byName = new Map(
+            state.nodes.map((n) => [(n.nome || '').trim().toLowerCase(), n.id]),
+          )
+          let vinculados = 0
+          for (const n of state.nodes) {
+            if (n.gestorName) {
+              const pid = byName.get(n.gestorName.toLowerCase())
+              if (pid && pid !== n.id) {
+                n.parentId = pid
+                vinculados++
+              }
+              delete n.gestorName
+            }
+          }
+          persist()
+          render()
+          fitScreen()
+          $('#importModal').classList.remove('open')
+          toast(
+            `Importação concluída: ${list.length} registro(s)${vinculados ? `, ${vinculados} vínculo(s) de gestor aplicado(s)` : ''}.`,
+            'ok',
+          )
+        })
+      }
+
+      /* ---------------- Exportação --------------------------------------------------- */
+      $('#btnExport').addEventListener('click', (e) => {
+        e.stopPropagation()
+        const m = $('#exportMenu')
+        m.style.display = m.style.display === 'block' ? 'none' : 'block'
+        $('#filterMenu').classList.remove('open')
+      })
+      function buildExportSVG() {
+        const clone = chartEl.cloneNode(true)
+        clone.querySelectorAll('[tabindex]').forEach((n) => n.removeAttribute('tabindex'))
+        clone
+          .querySelectorAll('.dimmed,.dragging,.drop-target,.focused')
+          .forEach((n) => n.setAttribute('class', 'node'))
+        const w = +chartEl.getAttribute('width'),
+          h = +chartEl.getAttribute('height')
+        clone.setAttribute('width', w)
+        clone.setAttribute('height', h)
+        clone.setAttribute('viewBox', `0 0 ${w} ${h}`)
+        const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+        bg.setAttribute('width', w)
+        bg.setAttribute('height', h)
+        bg.setAttribute('fill', '#ffffff')
+        clone.insertBefore(bg, clone.firstChild)
+        return { clone, w, h }
+      }
+      $('#expPng').addEventListener('click', () => {
+        $('#exportMenu').style.display = 'none'
+        const { clone, w, h } = buildExportSVG()
+        const xml = new XMLSerializer().serializeToString(clone)
+        const url = URL.createObjectURL(new Blob([xml], { type: 'image/svg+xml;charset=utf-8' }))
+        const img = new Image()
+        img.onload = () => {
+          const scale = Math.min(2, Math.max(1, 3500 / Math.max(w, h)))
+          const c = document.createElement('canvas')
+          c.width = Math.round(w * scale)
+          c.height = Math.round(h * scale)
+          const ctx = c.getContext('2d')
+          ctx.fillStyle = '#fff'
+          ctx.fillRect(0, 0, c.width, c.height)
+          ctx.drawImage(img, 0, 0, c.width, c.height)
+          URL.revokeObjectURL(url)
+          c.toBlob((blob) => {
+            if (!blob) {
+              toast('Falha ao gerar a imagem PNG.', 'err')
+              return
+            }
+            downloadBlob(blob, 'organograma.png')
+            toast('Imagem PNG exportada.', 'ok')
+          }, 'image/png')
+        }
+        img.onerror = () => {
+          URL.revokeObjectURL(url)
+          toast('Falha ao renderizar o PNG.', 'err')
+        }
+        img.src = url
+      })
+      $('#expPdf').addEventListener('click', () => {
+        $('#exportMenu').style.display = 'none'
+        const { clone } = buildExportSVG()
+        const area = $('#printArea')
+        area.innerHTML = ''
+        area.appendChild(clone)
+        toast('Use a janela de impressão e escolha \u201cSalvar como PDF\u201d.', 'ok', 4000)
+        setTimeout(() => {
+          window.print()
+        }, 250)
+      })
+      window.addEventListener('afterprint', () => {
+        $('#printArea').innerHTML = ''
+      })
+      $('#expCsv').addEventListener('click', () => {
+        $('#exportMenu').style.display = 'none'
+        const head = [
+          'id',
+          'gestor_id',
+          'gestor_nome',
+          'nome',
+          'cargo',
+          'area',
+          'email',
+          'localidade',
+          'tipo_contrato',
+          'data_inicio',
+          'status',
+        ]
+        const q = (v) => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`
+        const lines = [head.join(';')]
+        for (const n of state.nodes) {
+          const p = n.parentId ? nodeIndex.get(n.parentId) : null
+          lines.push(
+            [
+              n.id,
+              n.parentId || '',
+              p ? p.nome : '',
+              n.nome,
+              n.cargo,
+              n.area,
+              n.email,
+              n.localidade,
+              n.tipoContrato,
+              n.dataInicio,
+              n.status,
+            ]
+              .map(q)
+              .join(';'),
+          )
+        }
+        const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' })
+        downloadBlob(blob, 'organograma.csv')
+        toast('Dados exportados em CSV.', 'ok')
+      })
+      function downloadBlob(blob, filename) {
+        const a = document.createElement('a')
+        a.href = URL.createObjectURL(blob)
+        a.download = filename
+        document.body.appendChild(a)
+        a.click()
+        setTimeout(() => {
+          URL.revokeObjectURL(a.href)
+          a.remove()
+        }, 400)
+      }
+
+      /* ---------------- Estado vazio -------------------------------------------------- */
+      ;(function emptyState() {
+        const d = document.createElement('div')
+        d.id = 'emptyState'
+        d.style.cssText =
+          'position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:.6rem;text-align:center'
+        d.innerHTML = `<div style="font-size:2.2rem">🏢</div>
+    <b>Nenhum colaborador na estrutura</b>
+    <p style="font-size:.8rem;color:var(--muted);max-width:280px">Comece criando o primeiro nó ou importe uma lista em CSV.</p>
+    <div style="display:flex;gap:.5rem">
+      <button class="btn primary" onclick="document.getElementById('btnNew').click()">＋ Novo colaborador</button>
+      <button class="btn" onclick="document.getElementById('btnImport').click()">📥 Importar CSV</button>
+    </div>`
+        viewport.appendChild(d)
+      })()
+
+      /* ---------------- Inicialização -------------------------------------------------- */
+      $('#companyName').textContent = state.company ? '· ' + state.company : ''
+      render()
+      populateFilterOptions()
+      // espera o layout assentar antes do ajuste inicial
+      requestAnimationFrame(() => requestAnimationFrame(fitScreen))
+      window.addEventListener('resize', () => {
+        /* mantém transform; o usuário pode usar Ajustar */
+      })
+    </script>
+  </body>
+</html>

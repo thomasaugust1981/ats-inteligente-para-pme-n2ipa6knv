@@ -24,6 +24,7 @@ import { JobFormPage } from './pages/JobFormPage'
 import { CandidatesListPage } from './pages/CandidatesListPage'
 import { PipelinePage } from './pages/PipelinePage'
 import { CandidateProfilePage } from './pages/CandidateProfilePage'
+import OrganogramaPage from './pages/OrganogramaPage'
 
 const App = () => (
   <BrowserRouter>
@@ -54,6 +55,7 @@ const App = () => (
             <Route path="/pipeline/:jobId" element={<PipelinePage />} />
             <Route path="/candidatos" element={<CandidatesListPage />} />
             <Route path="/candidato/:id" element={<CandidateProfilePage />} />
+            <Route path="/organograma" element={<OrganogramaPage />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />

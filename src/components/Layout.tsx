@@ -14,6 +14,7 @@ import {
   X,
   UserCheck,
   Rocket,
+  Network,
 } from 'lucide-react'
 import { onboardingService } from '@/services/onboarding'
 import { Button } from '@/components/ui/button'
@@ -57,6 +58,9 @@ const Layout: React.FC = () => {
     { label: 'Pipeline', path: '/pipeline', icon: Columns3 },
     { label: 'Banco de Candidatos', path: '/candidatos', icon: Users },
   ]
+
+  // Organograma: módulo standalone para admin e recrutador
+  const showOrganograma = isAdmin || isRecruiter
 
   // Administradores podem retomar o onboarding pelo painel
   const showOnboardingLink = isAdmin
@@ -131,6 +135,19 @@ const Layout: React.FC = () => {
               </Link>
             )
           })}
+          {showOrganograma && (
+            <Link
+              to="/organograma"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition ${
+                location.pathname.startsWith('/organograma')
+                  ? 'bg-sky-600 text-white shadow-xs'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/80'
+              }`}
+            >
+              <Network className="w-4 h-4" />
+              <span>Organograma</span>
+            </Link>
+          )}
         </nav>
 
         {/* Atalhos inferiores: Página de Carreiras & Logout */}
@@ -190,6 +207,15 @@ const Layout: React.FC = () => {
               {item.label}
             </Link>
           ))}
+          {showOrganograma && (
+            <Link
+              to="/organograma"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block py-2 text-sm text-slate-300 hover:text-white"
+            >
+              Organograma
+            </Link>
+          )}
           <Link
             to="/carreiras"
             target="_blank"
