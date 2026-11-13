@@ -3,48 +3,34 @@ import { useNavigate, useParams, Link } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { jobsService, DEFAULT_STAGES, OPTIONAL_STAGE_DEFS } from '@/services/jobs'
 import pb from '@/lib/pocketbase/client'
-import type {
-  Job,
-  JobStatus,
-  WorkplaceType,
-  EmploymentType,
-  SeniorityLevel,
-  JobStage,
-  User,
-} from '@/types/ats'
-import {
-  ArrowLeft,
-  Save,
-  Plus,
-  Trash2,
-  GripVertical,
-  DollarSign,
-  Layers,
-  Building2,
-  Info,
-} from 'lucide-react'
+import type { Job, JobStage, User } from '@/types/ats'
+import { ArrowLeft, Save, Layers, Pencil, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { Switch } from '@/components/ui/switch'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  CardFooter,
-} from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/hooks/use-toast'
 import { SuggestedCandidatesPanel } from '@/components/SuggestedCandidatesPanel'
+import { BasicInfoCard } from '@/components/jobForm/BasicInfoCard'
+import { DescriptionCard } from '@/components/jobForm/DescriptionCard'
+import { StagesCard } from '@/components/jobForm/StagesCard'
+import type { JobFormValues, JobFormErrors, SetJobFormField } from '@/components/jobForm/types'
+
+const INITIAL_VALUES: JobFormValues = {
+  title: '',
+  slug: '',
+  department: '',
+  location: 'São Paulo - SP (Híbrido)',
+  workplaceType: 'hybrid',
+  employmentType: 'clt',
+  seniority: 'mid',
+  salaryMin: '',
+  salaryMax: '',
+  salaryDisclosed: true,
+  status: 'published',
+  managerId: '',
+  description: '',
+  requirements: '',
+  benefits: '',
+}
 
 export const JobFormPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -54,30 +40,34 @@ export const JobFormPage: React.FC = () => {
   const { toast } = useToast()
 
   const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [managers, setManagers] = useState<User[]>([])
-
-  // Form states
-  const [title, setTitle] = useState('')
-  const [slug, setSlug] = useState('')
-  const [department, setDepartment] = useState('')
-  const [location, setLocation] = useState('São Paulo - SP (Híbrido)')
-  const [workplaceType, setWorkplaceType] = useState<WorkplaceType>('hybrid')
-  const [employmentType, setEmploymentType] = useState<EmploymentType>('clt')
-  const [seniority, setSeniority] = useState<SeniorityLevel>('mid')
-  const [salaryMin, setSalaryMin] = useState<string>('')
-  const [salaryMax, setSalaryMax] = useState<string>('')
-  const [salaryDisclosed, setSalaryDisclosed] = useState(true)
-  const [status, setStatus] = useState<JobStatus>('published')
-  const [managerId, setManagerId] = useState<string>('')
-  const [description, setDescription] = useState('')
-  const [requirements, setRequirements] = useState('')
-  const [benefits, setBenefits] = useState('')
+  const [values, setValues] = useState<JobFormValues>(INITIAL_VALUES)
   const [stages, setStages] = useState<JobStage[]>(DEFAULT_STAGES)
   const [highImpact, setHighImpact] = useState(false)
   const [optionalStages, setOptionalStages] = useState<string[]>([])
   // Vaga salva (criada/atualizada) — quando definida, exibe o painel de sugestões
   const [savedJob, setSavedJob] = useState<Job | null>(null)
-  const [saving, setSaving] = useState(false)
+  // Erros de validação, exibidos junto a cada campo
+  const [errors, setErrors] = useState<JobFormErrors>({})
+
+  /** Setter único: mantém os tipos de cada campo e limpa o erro do campo ao digitar. */
+  const setField: SetJobFormField = (field, value) => {
+    // Título gera o slug automaticamente (apenas em criação)
+    if (field === 'title' && !isEditing) {
+      const generatedSlug = String(value)
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+      setValues((prev) => ({ ...prev, title: String(value), slug: generatedSlug }))
+      setErrors((prev) => ({ ...prev, title: '', slug: '' }))
+      return
+    }
+    setValues((prev) => ({ ...prev, [field]: value }))
+    setErrors((prev) => (prev[field] ? { ...prev, [field]: '' } : prev))
+  }
 
   // Carregar lista de gestores/usuários
   useEffect(() => {
@@ -99,21 +89,23 @@ export const JobFormPage: React.FC = () => {
       try {
         setLoading(true)
         const job = await jobsService.getJobById(id)
-        setTitle(job.title)
-        setSlug(job.slug)
-        setDepartment(job.department || '')
-        setLocation(job.location || '')
-        setWorkplaceType(job.workplace_type || 'hybrid')
-        setEmploymentType(job.employment_type || 'clt')
-        setSeniority(job.seniority || 'mid')
-        setSalaryMin(job.salary_min ? String(job.salary_min) : '')
-        setSalaryMax(job.salary_max ? String(job.salary_max) : '')
-        setSalaryDisclosed(Boolean(job.salary_disclosed))
-        setStatus(job.status || 'published')
-        setManagerId(job.manager_id || '')
-        setDescription(job.description || '')
-        setRequirements(job.requirements || '')
-        setBenefits(job.benefits || '')
+        setValues({
+          title: job.title,
+          slug: job.slug,
+          department: job.department || '',
+          location: job.location || '',
+          workplaceType: job.workplace_type || 'hybrid',
+          employmentType: job.employment_type || 'clt',
+          seniority: job.seniority || 'mid',
+          salaryMin: job.salary_min ? String(job.salary_min) : '',
+          salaryMax: job.salary_max ? String(job.salary_max) : '',
+          salaryDisclosed: Boolean(job.salary_disclosed),
+          status: job.status || 'published',
+          managerId: job.manager_id || '',
+          description: job.description || '',
+          requirements: job.requirements || '',
+          benefits: job.benefits || '',
+        })
         setHighImpact(Boolean(job.high_impact))
         let parsedOptional: string[] = []
         if (typeof job.optional_stages === 'string') {
@@ -142,29 +134,15 @@ export const JobFormPage: React.FC = () => {
     loadJob()
   }, [id, navigate, toast])
 
-  // Gerar slug automaticamente a partir do título se novo
-  const handleTitleChange = (val: string) => {
-    setTitle(val)
-    if (!isEditing) {
-      const generatedSlug = val
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-      setSlug(generatedSlug)
-    }
-  }
-
   const handleAddStage = () => {
-    const stageId = `stage_${Date.now()}`
-    setStages([...stages, { id: stageId, label: 'Nova Etapa', color: '#6366f1' }])
+    setStages((prev) => [
+      ...prev,
+      { id: `stage_${Date.now()}`, label: 'Nova Etapa', color: '#6366f1' },
+    ])
   }
 
   const handleUpdateStage = (index: number, label: string) => {
-    const updated = [...stages]
-    updated[index].label = label
-    setStages(updated)
+    setStages((prev) => prev.map((s, i) => (i === index ? { ...s, label } : s)))
   }
 
   const handleRemoveStage = (index: number) => {
@@ -176,8 +154,16 @@ export const JobFormPage: React.FC = () => {
       })
       return
     }
-    const updated = stages.filter((_, i) => i !== index)
-    setStages(updated)
+    setStages((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  // O flag de alto impacto controla a Validação Executiva: ao desligá-lo,
+  // a etapa deixa de estar selecionada (em vez de ser filtrada silenciosamente no submit).
+  const handleHighImpactChange = (checked: boolean) => {
+    setHighImpact(checked)
+    if (!checked) {
+      setOptionalStages((prev) => prev.filter((s) => s !== 'executive_validation'))
+    }
   }
 
   const handleToggleOptional = (stageId: string, checked: boolean) => {
@@ -185,17 +171,37 @@ export const JobFormPage: React.FC = () => {
       if (checked) return prev.includes(stageId) ? prev : [...prev, stageId]
       return prev.filter((s) => s !== stageId)
     })
-    if (stageId === 'executive_validation' && checked) {
+    // Marcar a Validação Executiva liga o flag de alto impacto automaticamente
+    if (stageId === 'executive_validation' && checked && !highImpact) {
       setHighImpact(true)
     }
   }
 
+  // Validação com erros exibidos junto a cada campo (em pt-BR)
+  const validate = (): boolean => {
+    const next: JobFormErrors = {}
+    if (!values.title.trim()) next.title = 'Informe o título da vaga.'
+    if (!values.slug.trim()) {
+      next.slug = 'Informe o slug da URL.'
+    } else if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(values.slug.trim())) {
+      next.slug = 'Use apenas letras minúsculas, números e hífens (ex.: vendedor-pleno).'
+    }
+    if (!values.description.trim()) next.description = 'Descreva as responsabilidades do cargo.'
+    const min = parseFloat(values.salaryMin)
+    const max = parseFloat(values.salaryMax)
+    if (values.salaryMin && values.salaryMax && !isNaN(min) && !isNaN(max) && min > max) {
+      next.salaryMax = 'O salário máximo deve ser maior ou igual ao mínimo.'
+    }
+    setErrors(next)
+    return Object.keys(next).length === 0
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!title.trim() || !description.trim() || !slug.trim()) {
+    if (!validate()) {
       toast({
-        title: 'Campos obrigatórios',
-        description: 'Título, slug e descrição são obrigatórios.',
+        title: 'Revise o formulário',
+        description: 'Alguns campos obrigatórios precisam de atenção.',
         variant: 'destructive',
       })
       return
@@ -205,26 +211,24 @@ export const JobFormPage: React.FC = () => {
       setSaving(true)
       setLoading(true)
       const payload: Partial<Job> = {
-        title: title.trim(),
-        slug: slug.trim(),
-        department: department.trim(),
-        location: location.trim(),
-        workplace_type: workplaceType,
-        employment_type: employmentType,
-        seniority: seniority,
-        salary_min: salaryMin ? parseFloat(salaryMin) : undefined,
-        salary_max: salaryMax ? parseFloat(salaryMax) : undefined,
-        salary_disclosed: salaryDisclosed,
-        status: status,
-        manager_id: managerId || user?.id,
-        description: description.trim(),
-        requirements: requirements.trim(),
-        benefits: benefits.trim(),
+        title: values.title.trim(),
+        slug: values.slug.trim(),
+        department: values.department.trim(),
+        location: values.location.trim(),
+        workplace_type: values.workplaceType,
+        employment_type: values.employmentType,
+        seniority: values.seniority,
+        salary_min: values.salaryMin ? parseFloat(values.salaryMin) : undefined,
+        salary_max: values.salaryMax ? parseFloat(values.salaryMax) : undefined,
+        salary_disclosed: values.salaryDisclosed,
+        status: values.status,
+        manager_id: values.managerId || user?.id,
+        description: values.description.trim(),
+        requirements: values.requirements.trim(),
+        benefits: values.benefits.trim(),
         stages: stages,
         high_impact: highImpact,
-        optional_stages: highImpact
-          ? optionalStages
-          : optionalStages.filter((s) => s !== 'executive_validation'),
+        optional_stages: optionalStages,
       }
 
       if (isEditing && id) {
@@ -236,7 +240,7 @@ export const JobFormPage: React.FC = () => {
         const created = await jobsService.createJob(payload)
         toast({
           title: 'Vaga criada!',
-          description: 'A vaga foi cadastrada e já está pronta para receber candidaturas.',
+          description: 'Confira abaixo os candidatos sugeridos para esta vaga.',
         })
         // Permanece na página para exibir o painel de candidatos sugeridos
         setSavedJob(created)
@@ -255,7 +259,8 @@ export const JobFormPage: React.FC = () => {
     }
   }
 
-  // Painel de sugestões: vaga salva + botão de voltar
+  // Painel de sugestões: vaga salva + próximos passos (os dados do formulário
+  // permanecem no estado — "Continuar editando" volta sem perder nada)
   if (savedJob) {
     return (
       <div className="space-y-6 max-w-4xl mx-auto pb-12">
@@ -281,6 +286,10 @@ export const JobFormPage: React.FC = () => {
         <SuggestedCandidatesPanel job={savedJob} />
 
         <div className="flex gap-2 justify-end">
+          <Button variant="ghost" onClick={() => setSavedJob(null)}>
+            <Pencil className="w-4 h-4 mr-2" />
+            Continuar editando
+          </Button>
           <Link to={`/pipeline/${savedJob.id}`}>
             <Button variant="outline">
               <Layers className="w-4 h-4 mr-2" />
@@ -310,285 +319,45 @@ export const JobFormPage: React.FC = () => {
               {isEditing ? 'Editar Vaga' : 'Criar Nova Vaga'}
             </h1>
             <p className="text-xs text-slate-500">
-              Configure dados da vaga, pré-requisitos, faixa salarial e etapas do processo seletivo.
+              Preencha os dados, configure as etapas do processo e salve para ver os candidatos
+              sugeridos.
             </p>
           </div>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Bloco 1: Informações Básicas */}
+        {/* Bloco 1: Dados da Vaga (identificação, salário e status) */}
         <Card className="bg-white">
           <CardHeader>
-            <CardTitle className="text-base font-semibold">1. Informações Básicas</CardTitle>
+            <CardTitle className="text-base font-semibold">1. Dados da Vaga</CardTitle>
             <CardDescription className="text-xs">
-              Título e identificação da oportunidade na página pública de carreiras
+              Identificação, local de trabalho, remuneração e status inicial
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="title" className="text-xs font-semibold">
-                  Título da Vaga *
-                </Label>
-                <Input
-                  id="title"
-                  required
-                  placeholder="Ex: Desenvolvedor Full Stack Pleno"
-                  value={title}
-                  onChange={(e) => handleTitleChange(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="slug" className="text-xs font-semibold">
-                  Slug da URL (Carreiras) *
-                </Label>
-                <Input
-                  id="slug"
-                  required
-                  placeholder="desenvolvedor-full-stack-pleno"
-                  value={slug}
-                  onChange={(e) => setSlug(e.target.value)}
-                  className="mt-1 font-mono text-xs"
-                />
-                <span className="text-[11px] text-slate-400">
-                  URL: /carreiras/vaga/<strong>{slug || 'slug-da-vaga'}</strong>
-                </span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="department" className="text-xs font-semibold">
-                  Área / Departamento
-                </Label>
-                <Input
-                  id="department"
-                  placeholder="Ex: Tecnologia, Vendas..."
-                  value={department}
-                  onChange={(e) => setDepartment(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="location" className="text-xs font-semibold">
-                  Localidade
-                </Label>
-                <Input
-                  id="location"
-                  placeholder="Ex: São Paulo - SP"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="manager" className="text-xs font-semibold">
-                  Gestor Responsável
-                </Label>
-                <Select value={managerId} onValueChange={setManagerId}>
-                  <SelectTrigger id="manager" className="mt-1">
-                    <SelectValue placeholder="Selecione o gestor" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {managers.map((m) => (
-                      <SelectItem key={m.id} value={m.id}>
-                        {m.name || m.email} ({m.role || 'membro'})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <Label className="text-xs font-semibold">Modalidade</Label>
-                <Select
-                  value={workplaceType}
-                  onValueChange={(v) => setWorkplaceType(v as WorkplaceType)}
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="remote">Remoto</SelectItem>
-                    <SelectItem value="hybrid">Híbrido</SelectItem>
-                    <SelectItem value="on_site">Presencial</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label className="text-xs font-semibold">Contrato</Label>
-                <Select
-                  value={employmentType}
-                  onValueChange={(v) => setEmploymentType(v as EmploymentType)}
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="clt">CLT</SelectItem>
-                    <SelectItem value="pj">PJ</SelectItem>
-                    <SelectItem value="internship">Estágio</SelectItem>
-                    <SelectItem value="temporary">Temporário</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label className="text-xs font-semibold">Senioridade</Label>
-                <Select value={seniority} onValueChange={(v) => setSeniority(v as SeniorityLevel)}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="intern">Estágio</SelectItem>
-                    <SelectItem value="junior">Júnior</SelectItem>
-                    <SelectItem value="mid">Pleno</SelectItem>
-                    <SelectItem value="senior">Sênior</SelectItem>
-                    <SelectItem value="lead">Especialista / Lead</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label className="text-xs font-semibold">Status Inicial</Label>
-                <Select value={status} onValueChange={(v) => setStatus(v as JobStatus)}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="published">Publicada (Aberta)</SelectItem>
-                    <SelectItem value="draft">Rascunho</SelectItem>
-                    <SelectItem value="paused">Pausada</SelectItem>
-                    <SelectItem value="closed">Encerrada</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+          <CardContent>
+            <BasicInfoCard values={values} managers={managers} errors={errors} onField={setField} />
           </CardContent>
         </Card>
 
-        {/* Bloco 2: Faixa Salarial */}
+        {/* Bloco 2: Descrição e Pré-requisitos */}
         <Card className="bg-white">
           <CardHeader>
-            <CardTitle className="text-base font-semibold">2. Faixa Salarial</CardTitle>
-            <CardDescription className="text-xs">
-              Remuneração prevista e visibilidade pública
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="sal-min" className="text-xs font-semibold">
-                  Salário Mínimo (R$)
-                </Label>
-                <Input
-                  id="sal-min"
-                  type="number"
-                  placeholder="Ex: 5000"
-                  value={salaryMin}
-                  onChange={(e) => setSalaryMin(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="sal-max" className="text-xs font-semibold">
-                  Salário Máximo (R$)
-                </Label>
-                <Input
-                  id="sal-max"
-                  type="number"
-                  placeholder="Ex: 7500"
-                  value={salaryMax}
-                  onChange={(e) => setSalaryMax(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-3 rounded-lg border bg-slate-50">
-              <div className="space-y-0.5">
-                <Label className="text-xs font-semibold">
-                  Divulgar salário na página de carreiras
-                </Label>
-                <p className="text-[11px] text-slate-500">
-                  Vagas com salário visível têm maior atração no Google for Jobs.
-                </p>
-              </div>
-              <Switch checked={salaryDisclosed} onCheckedChange={setSalaryDisclosed} />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Bloco 3: Descrição e Requisitos */}
-        <Card className="bg-white">
-          <CardHeader>
-            <CardTitle className="text-base font-semibold">3. Detalhes & Pré-requisitos</CardTitle>
+            <CardTitle className="text-base font-semibold">2. Descrição & Pré-requisitos</CardTitle>
             <CardDescription className="text-xs">
               Texto detalhado que aparecerá para o candidato
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="desc" className="text-xs font-semibold">
-                Descrição do Cargo *
-              </Label>
-              <Textarea
-                id="desc"
-                required
-                rows={4}
-                placeholder="Descreva as responsabilidades e o escopo da posição..."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="mt-1 text-sm"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="req" className="text-xs font-semibold">
-                Pré-requisitos e Qualificações
-              </Label>
-              <Textarea
-                id="req"
-                rows={4}
-                placeholder="• Conhecimento em React e TypeScript&#10;• Experiência de 2+ anos&#10;• Ensino superior em andamento..."
-                value={requirements}
-                onChange={(e) => setRequirements(e.target.value)}
-                className="mt-1 text-sm"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="ben" className="text-xs font-semibold">
-                Benefícios Oferecidos
-              </Label>
-              <Textarea
-                id="ben"
-                rows={3}
-                placeholder="• Vale refeição / alimentação flexível&#10;• Plano de saúde sem coparticipação&#10;• Auxílio home office..."
-                value={benefits}
-                onChange={(e) => setBenefits(e.target.value)}
-                className="mt-1 text-sm"
-              />
-            </div>
+          <CardContent>
+            <DescriptionCard values={values} errors={errors} onField={setField} />
           </CardContent>
         </Card>
 
-        {/* Bloco 4: Etapas Configuráveis do Pipeline */}
+        {/* Bloco 3: Etapas do processo (fixas + opcionais juntas) */}
         <Card className="bg-white">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle className="text-base font-semibold">
-                4. Etapas Configuráveis do Pipeline
-              </CardTitle>
+              <CardTitle className="text-base font-semibold">3. Etapas do Processo</CardTitle>
               <CardDescription className="text-xs">
                 Defina o fluxo de fases que os candidatos passarão nesta vaga
               </CardDescription>
@@ -604,131 +373,18 @@ export const JobFormPage: React.FC = () => {
               Adicionar Etapa
             </Button>
           </CardHeader>
-          <CardContent className="space-y-2">
-            <p className="text-[11px] text-slate-400 -mt-1">
-              Fluxo base da vaga. As etapas opcionais (bloco 5) entram automaticamente entre estas.
-            </p>
-            {stages.map((stage, idx) => (
-              <div
-                key={stage.id}
-                className="flex items-center gap-2 bg-slate-50 p-2 rounded-md border"
-              >
-                <GripVertical className="w-4 h-4 text-slate-400" />
-                <span className="text-xs font-semibold text-slate-500 w-6">#{idx + 1}</span>
-                <Input
-                  value={stage.label}
-                  onChange={(e) => handleUpdateStage(idx, e.target.value)}
-                  className="h-8 text-xs flex-1 bg-white"
-                />
-                <span className="text-[11px] font-mono text-slate-400 px-2">{stage.id}</span>
-                {stage.id !== 'applied' && stage.id !== 'hired' && stage.id !== 'rejected' && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-rose-500 hover:text-rose-700"
-                    onClick={() => handleRemoveStage(idx)}
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
-                )}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        {/* Bloco 4.5: Etapas Opcionais Inteligentes */}
-        <Card className="bg-white">
-          <CardHeader>
-            <CardTitle className="text-base font-semibold">5. Etapas Opcionais</CardTitle>
-            <CardDescription className="text-xs">
-              Ative etapas de avaliação complementares para esta vaga (são inseridas automaticamente
-              no pipeline, entre as etapas padrão).
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-center justify-between p-3 rounded-lg border bg-slate-50">
-              <div className="space-y-0.5">
-                <Label className="text-xs font-semibold">Vaga de alto impacto estratégico</Label>
-                <p className="text-[11px] text-slate-500">
-                  Vagas críticas para a empresa exigem validação executiva final (uma etapa extra
-                  antes da Proposta).
-                </p>
-              </div>
-              <Switch checked={highImpact} onCheckedChange={setHighImpact} />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <label
-                className={`flex items-start gap-2.5 p-3 rounded-lg border cursor-pointer transition ${
-                  optionalStages.includes('disc')
-                    ? 'border-purple-300 bg-purple-50'
-                    : 'border-slate-200 bg-white hover:bg-slate-50'
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  className="mt-0.5 accent-purple-600"
-                  checked={optionalStages.includes('disc')}
-                  onChange={(e) => handleToggleOptional('disc', e.target.checked)}
-                />
-                <span>
-                  <span className="block text-xs font-semibold text-slate-900">
-                    {OPTIONAL_STAGE_DEFS.disc.label}
-                  </span>
-                  <span className="block text-[11px] text-slate-500">
-                    Perfil comportamental — após a Triagem.
-                  </span>
-                </span>
-              </label>
-
-              <label
-                className={`flex items-start gap-2.5 p-3 rounded-lg border cursor-pointer transition ${
-                  optionalStages.includes('cultural_fit')
-                    ? 'border-teal-300 bg-teal-50'
-                    : 'border-slate-200 bg-white hover:bg-slate-50'
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  className="mt-0.5 accent-teal-600"
-                  checked={optionalStages.includes('cultural_fit')}
-                  onChange={(e) => handleToggleOptional('cultural_fit', e.target.checked)}
-                />
-                <span>
-                  <span className="block text-xs font-semibold text-slate-900">
-                    {OPTIONAL_STAGE_DEFS.cultural_fit.label}
-                  </span>
-                  <span className="block text-[11px] text-slate-500">
-                    Aderência à visão e missão — antes da Entrevista Técnica.
-                  </span>
-                </span>
-              </label>
-
-              <label
-                className={`flex items-start gap-2.5 p-3 rounded-lg border cursor-pointer transition ${
-                  !highImpact || !optionalStages.includes('executive_validation')
-                    ? 'border-slate-200 bg-white hover:bg-slate-50'
-                    : 'border-rose-300 bg-rose-50'
-                } ${!highImpact ? 'opacity-50 pointer-events-none' : ''}`}
-              >
-                <input
-                  type="checkbox"
-                  className="mt-0.5 accent-rose-600"
-                  disabled={!highImpact}
-                  checked={optionalStages.includes('executive_validation')}
-                  onChange={(e) => handleToggleOptional('executive_validation', e.target.checked)}
-                />
-                <span>
-                  <span className="block text-xs font-semibold text-slate-900">
-                    {OPTIONAL_STAGE_DEFS.executive_validation.label}
-                  </span>
-                  <span className="block text-[11px] text-slate-500">
-                    Só disponível quando a vaga é de alto impacto.
-                  </span>
-                </span>
-              </label>
-            </div>
+          <CardContent>
+            <StagesCard
+              stages={stages}
+              highImpact={highImpact}
+              optionalStages={optionalStages}
+              errors={errors}
+              onAddStage={handleAddStage}
+              onUpdateStage={handleUpdateStage}
+              onRemoveStage={handleRemoveStage}
+              onHighImpactChange={handleHighImpactChange}
+              onToggleOptional={handleToggleOptional}
+            />
           </CardContent>
         </Card>
 
@@ -745,7 +401,7 @@ export const JobFormPage: React.FC = () => {
             className="bg-sky-600 hover:bg-sky-700 text-white"
           >
             <Save className="w-4 h-4 mr-1.5" />
-            {loading ? 'Salvando...' : isEditing ? 'Salvar Alterações' : 'Criar Vaga'}
+            {saving ? 'Salvando...' : isEditing ? 'Salvar Alterações' : 'Criar Vaga'}
           </Button>
         </div>
       </form>
