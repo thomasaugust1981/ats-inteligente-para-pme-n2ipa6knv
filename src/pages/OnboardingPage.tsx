@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
 import StageOwnerSettings from '@/components/StageOwnerSettings'
-import { BellRing, Target } from 'lucide-react'
+import { BellRing, Target, Network } from 'lucide-react'
 import { DEFAULT_STAGES } from '@/services/jobs'
 import { DEFAULT_STAGE_SETTINGS_JOB_ID } from '@/services/stageSettings'
 import type { User } from '@/types/ats'
@@ -41,6 +41,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import OrgStructureStep, { type OrgSummary } from '@/components/onboarding/OrgStructureStep'
 
 type BrandDraft = {
   name: string
@@ -56,9 +57,9 @@ const STEPS = [
   { n: 3, label: 'Convidar Equipe', icon: Users },
   { n: 4, label: 'Responsáveis das Etapas', icon: BellRing },
   { n: 5, label: 'Visão e Missão', icon: Target },
-  { n: 6, label: 'Conclusão', icon: CheckCircle2 },
+  { n: 6, label: 'Estrutura Organizacional', icon: Network },
+  { n: 7, label: 'Conclusão', icon: CheckCircle2 },
 ]
-
 const BRAND_PRESETS = ['#0284c7', '#4f46e5', '#059669', '#d97706', '#dc2626', '#7c3aed']
 
 function OnboardingPage() {
@@ -89,6 +90,7 @@ function OnboardingPage() {
   const [vision, setVision] = useState('')
   const [mission, setMission] = useState('')
   const [visionMissionSaved, setVisionMissionSaved] = useState(false)
+  const [orgSummary, setOrgSummary] = useState<OrgSummary | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -801,8 +803,28 @@ function OnboardingPage() {
             </div>
           )}
 
-          {/* PASSO 6: Conclusão */}
+          {/* PASSO 6: Estrutura Organizacional (opcional) */}
           {step === 6 && (
+            <div className="space-y-5">
+              <OrgStructureStep
+                companyName={company?.name || ''}
+                onImported={(s) => {
+                  setOrgSummary(s)
+                  // resumo final mostra a estrutura importada; usuário decide
+                  // avançar ou voltar — nada é bloqueado aqui.
+                }}
+              />
+              <StepNav
+                onBack={() => goStep(5)}
+                onNext={() => goStep(7)}
+                onSkip={handleSkip}
+                nextLabel="Continuar"
+              />
+            </div>
+          )}
+
+          {/* PASSO 7: Conclusão */}
+          {step === 7 && (
             <div className="space-y-5">
               <div className="text-center py-2">
                 <div className="w-14 h-14 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mx-auto mb-3">
@@ -851,10 +873,21 @@ function OnboardingPage() {
                     {invites.filter((i) => i.status === 'pending').length} convite(s)
                   </span>
                 </div>
+                <div className="flex items-center justify-between px-3 py-2.5">
+                  <span className="text-slate-500 text-xs">Estrutura organizacional</span>
+                  {orgSummary ? (
+                    <span className="font-medium flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      {orgSummary.total} colaborador(es), {orgSummary.areas} área(s)
+                    </span>
+                  ) : (
+                    <span className="text-slate-400">Não importada (opcional)</span>
+                  )}
+                </div>
               </div>
 
               <StepNav
-                onBack={() => goStep(5)}
+                onBack={() => goStep(6)}
                 onNext={handleComplete}
                 onSkip={handleSkip}
                 nextDisabled={saving}
