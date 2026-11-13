@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-13T18:02:18.846Z",
+  "generatedAt": "2026-11-13T18:13:11.871Z",
   "collections": [
     {
       "name": "users",
@@ -974,6 +974,203 @@
         "CREATE UNIQUE INDEX idx_org_nodes_key ON org_nodes (node_key)",
         "CREATE INDEX idx_org_nodes_status ON org_nodes (status)",
         "CREATE INDEX idx_org_nodes_job ON org_nodes (job_id)"
+      ]
+    },
+    {
+      "name": "org_versions",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "",
+        "update": "",
+        "delete": ""
+      },
+      "fields": [
+        {
+          "name": "version_number",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "label",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["RASCUNHO", "EM_APROVACAO", "APROVADA", "SUBSTITUIDA", "REJEITADA"]
+        },
+        {
+          "name": "nodes_json",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "company",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created_by",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created_by_role",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "submitted_by",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "submitted_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "published_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "rejection_reason",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "rejected_by",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "rejected_by_role",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "next_approver_role",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_org_versions_company ON org_versions (company)",
+        "CREATE INDEX idx_org_versions_status ON org_versions (company, status)"
+      ]
+    },
+    {
+      "name": "org_approvals",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "",
+        "update": "",
+        "delete": ""
+      },
+      "fields": [
+        {
+          "name": "version_number",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "company",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "step",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "APROVACAO_1",
+            "APROVACAO_2",
+            "ENVIO",
+            "PUBLICACAO",
+            "REJEICAO",
+            "RETORNO"
+          ]
+        },
+        {
+          "name": "decision",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["APROVADO", "REJEITADO", "—"]
+        },
+        {
+          "name": "user_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "user_role",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "comment",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_org_approvals_version ON org_approvals (company, version_number)"
       ]
     }
   ]

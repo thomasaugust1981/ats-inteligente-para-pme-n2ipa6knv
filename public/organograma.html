@@ -914,6 +914,199 @@
         display: inline-block;
       }
 
+      /* ---------- Versionamento + workflow de aprovação ---------- */
+      .profile-select {
+        padding: 0.4rem 0.5rem;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: #fff;
+        font-size: 0.74rem;
+        font-weight: 600;
+        max-width: 230px;
+        color: var(--text);
+      }
+      .vpill {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 99px;
+        font-size: 0.68rem;
+        font-weight: 700;
+        padding: 0.28rem 0.65rem;
+        border: 1px solid var(--line);
+        white-space: nowrap;
+      }
+      .vpill[data-status='RASCUNHO'] {
+        color: #475569;
+        border-color: #cbd5e1;
+        background: #f1f5f9;
+      }
+      .vpill[data-status='EM_APROVACAO'] {
+        color: #92400e;
+        border-color: #fcd34d;
+        background: #fffbeb;
+      }
+      .vpill[data-status='APROVADA'] {
+        color: #065f46;
+        border-color: #6ee7b7;
+        background: #ecfdf5;
+      }
+      .vpill[data-status='SUBSTITUIDA'] {
+        color: #475569;
+        border-color: #94a3b8;
+        background: #f8fafc;
+      }
+      .vpill[data-status='REJEITADA'] {
+        color: #991b1b;
+        border-color: #fca5a5;
+        background: #fef2f2;
+      }
+      .version-banner {
+        background: #fffbeb;
+        border-bottom: 1px solid #fcd34d;
+        color: #92400e;
+        font-size: 0.76rem;
+        padding: 0.45rem 0.9rem;
+        display: none;
+        gap: 0.6rem;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .version-banner.ok {
+        background: #ecfdf5;
+        border-bottom-color: #6ee7b7;
+        color: #065f46;
+      }
+      .side-panel.wide {
+        width: 420px;
+      }
+      .pending-box {
+        border: 2px solid #fcd34d;
+        background: #fffbeb;
+        border-radius: 12px;
+        padding: 0.7rem 0.8rem;
+        margin-bottom: 0.9rem;
+        font-size: 0.76rem;
+      }
+      .pending-box h3 {
+        font-size: 0.8rem;
+        margin-bottom: 0.4rem;
+        color: #92400e;
+      }
+      .ver-card {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 0.7rem 0.8rem;
+        margin-bottom: 0.7rem;
+        background: #fff;
+        box-shadow: var(--shadow);
+        font-size: 0.75rem;
+      }
+      .ver-head {
+        display: flex;
+        gap: 0.4rem;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .ver-head b {
+        font-size: 0.82rem;
+      }
+      .ver-meta {
+        color: var(--muted);
+        font-size: 0.7rem;
+        margin-top: 0.25rem;
+        line-height: 1.45;
+      }
+      .ver-actions {
+        display: flex;
+        gap: 0.35rem;
+        flex-wrap: wrap;
+        margin-top: 0.5rem;
+      }
+      .trail {
+        margin-top: 0.45rem;
+        border-left: 2px solid var(--line);
+        padding-left: 0.55rem;
+        font-size: 0.7rem;
+        color: #475569;
+        display: grid;
+        gap: 0.25rem;
+      }
+      .trail .t-ok {
+        color: #065f46;
+        font-weight: 700;
+      }
+      .trail .t-no {
+        color: #991b1b;
+        font-weight: 700;
+      }
+      .cmp-summary {
+        display: flex;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.7rem;
+      }
+      .chip {
+        border-radius: 99px;
+        padding: 0.22rem 0.6rem;
+        font-size: 0.7rem;
+        font-weight: 700;
+        border: 1px solid;
+      }
+      .chip.add {
+        color: #065f46;
+        background: #ecfdf5;
+        border-color: #6ee7b7;
+      }
+      .chip.rem {
+        color: #991b1b;
+        background: #fef2f2;
+        border-color: #fca5a5;
+      }
+      .chip.mov,
+      .chip.chg {
+        color: #92400e;
+        background: #fffbeb;
+        border-color: #fcd34d;
+      }
+      .chip.same {
+        color: var(--muted);
+        background: #f8fafc;
+        border-color: var(--line);
+      }
+      .cmp-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.72rem;
+      }
+      .cmp-table th,
+      .cmp-table td {
+        border: 1px solid var(--line);
+        padding: 0.3rem 0.45rem;
+        text-align: left;
+        vertical-align: top;
+      }
+      .cmp-table th {
+        background: #f8fafc;
+        position: sticky;
+        top: 0;
+      }
+      .cmp-table tr.add td {
+        background: #f0fdf4;
+      }
+      .cmp-table tr.rem td {
+        background: #fef2f2;
+      }
+      .cmp-table tr.mov td {
+        background: #fffbeb;
+      }
+      .cmp-table tr.chg td {
+        background: #fffdf3;
+      }
+      .cmp-table .fld {
+        color: var(--muted);
+        font-size: 0.66rem;
+      }
+
       /* ---------- Print (exportar PDF) ---------- */
       @media print {
         body > * {
@@ -972,6 +1165,13 @@
             >
           </div>
         </div>
+        <select
+          id="profileSelect"
+          class="profile-select"
+          aria-label="Perfil de usuário (simulação de papéis)"
+          title="Perfil de usuário para simular o fluxo de aprovação"
+        ></select>
+        <span id="versionPill" class="vpill" data-status="RASCUNHO" title="Versão em edição"></span>
         <div class="spacer"></div>
         <div class="search-wrap">
           <svg
