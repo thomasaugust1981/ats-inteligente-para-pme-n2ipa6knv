@@ -45,6 +45,7 @@ import { LoadingState } from '@/components/LoadingState'
 import { EmptyState } from '@/components/EmptyState'
 import { useCopyLink } from '@/hooks/use-copy-link'
 import StageOwnerSettings from '@/components/StageOwnerSettings'
+import { DiscFitPanel } from '@/components/DiscFitPanel'
 import { Plus, BellRing } from 'lucide-react'
 
 export const PipelinePage: React.FC = () => {
@@ -68,6 +69,8 @@ export const PipelinePage: React.FC = () => {
 
   // Dialog de responsáveis e notificações por etapa (por vaga)
   const [ownersModalOpen, setOwnersModalOpen] = useState(false)
+  // Dialog de resultado DISC + FIT cultural (por candidatura)
+  const [discModalOpen, setDiscModalOpen] = useState(false)
   const [ownersSaveSignal, setOwnersSaveSignal] = useState(0)
   const [users, setUsers] = useState<User[]>([])
 
@@ -389,6 +392,20 @@ export const PipelinePage: React.FC = () => {
                             </CardHeader>
 
                             <CardContent className="p-3 pt-0 text-[11px] space-y-2">
+                              {(stage.id === 'disc' || app.disc_status) && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedApp(app)
+                                    setDiscModalOpen(true)
+                                  }}
+                                  className="w-full bg-purple-50 hover:bg-purple-100 border border-purple-100 rounded p-1.5 text-purple-700 font-medium transition"
+                                >
+                                  {app.disc_status === 'completed'
+                                    ? `DISC: perfil ${app.disc_profile || '—'}`
+                                    : 'Convite DISC pendente — ver resultado'}
+                                </button>
+                              )}
                               {candidate.location && (
                                 <div className="text-slate-600 truncate">
                                   📍 {candidate.location}
@@ -581,6 +598,20 @@ export const PipelinePage: React.FC = () => {
               {moving ? 'Gravando...' : 'Confirmar Movimentação'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog com resultado DISC + FIT cultural da candidatura selecionada */}
+      <Dialog open={discModalOpen} onOpenChange={setDiscModalOpen}>
+        <DialogContent className="sm:max-w-md bg-white max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold">DISC &amp; FIT Cultural</DialogTitle>
+            <DialogDescription className="text-xs">
+              Perfil comportamental e aderência à visão/missão de{' '}
+              {selectedApp?.expand?.candidate_id?.name || 'candidato'}.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedApp && <DiscFitPanel applicationId={selectedApp.id} />}
         </DialogContent>
       </Dialog>
 

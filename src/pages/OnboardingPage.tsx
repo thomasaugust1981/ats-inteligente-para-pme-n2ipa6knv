@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
 import StageOwnerSettings from '@/components/StageOwnerSettings'
-import { BellRing } from 'lucide-react'
+import { BellRing, Target } from 'lucide-react'
 import { DEFAULT_STAGES } from '@/services/jobs'
 import { DEFAULT_STAGE_SETTINGS_JOB_ID } from '@/services/stageSettings'
 import type { User } from '@/types/ats'
@@ -40,6 +40,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
 
 type BrandDraft = {
   name: string
@@ -54,7 +55,8 @@ const STEPS = [
   { n: 2, label: 'Página de Carreiras', icon: Globe },
   { n: 3, label: 'Convidar Equipe', icon: Users },
   { n: 4, label: 'Responsáveis das Etapas', icon: BellRing },
-  { n: 5, label: 'Conclusão', icon: CheckCircle2 },
+  { n: 5, label: 'Visão e Missão', icon: Target },
+  { n: 6, label: 'Conclusão', icon: CheckCircle2 },
 ]
 
 const BRAND_PRESETS = ['#0284c7', '#4f46e5', '#059669', '#d97706', '#dc2626', '#7c3aed']
@@ -84,6 +86,9 @@ function OnboardingPage() {
   const [teamMembers, setTeamMembers] = useState<User[]>([])
   const [stageSaveSignal, setStageSaveSignal] = useState(0)
   const [stageOwnersSaved, setStageOwnersSaved] = useState(false)
+  const [vision, setVision] = useState('')
+  const [mission, setMission] = useState('')
+  const [visionMissionSaved, setVisionMissionSaved] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -102,6 +107,8 @@ function OnboardingPage() {
           if (comp.logo) {
             setLogoPreview(onboardingService.getLogoUrl(comp))
           }
+          setVision(comp.vision || '')
+          setMission(comp.mission || '')
           setInvites(await onboardingService.listInvites())
           // Equipe = usuários do sistema (exclui a conta de serviço de IA)
           try {
@@ -281,6 +288,27 @@ function OnboardingPage() {
       return await saveBrand(finish)
     } finally {
       savingRef.current = false
+    }
+  }
+
+  const saveVisionMission = async (): Promise<boolean> => {
+    if (!company || visionMissionSaved) return true
+    if (!vision.trim() && !mission.trim()) return true
+    try {
+      const updated = await onboardingService.updateCompany(company.id, {
+        vision: vision.trim(),
+        mission: mission.trim(),
+      })
+      setCompany(updated)
+      setVisionMissionSaved(true)
+      return true
+    } catch (err) {
+      toast({
+        title: 'Erro ao salvar visão e missão',
+        description: err instanceof Error ? err.message : 'Tente novamente.',
+        variant: 'destructive',
+      })
+      return false
     }
   }
 
@@ -716,8 +744,65 @@ function OnboardingPage() {
             </div>
           )}
 
-          {/* PASSO 5: Conclusão */}
+          {/* PASSO 5: Visão e Missão (opcional) */}
           {step === 5 && (
+            <div className="space-y-5">
+              <div>
+                <h2 className="text-lg font-bold flex items-center gap-2">
+                  <Target className="w-5 h-5 text-sky-600" />
+                  Visão e Missão
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Opcional. Usamos estes textos na página de carreiras e para avaliar a aderência
+                  cultural (FIT Cultural) dos candidatos. Você pode deixar em branco.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="onb-vision" className="text-xs font-semibold">
+                  Visão da empresa
+                </Label>
+                <Textarea
+                  id="onb-vision"
+                  value={vision}
+                  onChange={(e) => setVision(e.target.value)}
+                  placeholder="Ex.: Ser a referência em soluções sustentáveis na região até 2030."
+                  rows={4}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="onb-mission" className="text-xs font-semibold">
+                  Missão da empresa
+                </Label>
+                <Textarea
+                  id="onb-mission"
+                  value={mission}
+                  onChange={(e) => setMission(e.target.value)}
+                  placeholder="Ex.: Transformar o dia a dia das PMEs com tecnologia simples e acessível."
+                  rows={4}
+                />
+              </div>
+
+              <p className="text-[11px] text-slate-400">
+                Estes textos são salvos automaticamente ao continuar (ou pulado, se ficarem em
+                branco nada é gravado).
+              </p>
+
+              <StepNav
+                onBack={() => goStep(4)}
+                onNext={async () => {
+                  const ok = await saveVisionMission()
+                  if (ok) goStep(6)
+                }}
+                onSkip={handleSkip}
+                nextLabel="Continuar"
+              />
+            </div>
+          )}
+
+          {/* PASSO 6: Conclusão */}
+          {step === 6 && (
             <div className="space-y-5">
               <div className="text-center py-2">
                 <div className="w-14 h-14 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mx-auto mb-3">
@@ -769,7 +854,7 @@ function OnboardingPage() {
               </div>
 
               <StepNav
-                onBack={() => goStep(4)}
+                onBack={() => goStep(5)}
                 onNext={handleComplete}
                 onSkip={handleSkip}
                 nextDisabled={saving}

@@ -31,6 +31,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
 import { ResumeStructuredPanel } from '@/components/ResumeStructuredPanel'
+import { DiscFitPanel } from '@/components/DiscFitPanel'
 
 export const CandidateProfilePage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -378,6 +379,13 @@ export const CandidateProfilePage: React.FC = () => {
 
           {/* Currículo estruturado (extraído por IA do upload e revisado pelo candidato) */}
           <ResumeStructuredPanel candidate={candidate} />
+
+          {/* Resultado DISC + aderência à visão/missão da empresa */}
+          {targetAppId ? (
+            <DiscFitPanel applicationId={targetAppId} />
+          ) : applications.length > 0 ? (
+            <DiscFitPanel applicationId={applications[0].id} />
+          ) : null}
         </div>
 
         {/* Lado Direito: Candidaturas, Trilha de Auditoria e Pareceres */}

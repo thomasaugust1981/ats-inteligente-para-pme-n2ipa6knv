@@ -84,6 +84,7 @@ export interface Job {
   status: JobStatus
   stages?: string | JobStage[] // JSON string in PB, or parsed array in app
   high_impact?: boolean
+  optional_stages?: string | string[] // JSON string in PB, or parsed array in app
   manager_id?: string
   created_by?: string
   expand?: {
@@ -179,6 +180,8 @@ export interface Application {
     candidate_id?: Candidate
     job_id?: Job
   }
+  disc_status?: string
+  disc_profile?: string
   created: string
   updated: string
 }

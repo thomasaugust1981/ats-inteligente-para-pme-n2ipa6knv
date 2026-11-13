@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
-import { jobsService, DEFAULT_STAGES } from '@/services/jobs'
+import { jobsService, DEFAULT_STAGES, OPTIONAL_STAGE_DEFS } from '@/services/jobs'
 import pb from '@/lib/pocketbase/client'
 import type {
   Job,
@@ -72,6 +72,8 @@ export const JobFormPage: React.FC = () => {
   const [requirements, setRequirements] = useState('')
   const [benefits, setBenefits] = useState('')
   const [stages, setStages] = useState<JobStage[]>(DEFAULT_STAGES)
+  const [highImpact, setHighImpact] = useState(false)
+  const [optionalStages, setOptionalStages] = useState<string[]>([])
 
   // Carregar lista de gestores/usuários
   useEffect(() => {
@@ -108,8 +110,23 @@ export const JobFormPage: React.FC = () => {
         setDescription(job.description || '')
         setRequirements(job.requirements || '')
         setBenefits(job.benefits || '')
+        setHighImpact(Boolean(job.high_impact))
+        let parsedOptional: string[] = []
+        if (typeof job.optional_stages === 'string') {
+          try {
+            const parsed = JSON.parse(job.optional_stages)
+            if (Array.isArray(parsed)) parsedOptional = parsed
+          } catch (_) {
+            parsedOptional = []
+          }
+        } else if (Array.isArray(job.optional_stages)) {
+          parsedOptional = job.optional_stages
+        }
+        setOptionalStages(parsedOptional)
         if (Array.isArray(job.stages)) {
-          setStages(job.stages)
+          // Remove as etapas opcionais para que o usuário edite apenas o fluxo base
+          const baseIds = new Set(DEFAULT_STAGES.map((s) => s.id))
+          setStages(job.stages.filter((s) => !baseIds.has(s.id) || !OPTIONAL_STAGE_DEFS[s.id]))
         }
       } catch (err) {
         toast({ title: 'Erro ao carregar vaga', variant: 'destructive' })
@@ -159,6 +176,16 @@ export const JobFormPage: React.FC = () => {
     setStages(updated)
   }
 
+  const handleToggleOptional = (stageId: string, checked: boolean) => {
+    setOptionalStages((prev) => {
+      if (checked) return prev.includes(stageId) ? prev : [...prev, stageId]
+      return prev.filter((s) => s !== stageId)
+    })
+    if (stageId === 'executive_validation' && checked) {
+      setHighImpact(true)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!title.trim() || !description.trim() || !slug.trim()) {
@@ -189,6 +216,10 @@ export const JobFormPage: React.FC = () => {
         requirements: requirements.trim(),
         benefits: benefits.trim(),
         stages: stages,
+        high_impact: highImpact,
+        optional_stages: highImpact
+          ? optionalStages
+          : optionalStages.filter((s) => s !== 'executive_validation'),
       }
 
       if (isEditing && id) {
@@ -524,6 +555,9 @@ export const JobFormPage: React.FC = () => {
             </Button>
           </CardHeader>
           <CardContent className="space-y-2">
+            <p className="text-[11px] text-slate-400 -mt-1">
+              Fluxo base da vaga. As etapas opcionais (bloco 5) entram automaticamente entre estas.
+            </p>
             {stages.map((stage, idx) => (
               <div
                 key={stage.id}
@@ -550,6 +584,101 @@ export const JobFormPage: React.FC = () => {
                 )}
               </div>
             ))}
+          </CardContent>
+        </Card>
+
+        {/* Bloco 4.5: Etapas Opcionais Inteligentes */}
+        <Card className="bg-white">
+          <CardHeader>
+            <CardTitle className="text-base font-semibold">5. Etapas Opcionais</CardTitle>
+            <CardDescription className="text-xs">
+              Ative etapas de avaliação complementares para esta vaga (são inseridas automaticamente
+              no pipeline, entre as etapas padrão).
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between p-3 rounded-lg border bg-slate-50">
+              <div className="space-y-0.5">
+                <Label className="text-xs font-semibold">Vaga de alto impacto estratégico</Label>
+                <p className="text-[11px] text-slate-500">
+                  Vagas críticas para a empresa exigem validação executiva final (uma etapa extra
+                  antes da Proposta).
+                </p>
+              </div>
+              <Switch checked={highImpact} onCheckedChange={setHighImpact} />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <label
+                className={`flex items-start gap-2.5 p-3 rounded-lg border cursor-pointer transition ${
+                  optionalStages.includes('disc')
+                    ? 'border-purple-300 bg-purple-50'
+                    : 'border-slate-200 bg-white hover:bg-slate-50'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  className="mt-0.5 accent-purple-600"
+                  checked={optionalStages.includes('disc')}
+                  onChange={(e) => handleToggleOptional('disc', e.target.checked)}
+                />
+                <span>
+                  <span className="block text-xs font-semibold text-slate-900">
+                    {OPTIONAL_STAGE_DEFS.disc.label}
+                  </span>
+                  <span className="block text-[11px] text-slate-500">
+                    Perfil comportamental — após a Triagem.
+                  </span>
+                </span>
+              </label>
+
+              <label
+                className={`flex items-start gap-2.5 p-3 rounded-lg border cursor-pointer transition ${
+                  optionalStages.includes('cultural_fit')
+                    ? 'border-teal-300 bg-teal-50'
+                    : 'border-slate-200 bg-white hover:bg-slate-50'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  className="mt-0.5 accent-teal-600"
+                  checked={optionalStages.includes('cultural_fit')}
+                  onChange={(e) => handleToggleOptional('cultural_fit', e.target.checked)}
+                />
+                <span>
+                  <span className="block text-xs font-semibold text-slate-900">
+                    {OPTIONAL_STAGE_DEFS.cultural_fit.label}
+                  </span>
+                  <span className="block text-[11px] text-slate-500">
+                    Aderência à visão e missão — antes da Entrevista Técnica.
+                  </span>
+                </span>
+              </label>
+
+              <label
+                className={`flex items-start gap-2.5 p-3 rounded-lg border cursor-pointer transition ${
+                  !highImpact || !optionalStages.includes('executive_validation')
+                    ? 'border-slate-200 bg-white hover:bg-slate-50'
+                    : 'border-rose-300 bg-rose-50'
+                } ${!highImpact ? 'opacity-50 pointer-events-none' : ''}`}
+              >
+                <input
+                  type="checkbox"
+                  className="mt-0.5 accent-rose-600"
+                  disabled={!highImpact}
+                  checked={optionalStages.includes('executive_validation')}
+                  onChange={(e) => handleToggleOptional('executive_validation', e.target.checked)}
+                />
+                <span>
+                  <span className="block text-xs font-semibold text-slate-900">
+                    {OPTIONAL_STAGE_DEFS.executive_validation.label}
+                  </span>
+                  <span className="block text-[11px] text-slate-500">
+                    Só disponível quando a vaga é de alto impacto.
+                  </span>
+                </span>
+              </label>
+            </div>
           </CardContent>
         </Card>
 

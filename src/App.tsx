@@ -16,6 +16,7 @@ import { JobApplicationPage } from './pages/JobApplicationPage'
 import { LoginPage } from './pages/LoginPage'
 import { VerifyEmailPage, ResetPasswordPage } from './pages/AuthAuxPages'
 import { OnboardingPage } from './pages/OnboardingPage'
+import { DiscFormPage } from './pages/DiscFormPage'
 
 // Páginas Administrativas
 import { JobsListPage } from './pages/JobsListPage'
@@ -35,6 +36,7 @@ const App = () => (
           <Route path="/portal" element={<PortalPage />} />
           <Route path="/carreiras" element={<CareersPage />} />
           <Route path="/carreiras/vaga/:slug" element={<JobApplicationPage />} />
+          <Route path="/disc/:token" element={<DiscFormPage />} />
 
           {/* Autenticação e Recuperação de Senha */}
           <Route path="/login" element={<LoginPage />} />
