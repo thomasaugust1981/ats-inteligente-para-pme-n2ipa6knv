@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-13T18:13:11.871Z",
+  "generatedAt": "2026-11-13T18:36:56.656Z",
   "collections": [
     {
       "name": "users",
@@ -1085,6 +1085,18 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "approved_by",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "approved_by_role",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -1167,6 +1179,18 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "user_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "instance",
+          "type": "number",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
