@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-13T14:50:41.297Z",
+  "generatedAt": "2026-11-13T15:29:39.017Z",
   "collections": [
     {
       "name": "users",
@@ -502,7 +502,8 @@
             "whatsapp",
             "referral",
             "linkedin",
-            "other"
+            "other",
+            "suggested"
           ]
         },
         {
@@ -609,7 +610,8 @@
             "candidate_deleted",
             "erp_job_created",
             "erp_job_updated",
-            "erp_job_rejected"
+            "erp_job_rejected",
+            "candidate_suggested"
           ]
         },
         {

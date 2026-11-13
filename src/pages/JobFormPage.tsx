@@ -44,6 +44,7 @@ import {
   CardFooter,
 } from '@/components/ui/card'
 import { useToast } from '@/hooks/use-toast'
+import { SuggestedCandidatesPanel } from '@/components/SuggestedCandidatesPanel'
 
 export const JobFormPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -74,6 +75,9 @@ export const JobFormPage: React.FC = () => {
   const [stages, setStages] = useState<JobStage[]>(DEFAULT_STAGES)
   const [highImpact, setHighImpact] = useState(false)
   const [optionalStages, setOptionalStages] = useState<string[]>([])
+  // Vaga salva (criada/atualizada) — quando definida, exibe o painel de sugestões
+  const [savedJob, setSavedJob] = useState<Job | null>(null)
+  const [saving, setSaving] = useState(false)
 
   // Carregar lista de gestores/usuários
   useEffect(() => {
@@ -198,6 +202,7 @@ export const JobFormPage: React.FC = () => {
     }
 
     try {
+      setSaving(true)
       setLoading(true)
       const payload: Partial<Job> = {
         title: title.trim(),
@@ -225,14 +230,18 @@ export const JobFormPage: React.FC = () => {
       if (isEditing && id) {
         await jobsService.updateJob(id, payload)
         toast({ title: 'Vaga atualizada!', description: 'As alterações foram salvas com sucesso.' })
+        setSavedJob(await jobsService.getJobById(id))
+        window.scrollTo({ top: 0, behavior: 'smooth' })
       } else {
-        await jobsService.createJob(payload)
+        const created = await jobsService.createJob(payload)
         toast({
           title: 'Vaga criada!',
           description: 'A vaga foi cadastrada e já está pronta para receber candidaturas.',
         })
+        // Permanece na página para exibir o painel de candidatos sugeridos
+        setSavedJob(created)
+        window.scrollTo({ top: 0, behavior: 'smooth' })
       }
-      navigate('/vagas')
     } catch (err) {
       console.error('Erro ao salvar vaga:', err)
       toast({
@@ -242,7 +251,48 @@ export const JobFormPage: React.FC = () => {
       })
     } finally {
       setLoading(false)
+      setSaving(false)
     }
+  }
+
+  // Painel de sugestões: vaga salva + botão de voltar
+  if (savedJob) {
+    return (
+      <div className="space-y-6 max-w-4xl mx-auto pb-12">
+        <div className="flex items-center justify-between pb-2 border-b">
+          <div className="flex items-center gap-3">
+            <Link to="/vagas">
+              <Button variant="ghost" size="icon" className="h-9 w-9">
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+            </Link>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+                Vaga salva: {savedJob.title}
+              </h1>
+              <p className="text-xs text-slate-500">
+                O sistema analisou o banco de talentos e sugeriu candidatos com aderência a esta
+                vaga.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <SuggestedCandidatesPanel job={savedJob} />
+
+        <div className="flex gap-2 justify-end">
+          <Link to={`/pipeline/${savedJob.id}`}>
+            <Button variant="outline">
+              <Layers className="w-4 h-4 mr-2" />
+              Abrir pipeline
+            </Button>
+          </Link>
+          <Link to="/vagas">
+            <Button>Ver todas as vagas</Button>
+          </Link>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -691,7 +741,7 @@ export const JobFormPage: React.FC = () => {
           </Link>
           <Button
             type="submit"
-            disabled={loading}
+            disabled={saving || loading}
             className="bg-sky-600 hover:bg-sky-700 text-white"
           >
             <Save className="w-4 h-4 mr-1.5" />

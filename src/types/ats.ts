@@ -164,6 +164,7 @@ export type ApplicationSource =
   | 'referral'
   | 'linkedin'
   | 'other'
+  | 'suggested'
 
 export interface Application {
   id: string
@@ -214,6 +215,7 @@ export type AuditAction =
   | 'candidate_deleted'
   | 'stage_owner_assigned'
   | 'evaluation_comment'
+  | 'candidate_suggested'
 
 export interface AuditLog {
   id: string
