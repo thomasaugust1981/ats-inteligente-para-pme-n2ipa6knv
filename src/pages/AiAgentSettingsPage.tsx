@@ -1,99 +1,130 @@
 import { useEffect, useState } from 'react'
-import { Bot, RefreshCw, Save, ShieldCheck, Info, Sparkles } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
-import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Slider } from '@/components/ui/slider'
-import { useToast } from '@/hooks/use-toast'
+import { useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
-import { useAiAgentSettings } from '@/hooks/use-ai-agent-settings'
-import { saveAgentSettings, type AiAgentSettings } from '@/services/aiAgentSettings'
+import { useToast } from '@/hooks/use-toast'
+import Layout from '@/components/Layout'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
+import { Separator } from '@/components/ui/separator'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Loader2, KeyRound, Save, Sparkles } from 'lucide-react'
+import {
+  AiAgentSettings,
+  AiProvider,
+  DEFAULT_AGENT_SETTINGS,
+  PROVIDER_MODEL_PLACEHOLDER,
+  getAgentSettings,
+  saveAgentSettings,
+  saveProviderKey,
+  testProviderConnection,
+} from '@/services/aiAgentSettings'
+import { formatScoreDate } from '@/hooks/use-ai-score'
 
-// Painel "Agente de Score de IA": interruptor global, pesos das três dimensões
-// (soma obrigatoriamente 100) e gatilhos automáticos ligáveis individualmente.
-// Leitura para todos os papéis autenticados; edição apenas administrador.
-
-const TRIGGERS: Array<{ key: keyof AiAgentSettings; label: string; description: string }> = [
+const PROVIDERS: { value: AiProvider; label: string; description: string }[] = [
   {
-    key: 'trigger_new_application',
-    label: 'Nova candidatura',
-    description: 'Calcula o score assim que o candidato se inscreve na vaga.',
+    value: 'native',
+    label: 'Nativo (padrão)',
+    description: 'Agente embutido do ATS — sem custo extra, nada a configurar.',
   },
   {
-    key: 'trigger_stage_change',
-    label: 'Mudança de etapa',
-    description: 'Recalcula quando o candidato avança ou recua no pipeline.',
+    value: 'openai',
+    label: 'OpenAI',
+    description: 'Use a SUA chave da OpenAI — o custo é cobrado direto na sua conta.',
   },
   {
-    key: 'trigger_disc_completed',
-    label: 'DISC preenchido',
-    description: 'Recalcula quando o candidato termina o questionário DISC.',
-  },
-  {
-    key: 'trigger_note_added',
-    label: 'Comentário adicionado',
-    description: 'Recalcula quando um novo comentário é registrado na candidatura.',
+    value: 'gemini',
+    label: 'Google Gemini',
+    description: 'Use a SUA chave do Gemini — o custo é cobrado direto na sua conta.',
   },
 ]
-
-const DIMENSIONS: Array<{ key: keyof AiAgentSettings; label: string; description: string }> = [
-  {
-    key: 'weight_technical',
-    label: 'Técnica',
-    description: 'Currículo e habilidades vs. pré-requisitos da vaga.',
-  },
-  {
-    key: 'weight_behavioral',
-    label: 'Comportamental',
-    description: 'Perfil DISC do candidato vs. perfil esperado.',
-  },
-  {
-    key: 'weight_cultural',
-    label: 'Cultural',
-    description: 'Aderência à visão, missão e valores da empresa.',
-  },
-]
-
-const sumWeights = (s: {
-  weight_technical: number
-  weight_behavioral: number
-  weight_cultural: number
-}) => s.weight_technical + s.weight_behavioral + s.weight_cultural
 
 export default function AiAgentSettingsPage() {
-  const { settings, loading, refresh, applyLocal } = useAiAgentSettings()
-  const { isAdmin } = useAuth()
+  const { user } = useAuth()
   const { toast } = useToast()
-
-  const [draft, setDraft] = useState<AiAgentSettings | null>(null)
-  const [saving, setSaving] = useState(false)
+  const location = useLocation()
+  const isAdmin = user?.role === 'admin'
   const readOnly = !isAdmin
 
-  useEffect(() => {
-    if (!draft && settings.id) setDraft({ ...settings })
-  }, [settings, draft])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [testing, setTesting] = useState(false)
+  const [testingResult, setTestingResult] = useState<{ ok: boolean; text: string } | null>(null)
+  const [settings, setSettings] = useState<AiAgentSettings>({
+    ...DEFAULT_AGENT_SETTINGS,
+    id: '',
+    updated: '',
+  })
+  const [aiProvider, setAiProvider] = useState<AiProvider>('native')
+  const [apiKey, setApiKey] = useState('')
+  const [aiModel, setAiModel] = useState('')
 
-  const current = draft || settings
-  const sum = sumWeights(current)
-  const sumOk = sum === 100
+  useEffect(() => {
+    getAgentSettings().then((data) => {
+      setSettings(data)
+      setAiProvider(data.ai_provider || 'native')
+      setAiModel(data.ai_model || '')
+      setLoading(false)
+    })
+  }, [])
+
+  // Sincroniza com a Sidebar (item ativo do menu).
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('ats:active-item', { detail: location.pathname }))
+  }, [location.pathname])
+
+  const handleTest = async () => {
+    if (!aiProvider || aiProvider === 'native') {
+      toast({
+        title: 'Provedor nativo',
+        description: 'O agente nativo não usa chave própria — nada a testar.',
+      })
+      return
+    }
+    setTesting(true)
+    setTestingResult(null)
+    try {
+      const res = await testProviderConnection(aiProvider, apiKey, aiModel)
+      setTestingResult(
+        res.ok
+          ? { ok: true, text: res.message || 'Conexão OK.' }
+          : { ok: false, text: res.error || 'Não foi possível conectar ao provedor.' },
+      )
+    } catch (err) {
+      setTestingResult({ ok: false, text: 'Não foi possível conectar ao provedor.' })
+    } finally {
+      setTesting(false)
+    }
+  }
 
   const handleSave = async () => {
-    if (!draft || !sumOk) return
     setSaving(true)
     try {
-      const saved = await saveAgentSettings(draft)
-      applyLocal(saved)
-      setDraft({ ...saved })
-      toast({
-        title: 'Configuração salva',
-        description: 'O agente de score passa a usar estas configurações imediatamente.',
+      const saved = await saveAgentSettings({
+        ...settings,
+        id: settings.id,
+        ai_provider: aiProvider,
+        ai_model: aiModel,
       })
-    } catch (err: unknown) {
+      // A chave só é gravada (write-only) quando o admin digitou uma nova.
+      if (!readOnly && aiProvider !== 'native' && apiKey.trim()) {
+        await saveProviderKey(aiProvider, apiKey.trim(), aiModel)
+      }
+      const refreshed = await getAgentSettings()
+      setSettings(refreshed)
+      setAiProvider(refreshed.ai_provider || 'native')
+      setAiModel(refreshed.ai_model || '')
+      setApiKey('')
+      setTestingResult(null)
+      toast({ title: 'Configuração salva com sucesso.' })
+    } catch (err) {
       toast({
         title: 'Erro ao salvar',
-        description: err instanceof Error ? err.message : 'Tente novamente em instantes.',
+        description: 'Verifique os dados e tente novamente.',
         variant: 'destructive',
       })
     } finally {
@@ -101,167 +132,209 @@ export default function AiAgentSettingsPage() {
     }
   }
 
-  if (loading && !settings.id) {
-    return (
-      <div className="p-6 space-y-4">
-        <Skeleton className="h-8 w-72" />
-        <Skeleton className="h-40 w-full" />
-        <Skeleton className="h-64 w-full" />
-      </div>
-    )
-  }
+  const keyMasked = settings.ai_key_last4
+    ? `Chave configurada •••• ${settings.ai_key_last4}${
+        settings.ai_key_updated_at
+          ? ` (atualizada em ${formatScoreDate(settings.ai_key_updated_at)})`
+          : ''
+      }`
+    : 'Nenhuma chave configurada ainda.'
+
+  const canEdit = !readOnly && settings.enabled !== undefined
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-4xl">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Bot className="w-6 h-6 text-indigo-600" />
-            Agente de Score de IA
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Configura o cálculo consultivo de aderência candidato × vaga.
-          </p>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Agente de Score de IA</h1>
+        <p className="text-muted-foreground text-sm">
+          Configure o agente consultivo que avalia os candidatos no pipeline.
+        </p>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
-        {readOnly && (
-          <Badge variant="outline" className="text-xs flex items-center gap-1">
-            <ShieldCheck className="w-3 h-3" /> Somente leitura — apenas o administrador altera
-          </Badge>
-        )}
-      </div>
+      ) : (
+        <>
+          {readOnly && (
+            <Alert>
+              <AlertDescription className="flex items-center gap-2">
+                <Badge variant="outline">Somente leitura</Badge>
+                Apenas administradores podem alterar estas configurações.
+              </AlertDescription>
+            </Alert>
+          )}
 
-      {/* Interruptor grande Ativado/Desativado */}
-      <Card className={current.enabled ? 'border-emerald-200' : 'border-slate-200'}>
-        <CardContent className="py-5 flex items-center justify-between gap-4 flex-wrap">
-          <div>
-            <p className="font-semibold flex items-center gap-2">
-              <Sparkles
-                className={`w-4 h-4 ${current.enabled ? 'text-emerald-600' : 'text-slate-400'}`}
-              />
-              {current.enabled ? 'Agente ativado' : 'Agente desativado'}
-            </p>
-            <p className="text-xs text-slate-500 mt-1">
-              {current.enabled
-                ? 'O agente calcula e recalcula scores conforme os gatilhos abaixo.'
-                : 'Nenhum score é calculado — nem por gatilho automático, nem no botão "Recalcular".'}
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <span
-              className={`text-sm font-medium ${current.enabled ? 'text-emerald-700' : 'text-slate-400'}`}
-            >
-              {current.enabled ? 'Ativado' : 'Desativado'}
-            </span>
-            <Switch
-              checked={current.enabled}
-              disabled={readOnly || saving}
-              onCheckedChange={(v) => {
-                if (!draft) return
-                setDraft({ ...draft, enabled: v })
-              }}
-              aria-label="Ativar ou desativar o agente de score de IA"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Pesos das dimensões */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base font-bold">Pesos das dimensões</CardTitle>
-          <p className="text-xs text-slate-500">
-            A soma dos três pesos deve ser exatamente 100 — ela define quanto cada dimensão vale no
-            score geral.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          {DIMENSIONS.map((dim) => (
-            <div key={String(dim.key)}>
-              <div className="flex items-center justify-between text-sm mb-1">
-                <span className="font-medium text-slate-700">{dim.label}</span>
-                <span className="tabular-nums font-semibold text-slate-700">
-                  {current[dim.key] as number}%
-                </span>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-primary" /> Geral
+              </CardTitle>
+              <CardDescription>
+                O agente dá um score consultivo (0–100) com justificativa — nunca aprova ou reprova.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between rounded-lg border p-4">
+                <div>
+                  <Label htmlFor="agent-enabled">Agente ativado</Label>
+                  <p className="text-muted-foreground text-xs">
+                    Desativado: nenhum score é calculado (manual ou automático).
+                  </p>
+                </div>
+                <Switch
+                  id="agent-enabled"
+                  checked={settings.enabled}
+                  disabled={readOnly}
+                  onCheckedChange={(checked) => setSettings({ ...settings, enabled: checked })}
+                />
               </div>
-              <Slider
-                value={[current[dim.key] as number]}
-                min={0}
-                max={100}
-                step={5}
-                disabled={readOnly || saving}
-                onValueChange={(vals) => {
-                  if (!draft) return
-                  setDraft({ ...draft, [dim.key]: vals[0] })
-                }}
-                className="py-2"
-              />
-              <p className="text-[11px] text-slate-400">{dim.description}</p>
-            </div>
-          ))}
 
-          <div
-            className={`text-xs flex items-center gap-2 ${sumOk ? 'text-emerald-700' : 'text-red-600'}`}
-          >
-            <Info className="w-3.5 h-3.5" />
-            {sumOk
-              ? 'Soma correta: 100.'
-              : `A soma dos pesos é ${sum} — ajuste até chegar exatamente a 100 para salvar.`}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Gatilhos automáticos */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base font-bold">Gatilhos automáticos</CardTitle>
-          <p className="text-xs text-slate-500">
-            Cada gatilho pode ser ligado ou desligado individualmente — o agente só recalcula nos
-            eventos que estiverem ativos aqui.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {TRIGGERS.map((trigger) => (
-            <div key={String(trigger.key)} className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-sm font-medium text-slate-700">{trigger.label}</p>
-                <p className="text-[11px] text-slate-400">{trigger.description}</p>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="w-tech">Peso técnico (%)</Label>
+                  <Input
+                    id="w-tech"
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={settings.weight_technical}
+                    disabled={readOnly}
+                    onChange={(e) =>
+                      setSettings({ ...settings, weight_technical: Number(e.target.value) })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="w-beh">Peso comportamental (%)</Label>
+                  <Input
+                    id="w-beh"
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={settings.weight_behavioral}
+                    disabled={readOnly}
+                    onChange={(e) =>
+                      setSettings({ ...settings, weight_behavioral: Number(e.target.value) })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="w-cult">Peso cultural (%)</Label>
+                  <Input
+                    id="w-cult"
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={settings.weight_cultural}
+                    disabled={readOnly}
+                    onChange={(e) =>
+                      setSettings({ ...settings, weight_cultural: Number(e.target.value) })
+                    }
+                  />
+                </div>
               </div>
-              <Switch
-                checked={Boolean(current[trigger.key])}
-                disabled={readOnly || saving}
-                onCheckedChange={(v) => {
-                  if (!draft) return
-                  setDraft({ ...draft, [trigger.key]: v })
-                }}
-                aria-label={`Gatilho: ${trigger.label}`}
-              />
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
 
-      <div className="flex items-center gap-3">
-        <Button onClick={handleSave} disabled={readOnly || saving || !sumOk || !draft}>
-          <Save className="w-4 h-4 mr-2" />
-          {saving ? 'Salvando...' : 'Salvar configuração'}
-        </Button>
-        <Button
-          variant="ghost"
-          disabled={saving}
-          onClick={() => {
-            setDraft(null)
-            refresh()
-          }}
-        >
-          <RefreshCw className="w-4 h-4 mr-2" />
-          Descartar alterações
-        </Button>
-        {!sumOk && (
-          <span className="text-xs text-red-600">
-            Ajuste a soma dos pesos para habilitar o botão.
-          </span>
-        )}
-      </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <KeyRound className="h-5 w-5 text-primary" /> Provedor de IA
+              </CardTitle>
+              <CardDescription>
+                Com chave própria, o custo de IA é cobrado direto na sua conta no provedor
+                escolhido. Se o provedor falhar, o agente nativo assume automaticamente.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <RadioGroup
+                value={aiProvider}
+                onValueChange={(v) => setAiProvider(v as AiProvider)}
+                disabled={readOnly}
+                className="gap-2"
+              >
+                {PROVIDERS.map((p) => (
+                  <Label
+                    key={p.value}
+                    htmlFor={`provider-${p.value}`}
+                    className="hover:bg-accent/50 flex cursor-pointer items-start gap-3 rounded-lg border p-4"
+                  >
+                    <RadioGroupItem value={p.value} id={`provider-${p.value}`} className="mt-1" />
+                    <div>
+                      <p className="font-medium">{p.label}</p>
+                      <p className="text-muted-foreground text-xs">{p.description}</p>
+                    </div>
+                  </Label>
+                ))}
+              </RadioGroup>
+
+              {aiProvider !== 'native' && (
+                <div className="space-y-4 rounded-lg border p-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="api-key">
+                      Chave de API{' '}
+                      {settings.ai_key_last4 ? '(deixe vazio para manter a atual)' : ''}
+                    </Label>
+                    <Input
+                      id="api-key"
+                      type="password"
+                      placeholder="sk-..."
+                      value={apiKey}
+                      disabled={readOnly}
+                      onChange={(e) => setApiKey(e.target.value)}
+                      autoComplete="off"
+                    />
+                    <p className="text-muted-foreground text-xs">{keyMasked}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="ai-model">Modelo (opcional)</Label>
+                    <Input
+                      id="ai-model"
+                      placeholder={PROVIDER_MODEL_PLACEHOLDER[aiProvider]}
+                      value={aiModel}
+                      disabled={readOnly}
+                      onChange={(e) => setAiModel(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleTest}
+                      disabled={testing || readOnly}
+                    >
+                      {testing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Testar conexão
+                    </Button>
+                    {testingResult && (
+                      <span
+                        className={
+                          testingResult.ok ? 'text-sm text-green-600' : 'text-destructive text-sm'
+                        }
+                      >
+                        {testingResult.text}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+              <Separator />
+              <div className="flex justify-end">
+                <Button onClick={handleSave} disabled={saving || readOnly || !canEdit}>
+                  {saving ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="mr-2 h-4 w-4" />
+                  )}
+                  Salvar configuração
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   )
 }

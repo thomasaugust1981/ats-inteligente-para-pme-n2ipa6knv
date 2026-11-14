@@ -1,9 +1,9 @@
 //
-// Score de IA consultivo do candidato — agente NATIVO 'candidate-scorer'.
-// Endpoint: POST /backend/v1/candidates/score  { application_id, trigger }
-//   — autenticado (equipe): chama o agente com TODOS os dados do candidato,
-//     grava um registro em ai_scores (auditoria) e devolve o score.
-//   — NUNCA aprova/reprova nada automaticamente (consultivo apenas).
+// Score de IA consultivo do candidato — endpoint POST /backend/v1/candidates/score.
+// A IA usada é decidida por $app.computeScore (pocketbase/hooks/ai_provider.js):
+// agente NATIVO 'candidate-scorer' ou, se o admin configurou, provedor próprio
+// do cliente (OpenAI/Gemini com a chave dele, com fallback ao nativo). Consultivo
+// apenas — NUNCA altera o status da candidatura. Grava em ai_scores (auditoria).
 //
 // A JSVM executa callbacks em pool separado: helpers ficam DENTRO do callback
 // e TODOS os caminhos de saída chamam e.next().
@@ -81,6 +81,7 @@ routerAdd('POST', '/backend/v1/candidates/score', (e) => {
         }
       }
     }
+
     let company = null
     try {
       company = app.findFirstRecordByFilter('companies', 'id != ""')
@@ -145,51 +146,6 @@ routerAdd('POST', '/backend/v1/candidates/score', (e) => {
     }
   }
 
-  function callScoreAgent(snapshot, agentSettings) {
-    const serviceUser = $app.findAuthRecordByEmail('users', 'ai-service@ats.internal')
-    const prompt =
-      'Calcule o score de aderência deste candidato para a vaga, usando os dados JSON abaixo. ' +
-      'Responda APENAS com JSON no formato: {"score_technical":0-100 ou null,"score_behavioral":0-100 ou null,' +
-      '"score_cultural":0-100 ou null,"score":0-100,"justification":"...","insufficient_data":false}. ' +
-      'Regras: o score geral É UMA MÉDIA PONDERADA das dimensões disponíveis, usando EXATAMENTE os ' +
-      'pesos em snapshot.weights_used (técnica=' +
-      agentSettings.weight_technical +
-      '%, comportamental=' +
-      agentSettings.weight_behavioral +
-      '%, cultural=' +
-      agentSettings.weight_cultural +
-      '%; a soma é 100; ' +
-      'redistribua proporcionalmente entre as dimensões disponíveis quando alguma for null). ' +
-      'Justificativa OBRIGATÓRIA em português, citando evidências de cada dimensão avaliada. ' +
-      'Sem dados de uma dimensão, use null nela. ' +
-      'Se faltar quase tudo (nem currículo/skills, nem requisitos da vaga), devolva insufficient_data=true.\n\n' +
-      'DADOS: ' +
-      JSON.stringify(snapshot).slice(0, 24000)
-
-    const aiResult = $ai.agent('candidate-scorer').chat({
-      user_id: serviceUser.id,
-      message: prompt,
-    })
-
-    const raw = ((aiResult && aiResult.content) || '').trim()
-    const cleaned = raw
-      .replace(/^```(?:json)?\s*/i, '')
-      .replace(/```\s*$/, '')
-      .trim()
-    const start = cleaned.indexOf('{')
-    const end = cleaned.lastIndexOf('}')
-    if (start === -1 || end === -1 || end <= start) {
-      throw new Error('bad_model_output')
-    }
-    let parsed
-    try {
-      parsed = JSON.parse(cleaned.slice(start, end + 1))
-    } catch (_) {
-      throw new Error('bad_model_output')
-    }
-    return parsed
-  }
-
   let responseStatus = 200
   let responsePayload = null
 
@@ -247,9 +203,9 @@ routerAdd('POST', '/backend/v1/candidates/score', (e) => {
                 }
               } else {
                 try {
-                  const parsed = callScoreAgent(snapshot, agentSettings)
+                  const parsed = $app.computeScore(e.app, snapshot, agentSettings)
 
-                  // AUDITORIA: grava score + dimensões + snapshot + justificativa
+                  // AUDITORIA: grava score + dimensões + snapshot (com provider_used)
                   let savedId = ''
                   try {
                     const savedRecord = e.app.runBatch(function (batch) {
@@ -272,6 +228,7 @@ routerAdd('POST', '/backend/v1/candidates/score', (e) => {
                     console.error('[ai-score] falha ao gravar ai_scores:', err)
                   }
 
+                  snapshot.provider_used = parsed.provider_used
                   responseStatus = 200
                   responsePayload = {
                     id: savedId,
@@ -281,16 +238,33 @@ routerAdd('POST', '/backend/v1/candidates/score', (e) => {
                     score_cultural: toNumOrNull(parsed.score_cultural),
                     justification: String(parsed.justification || '').trim(),
                     insufficient_data: false,
+                    provider_used: parsed.provider_used,
                     trigger: trigger,
                     created: new Date().toISOString(),
                   }
                 } catch (err) {
-                  console.error('[ai-score] erro no agente:', err)
+                  console.error('[ai-score] erro no cálculo do score:', err)
                   responseStatus = 502
                   responsePayload = {
                     error: 'Falha na análise de IA. Tente novamente em instantes.',
                     code: 'ai_error',
                   }
+                  // Registra o erro no histórico (auditoria do fallback/erro).
+                  try {
+                    e.app.runBatch(function (batch) {
+                      batch.collection('ai_scores').create({
+                        application_id: appRecord.id,
+                        candidate_id: candidate.id,
+                        job_id: job.id,
+                        trigger: trigger,
+                        score: 0,
+                        justification:
+                          'Falha ao calcular o score — provedor de IA indisponível no momento.',
+                        insufficient_data: true,
+                        snapshot: snapshot,
+                      })
+                    })
+                  } catch (_) {}
                 }
               }
             }

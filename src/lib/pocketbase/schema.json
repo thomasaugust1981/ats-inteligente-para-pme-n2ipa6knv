@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-14T11:17:30.785Z",
+  "generatedAt": "2026-11-14T11:29:04.114Z",
   "collections": [
     {
       "name": "users",
@@ -1377,6 +1377,31 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "ai_provider",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["native", "openai", "gemini"]
+        },
+        {
+          "name": "ai_model",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ai_key_last4",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ai_key_updated_at",
+          "type": "date",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []

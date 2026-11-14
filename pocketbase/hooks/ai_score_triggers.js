@@ -1,11 +1,15 @@
 //
 // Gatilhos automáticos de recálculo do score de IA (consultivo) do candidato.
-// Sempre que uma informação relevante muda, o agente nativo 'candidate-scorer'
-// recalcula o score e grava em ai_scores (auditoria):
+// Sempre que uma informação relevante muda, o score é recalculado e gravado em
+// ai_scores (auditoria):
 //   1. Candidatura muda de etapa no pipeline        → trigger 'stage_change'
 //   2. DISC é preenchido pelo candidato             → trigger 'disc_completed'
 //   3. Comentário em aprovação/reprovação de etapa  → trigger 'note_added'
 //   4. Nova candidatura criada                      → trigger 'application_created'
+//
+// A IA usada é decidida por $app.computeScore (pocketbase/hooks/ai_provider.js):
+// agente nativo 'candidate-scorer' ou provedor próprio do cliente (OpenAI/
+// Gemini com a chave dele), com fallback ao nativo — provider_used no snapshot.
 //
 // O recálculo NUNCA altera o status da candidatura — score é consultivo apenas.
 // Helpers vivem DENTRO de cada callback (pool separado da JSVM) e TODOS os
@@ -38,6 +42,10 @@ onRecordAfterUpdateSuccess((e) => {
       trigger = 'note_added'
     }
     if (!trigger) return
+
+    // Módulo configurável: agente desativado → nenhum gatilho dispara cálculo.
+    const agentSettings = $app.getAgentSettings(app)
+    if (!agentSettings.enabled) return
 
     const candidate = (() => {
       try {
@@ -163,6 +171,11 @@ onRecordAfterUpdateSuccess((e) => {
       },
       pipeline_comments: comments,
     }
+    snapshot.weights_used = {
+      technical: agentSettings.weight_technical,
+      behavioral: agentSettings.weight_behavioral,
+      cultural: agentSettings.weight_cultural,
+    }
 
     const hasResumeData =
       (snapshot.candidate.resume_structured &&
@@ -195,43 +208,17 @@ onRecordAfterUpdateSuccess((e) => {
       return
     }
 
-    // Chamada ao agente nativo 'candidate-scorer'.
+    // Chamada unificada (nativo OU provedor próprio do cliente, com fallback).
     let parsed = null
     try {
-      const serviceUser = $app.findAuthRecordByEmail('users', 'ai-service@ats.internal')
-      const prompt =
-        'Calcule o score de aderência deste candidato para a vaga, usando os dados JSON abaixo. ' +
-        'Responda APENAS com JSON: {"score_technical":0-100 ou null,"score_behavioral":0-100 ou null,' +
-        '"score_cultural":0-100 ou null,"score":0-100,"justification":"..."}. ' +
-        'Regras: score geral pondera as dimensões disponíveis. Justificativa OBRIGATÓRIA em português, ' +
-        'citando evidências de cada dimensão avaliada. Sem dados de uma dimensão, use null nela. ' +
-        'Score é consultivo — não reprova nem aprova ninguém.\n\nDADOS: ' +
-        JSON.stringify(snapshot).slice(0, 24000)
-
-      const aiResult = $ai.agent('candidate-scorer').chat({
-        user_id: serviceUser.id,
-        message: prompt,
-      })
-      const raw = ((aiResult && aiResult.content) || '').trim()
-      const cleaned = raw
-        .replace(/^```(?:json)?\s*/i, '')
-        .replace(/```\s*$/, '')
-        .trim()
-      const start = cleaned.indexOf('{')
-      const end = cleaned.lastIndexOf('}')
-      if (start !== -1 && end > start) {
-        parsed = JSON.parse(cleaned.slice(start, end + 1))
-      }
+      parsed = $app.computeScore(app, snapshot, agentSettings)
+      ecord.get('candidate_id')
     } catch (err) {
-      console.error('[ai-score-trigger] falha na chamada ao agente:', err)
+      console.error('[ai-score-trigger] falha na chamada de score:', err)
       return
     }
 
-    if (!parsed || !isFinite(Number(parsed.score)) || !String(parsed.justification || '').trim()) {
-      console.error('[ai-score-trigger] resposta inválida do agente | aplicação:', record.id)
-      return
-    }
-
+    snapshot.provider_used = parsed.provider_used
     const toNumOrNull = (v) => {
       const n = Number(v)
       return isFinite(n) ? n : null
@@ -252,7 +239,14 @@ onRecordAfterUpdateSuccess((e) => {
           snapshot: snapshot,
         })
       })
-      console.log('[ai-score-trigger] score gravado | aplicação:', record.id, '| gatilho:', trigger)
+      console.log(
+        '[ai-score-trigger] score gravado | aplicação:',
+        record.id,
+        '| gatilho:',
+        trigger,
+        '| provedor:',
+        parsed.provider_used,
+      )
     } catch (err) {
       console.error('[ai-score-trigger] falha ao gravar score final:', err)
     }
@@ -268,6 +262,9 @@ onRecordAfterCreateSuccess((e) => {
   try {
     const app = e.app
     const record = e.record
+
+    const agentSettings = $app.getAgentSettings(app)
+    if (!agentSettings.enabled) return
 
     const candidate = (() => {
       try {
@@ -315,6 +312,11 @@ onRecordAfterCreateSuccess((e) => {
       },
       pipeline_comments: [],
     }
+    snapshot.weights_used = {
+      technical: agentSettings.weight_technical,
+      behavioral: agentSettings.weight_behavioral,
+      cultural: agentSettings.weight_cultural,
+    }
 
     const hasResumeData =
       (snapshot.candidate.resume_structured &&
@@ -345,42 +347,13 @@ onRecordAfterCreateSuccess((e) => {
 
     let parsed = null
     try {
-      const serviceUser = $app.findAuthRecordByEmail('users', 'ai-service@ats.internal')
-      const prompt =
-        'Calcule o score de aderência deste candidato para a vaga, usando os dados JSON abaixo. ' +
-        'Responda APENAS com JSON: {"score_technical":0-100 ou null,"score_behavioral":0-100 ou null,' +
-        '"score_cultural":0-100 ou null,"score":0-100,"justification":"..."}. ' +
-        'Regras: score geral pondera as dimensões disponíveis. Justificativa OBRIGATÓRIA em português. ' +
-        'Score é consultivo — não reprova nem aprova ninguém.\n\nDADOS: ' +
-        JSON.stringify(snapshot).slice(0, 24000)
-
-      const aiResult = $ai.agent('candidate-scorer').chat({
-        user_id: serviceUser.id,
-        message: prompt,
-      })
-      const raw = ((aiResult && aiResult.content) || '').trim()
-      const cleaned = raw
-        .replace(/^```(?:json)?\s*/i, '')
-        .replace(/```\s*$/, '')
-        .trim()
-      const start = cleaned.indexOf('{')
-      const end = cleaned.lastIndexOf('}')
-      if (start !== -1 && end > start) {
-        parsed = JSON.parse(cleaned.slice(start, end + 1))
-      }
+      parsed = $app.computeScore(app, snapshot, agentSettings)
     } catch (err) {
-      console.error('[ai-score-trigger] falha na chamada ao agente (create):', err)
+      console.error('[ai-score-trigger] falha na chamada de score (create):', err)
       return
     }
 
-    if (!parsed || !isFinite(Number(parsed.score)) || !String(parsed.justification || '').trim()) {
-      console.error(
-        '[ai-score-trigger] resposta inválida do agente (create) | aplicação:',
-        record.id,
-      )
-      return
-    }
-
+    snapshot.provider_used = parsed.provider_used
     const toNumOrNull = (v) => {
       const n = Number(v)
       return isFinite(n) ? n : null
@@ -401,7 +374,12 @@ onRecordAfterCreateSuccess((e) => {
           snapshot: snapshot,
         })
       })
-      console.log('[ai-score-trigger] score inicial gravado | aplicação:', record.id)
+      console.log(
+        '[ai-score-trigger] score inicial gravado | aplicação:',
+        record.id,
+        '| provedor:',
+        parsed.provider_used,
+      )
     } catch (err) {
       console.error('[ai-score-trigger] falha ao gravar score inicial:', err)
     }
@@ -424,6 +402,9 @@ onRecordAfterUpdateSuccess((e) => {
       if (original) wasCompleted = String(original.get('status') || '') === 'completed'
     } catch (_) {}
     if (wasCompleted) return
+
+    const agentSettings = $app.getAgentSettings(app)
+    if (!agentSettings.enabled) return
 
     const appRecord = (() => {
       try {
@@ -486,6 +467,11 @@ onRecordAfterUpdateSuccess((e) => {
       },
       pipeline_comments: [],
     }
+    snapshot.weights_used = {
+      technical: agentSettings.weight_technical,
+      behavioral: agentSettings.weight_behavioral,
+      cultural: agentSettings.weight_cultural,
+    }
 
     const hasResumeData =
       (snapshot.candidate.resume_structured &&
@@ -516,43 +502,13 @@ onRecordAfterUpdateSuccess((e) => {
 
     let parsed = null
     try {
-      const serviceUser = $app.findAuthRecordByEmail('users', 'ai-service@ats.internal')
-      const prompt =
-        'Calcule o score de aderência deste candidato para a vaga (o DISC acabou de ser preenchido), ' +
-        'usando os dados JSON abaixo. Responda APENAS com JSON: ' +
-        '{"score_technical":0-100 ou null,"score_behavioral":0-100 ou null,' +
-        '"score_cultural":0-100 ou null,"score":0-100,"justification":"..."}. ' +
-        'Regras: score geral pondera as dimensões disponíveis. Justificativa OBRIGATÓRIA em português. ' +
-        'Score é consultivo — não reprova nem aprova ninguém.\n\nDADOS: ' +
-        JSON.stringify(snapshot).slice(0, 24000)
-
-      const aiResult = $ai.agent('candidate-scorer').chat({
-        user_id: serviceUser.id,
-        message: prompt,
-      })
-      const raw = ((aiResult && aiResult.content) || '').trim()
-      const cleaned = raw
-        .replace(/^```(?:json)?\s*/i, '')
-        .replace(/```\s*$/, '')
-        .trim()
-      const start = cleaned.indexOf('{')
-      const end = cleaned.lastIndexOf('}')
-      if (start !== -1 && end > start) {
-        parsed = JSON.parse(cleaned.slice(start, end + 1))
-      }
+      parsed = $app.computeScore(app, snapshot, agentSettings)
     } catch (err) {
-      console.error('[ai-score-trigger] falha na chamada ao agente (disc):', err)
+      console.error('[ai-score-trigger] falha na chamada de score (disc):', err)
       return
     }
 
-    if (!parsed || !isFinite(Number(parsed.score)) || !String(parsed.justification || '').trim()) {
-      console.error(
-        '[ai-score-trigger] resposta inválida do agente (disc) | aplicação:',
-        appRecord.id,
-      )
-      return
-    }
-
+    snapshot.provider_used = parsed.provider_used
     const toNumOrNull = (v) => {
       const n = Number(v)
       return isFinite(n) ? n : null
@@ -573,7 +529,12 @@ onRecordAfterUpdateSuccess((e) => {
           snapshot: snapshot,
         })
       })
-      console.log('[ai-score-trigger] score pós-DISC gravado | aplicação:', appRecord.id)
+      console.log(
+        '[ai-score-trigger] score pós-DISC gravado | aplicação:',
+        appRecord.id,
+        '| provedor:',
+        parsed.provider_used,
+      )
     } catch (err) {
       console.error('[ai-score-trigger] falha ao gravar score pós-DISC:', err)
     }
