@@ -1,8 +1,9 @@
 //
 // Hook org_versions_server — JSVM (PocketBase v0.23+), regras server-side do
 // workflow de aprovação do Organograma. O cliente envia TRANSIÇÕES (ação +
-// payload mínimo); o servidor valida e executa, de modo que nem o HTML
-// standalone (sem auth) nem a UI autenticada conseguem violar as regras:
+// payload mínimo) via POST no create de org_versions; o servidor valida e
+// executa, de modo que nem o HTML standalone (sem auth) nem a UI autenticada
+// conseguem violar as regras:
 //
 //   submit   → RASCUNHO → EM_APROVACAO (instância 1: Gerente de RH)
 //   approve  → instância atual aprovada (não pode ser o autor);
@@ -16,26 +17,40 @@
 //
 // Toda decisão grava em org_approvals (usuário, papel, instância, decisão,
 // comentário) e em audit_logs (reuso de 'erp_job_updated', select fechado).
-// e.next() em todos os caminhos; falha de workflow nunca quebra a request.
+//
+// IMPORTANTE: transições TERMINAM a request com e.json(...) e NÃO chamam
+// e.next() — caso contrário o handler de create padrão do PocketBase tentaria
+// gravar o corpo bruto como um novo registro e sobrescreveria a resposta.
+// Só o create "puro" (sem action — seed de exemplo via painel) segue o fluxo
+// padrão do PocketBase.
 //
 // Ações (POST {action: ..., ...} no corpo de um create em org_versions):
 //   action=submit | approve | reject | clone
-//   version_number, comment, reason
+//   version_number, comment, reason, actor_name, actor_role
 // Resposta: e.json({ok: true, version: {...}}) — o cliente recarrega.
 //
 onRecordCreateRequest((e) => {
+  // PocketBase v0.23+ (JSVM): o corpo JSON da requisição está em
+  // e.requestInfo().body — não em e.data.
+  let payload = {}
+  try {
+    const info = e.requestInfo()
+    payload = (info && info.body) || {}
+  } catch (_) {
+    payload = {}
+  }
+  if (!payload || typeof payload !== 'object') payload = {}
+  const action = payload.action || ''
+
+  // create normal (seed de exemplo via painel): segue o fluxo padrão.
+  if (!action) {
+    e.next()
+    return
+  }
+
   try {
     const app = e.app
-    const payload = typeof e.data === 'object' && e.data ? e.data : {}
-    const action = payload.action || ''
-
-    if (!action) {
-      // create normal (seed de exemplo via painel): segue o fluxo padrão.
-      return
-    }
-
-    const info = e.requestInfo()
-    const auth = info.auth
+    const auth = (info && info.auth) || null
     const actorName = (auth && (auth.get('name') || auth.get('email'))) || payload.actor_name || '—'
     const actorRole = (auth && auth.get('role')) || payload.actor_role || ''
 
@@ -214,7 +229,7 @@ onRecordCreateRequest((e) => {
         e.json(400, { ok: false, error: 'Versão de origem não encontrada' })
         return
       }
-      const maxNum = maxVersionNumber(app, payload.company)
+      const maxNum = maxVersionNumber(payload.company || src.get('company'))
       const rec = app.recordCreate('org_versions', {
         version_number: maxNum + 1,
         label: payload.label || 'Cópia da v' + src.get('version_number'),
@@ -311,7 +326,7 @@ onRecordCreateRequest((e) => {
       v.set('approved_by_role', effRole)
       app.save(v)
 
-      const company = v.get('company') || payload.company || 'Tecnova'
+      const company = v.get('company') || payload.company || 'Tecnobrasil'
       try {
         const prevList = app.findRecordsByFilter(
           'org_versions',
@@ -386,13 +401,12 @@ onRecordCreateRequest((e) => {
       return
     }
 
-    // ação desconhecida: ignora e segue o fluxo padrão (create normal)
+    // ação desconhecida: segue o fluxo padrão (create normal)
+    e.next()
   } catch (err) {
     console.log('org_versions_server: ' + err)
     try {
       e.json(500, { ok: false, error: String(err) })
     } catch (_) {}
-  } finally {
-    e.next()
   }
 }, 'org_versions')

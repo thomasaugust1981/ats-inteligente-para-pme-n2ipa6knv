@@ -4993,7 +4993,12 @@
             html =
               '<div class="pending-box" style="border-color:#6ee7b7;background:#ecfdf5"><h3>✅ Nada pendente</h3>Nenhum organograma aguarda decisão neste momento.</div>'
           } else {
-            for (const role of ['Gerente de RH', 'Gerente Administrativo']) {
+            const ROLES_ORDER = ['Gerente de RH', 'Gerente Administrativo']
+            const ordered = [
+              ...ROLES_ORDER.filter((r) => r === me.role),
+              ...ROLES_ORDER.filter((r) => r !== me.role),
+            ]
+            for (const role of ordered) {
               const list = waiting.filter((v) => (v.next_approver_role || '') === role)
               if (!list.length) continue
               html += `<div class="pending-box"><h3>⏳ ${esc(role)}${
@@ -5107,7 +5112,9 @@
               })
             } catch (e) {}
           }
-          // v2: rascunho com uma alteração de exemplo (um nó novo + ajuste)
+          // v2: já enviada para aprovação (instância 1 = Gerente de RH), com
+          // uma alteração de exemplo (um nó novo + um cargo ajustado) para que
+          // a comparação lado a lado mostre diferenças reais contra a v1.
           const draftNodes = JSON.parse(JSON.stringify(snap))
           const target = draftNodes.find((n) => n.id === 'n7') || draftNodes[0]
           if (target)
@@ -5128,13 +5135,32 @@
           await versionAction({
             version_number: 2,
             label: 'Ajustes de estrutura',
-            status: 'RASCUNHO',
+            status: 'EM_APROVACAO',
             nodes_json: JSON.stringify(draftNodes),
             company: c,
             created_by: me.name,
             created_by_role: 'Elaboração',
-            next_approver_role: '',
+            submitted_by: me.name,
+            submitted_at: new Date().toISOString(),
+            next_approver_role: 'Gerente de RH',
           })
+          // trilha de exemplo da v2 (envio)
+          try {
+            await fetch(APR_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                version_number: 2,
+                company: c,
+                step: 'ENVIO',
+                decision: '—',
+                user_name: me.name,
+                user_role: 'Elaboração',
+                instance: 0,
+                comment: 'Envio do rascunho de ajustes.',
+              }),
+            })
+          } catch (e) {}
         }
 
         /* ---------------- init ---------------------------------------------- */
