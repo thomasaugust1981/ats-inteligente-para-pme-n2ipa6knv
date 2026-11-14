@@ -12,6 +12,7 @@ import { SuggestedCandidatesPanel } from '@/components/SuggestedCandidatesPanel'
 import { BasicInfoCard } from '@/components/jobForm/BasicInfoCard'
 import { DescriptionCard } from '@/components/jobForm/DescriptionCard'
 import { StagesCard } from '@/components/jobForm/StagesCard'
+import { ScoreWeightsCard } from '@/components/jobForm/ScoreWeightsCard'
 import type { JobFormValues, JobFormErrors, SetJobFormField } from '@/components/jobForm/types'
 
 const INITIAL_VALUES: JobFormValues = {
@@ -30,6 +31,10 @@ const INITIAL_VALUES: JobFormValues = {
   description: '',
   requirements: '',
   benefits: '',
+  useCustomWeights: false,
+  weightTechnical: '',
+  weightBehavioral: '',
+  weightCultural: '',
 }
 
 export const JobFormPage: React.FC = () => {
@@ -105,6 +110,13 @@ export const JobFormPage: React.FC = () => {
           description: job.description || '',
           requirements: job.requirements || '',
           benefits: job.benefits || '',
+          useCustomWeights:
+            job.weight_technical != null &&
+            job.weight_behavioral != null &&
+            job.weight_cultural != null,
+          weightTechnical: job.weight_technical != null ? String(job.weight_technical) : '',
+          weightBehavioral: job.weight_behavioral != null ? String(job.weight_behavioral) : '',
+          weightCultural: job.weight_cultural != null ? String(job.weight_cultural) : '',
         })
         setHighImpact(Boolean(job.high_impact))
         let parsedOptional: string[] = []
@@ -192,6 +204,26 @@ export const JobFormPage: React.FC = () => {
     if (values.salaryMin && values.salaryMax && !isNaN(min) && !isNaN(max) && min > max) {
       next.salaryMax = 'O salário máximo deve ser maior ou igual ao mínimo.'
     }
+    // Régua própria da vaga: os três pesos são obrigatórios e a soma deve fechar 100.
+    if (values.useCustomWeights) {
+      const wt = values.weightTechnical.trim()
+      const wb = values.weightBehavioral.trim()
+      const wc = values.weightCultural.trim()
+      const toNum = (v: string) => {
+        const n = Number(v)
+        return v !== '' && Number.isFinite(n) ? n : NaN
+      }
+      const nt = toNum(wt)
+      const nb = toNum(wb)
+      const nc = toNum(wc)
+      if (isNaN(nt) || isNaN(nb) || isNaN(nc)) {
+        next.weightsSum = 'Preencha os três pesos (números de 0 a 100).'
+      } else if (nt < 0 || nb < 0 || nc < 0 || nt > 100 || nb > 100 || nc > 100) {
+        next.weightsSum = 'Cada peso deve estar entre 0 e 100.'
+      } else if (Math.round(nt) + Math.round(nb) + Math.round(nc) !== 100) {
+        next.weightsSum = 'A soma dos três pesos deve fechar exatamente 100%.'
+      }
+    }
     setErrors(next)
     return Object.keys(next).length === 0
   }
@@ -229,6 +261,17 @@ export const JobFormPage: React.FC = () => {
         stages: stages,
         high_impact: highImpact,
         optional_stages: optionalStages,
+      }
+      // Pesos da vaga: só grava quando a régua própria está ligada e fecha 100;
+      // caso contrário envia null (a vaga herda a régua global de /agente-score).
+      if (values.useCustomWeights && !errors.weightsSum) {
+        payload.weight_technical = Math.round(Number(values.weightTechnical))
+        payload.weight_behavioral = Math.round(Number(values.weightBehavioral))
+        payload.weight_cultural = Math.round(Number(values.weightCultural))
+      } else {
+        payload.weight_technical = null
+        payload.weight_behavioral = null
+        payload.weight_cultural = null
       }
 
       if (isEditing && id) {
@@ -353,11 +396,24 @@ export const JobFormPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Bloco 3: Etapas do processo (fixas + opcionais juntas) */}
+        {/* Bloco 3: Aspectos de avaliação (régua de pesos do score de IA) */}
+        <Card className="bg-white">
+          <CardHeader>
+            <CardTitle className="text-base font-semibold">3. Aspectos de avaliação</CardTitle>
+            <CardDescription className="text-xs">
+              Régua de pesos usada pelo agente de score de IA nesta vaga
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ScoreWeightsCard values={values} errors={errors} onField={setField} />
+          </CardContent>
+        </Card>
+
+        {/* Bloco 4: Etapas do processo (fixas + opcionais juntas) */}
         <Card className="bg-white">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle className="text-base font-semibold">3. Etapas do Processo</CardTitle>
+              <CardTitle className="text-base font-semibold">4. Etapas do Processo</CardTitle>
               <CardDescription className="text-xs">
                 Defina o fluxo de fases que os candidatos passarão nesta vaga
               </CardDescription>

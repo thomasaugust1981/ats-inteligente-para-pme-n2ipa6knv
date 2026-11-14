@@ -17,6 +17,11 @@ export interface JobFormValues {
   description: string
   requirements: string
   benefits: string
+  /** Régua própria da vaga (null = herda a global de /agente-score). */
+  useCustomWeights: boolean
+  weightTechnical: string
+  weightBehavioral: string
+  weightCultural: string
 }
 
 /** Erros de validação por campo (mensagem em pt-BR exibida junto ao campo). */

@@ -184,11 +184,11 @@ routerAdd('POST', '/backend/v1/candidates/score', (e) => {
               }
             } else {
               const snapshot = buildSnapshot(e.app, appRecord, candidate, job, trigger)
-              snapshot.weights_used = {
-                technical: agentSettings.weight_technical,
-                behavioral: agentSettings.weight_behavioral,
-                cultural: agentSettings.weight_cultural,
-              }
+              // Pesos EFETIVOS: régua própria da vaga quando preenchida (soma 100),
+              // senão a régua global — com a origem registrada no snapshot.
+              const resolved = $app.resolveScoreWeights(job, agentSettings)
+              snapshot.weights_used = resolved.weights
+              snapshot.weights_source = resolved.source
               const hasResumeData =
                 (snapshot.candidate.resume_structured &&
                   JSON.stringify(snapshot.candidate.resume_structured).length > 10) ||

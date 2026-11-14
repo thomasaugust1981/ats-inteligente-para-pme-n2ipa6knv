@@ -88,6 +88,28 @@ export function AiScoreBadge({
             <p className="text-slate-600 leading-relaxed whitespace-pre-wrap">
               {latest.justification}
             </p>
+            {(() => {
+              const snap = latest.snapshot as
+                | {
+                    weights_used?: {
+                      technical?: number
+                      behavioral?: number
+                      cultural?: number
+                    }
+                    weights_source?: string
+                  }
+                | null
+                | undefined
+              const w = snap?.weights_used
+              if (!w) return null
+              const source = snap?.weights_source === 'job' ? 'régua da vaga' : 'global'
+              return (
+                <p className="text-[10px] text-slate-400">
+                  Pesos usados: técnica {w.technical ?? '—'}% · comportamental {w.behavioral ?? '—'}
+                  % · cultural {w.cultural ?? '—'}% ({source})
+                </p>
+              )
+            })()}
             <p className="text-[10px] text-slate-400">
               Último cálculo: {formatScoreDate(latest.created)} · Consultivo — não reprova nem
               aprova automaticamente.

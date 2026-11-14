@@ -171,11 +171,10 @@ onRecordAfterUpdateSuccess((e) => {
       },
       pipeline_comments: comments,
     }
-    snapshot.weights_used = {
-      technical: agentSettings.weight_technical,
-      behavioral: agentSettings.weight_behavioral,
-      cultural: agentSettings.weight_cultural,
-    }
+    // Pesos EFETIVOS: régua própria da vaga quando preenchida, senão a global.
+    const resolved = $app.resolveScoreWeights(job, agentSettings)
+    snapshot.weights_used = resolved.weights
+    snapshot.weights_source = resolved.source
 
     const hasResumeData =
       (snapshot.candidate.resume_structured &&
@@ -212,7 +211,6 @@ onRecordAfterUpdateSuccess((e) => {
     let parsed = null
     try {
       parsed = $app.computeScore(app, snapshot, agentSettings)
-      ecord.get('candidate_id')
     } catch (err) {
       console.error('[ai-score-trigger] falha na chamada de score:', err)
       return
@@ -312,11 +310,10 @@ onRecordAfterCreateSuccess((e) => {
       },
       pipeline_comments: [],
     }
-    snapshot.weights_used = {
-      technical: agentSettings.weight_technical,
-      behavioral: agentSettings.weight_behavioral,
-      cultural: agentSettings.weight_cultural,
-    }
+    // Pesos EFETIVOS: régua própria da vaga quando preenchida, senão a global.
+    const resolved = $app.resolveScoreWeights(job, agentSettings)
+    snapshot.weights_used = resolved.weights
+    snapshot.weights_source = resolved.source
 
     const hasResumeData =
       (snapshot.candidate.resume_structured &&
@@ -467,11 +464,10 @@ onRecordAfterUpdateSuccess((e) => {
       },
       pipeline_comments: [],
     }
-    snapshot.weights_used = {
-      technical: agentSettings.weight_technical,
-      behavioral: agentSettings.weight_behavioral,
-      cultural: agentSettings.weight_cultural,
-    }
+    // Pesos EFETIVOS: régua própria da vaga quando preenchida, senão a global.
+    const resolved = $app.resolveScoreWeights(job, agentSettings)
+    snapshot.weights_used = resolved.weights
+    snapshot.weights_source = resolved.source
 
     const hasResumeData =
       (snapshot.candidate.resume_structured &&

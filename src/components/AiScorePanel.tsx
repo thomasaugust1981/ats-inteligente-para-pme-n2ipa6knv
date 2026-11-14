@@ -133,25 +133,24 @@ export function AiScorePanel({
             </div>
 
             {(() => {
-              const w =
-                latest.snapshot &&
-                typeof latest.snapshot === 'object' &&
-                'weights_used' in latest.snapshot
-                  ? (
-                      latest.snapshot as {
-                        weights_used?: {
-                          technical?: number
-                          behavioral?: number
-                          cultural?: number
-                        }
-                      }
-                    ).weights_used
-                  : null
+              const snap = latest.snapshot as
+                | {
+                    weights_used?: {
+                      technical?: number
+                      behavioral?: number
+                      cultural?: number
+                    }
+                    weights_source?: string
+                  }
+                | null
+                | undefined
+              const w = snap?.weights_used
               if (!w) return null
+              const source = snap?.weights_source === 'job' ? 'régua da vaga' : 'global'
               return (
                 <p className="text-[10px] text-slate-400 -mt-2">
                   Pesos usados: técnica {w.technical ?? '—'}% · comportamental {w.behavioral ?? '—'}
-                  % · cultural {w.cultural ?? '—'}%
+                  % · cultural {w.cultural ?? '—'}% ({source})
                 </p>
               )
             })()}

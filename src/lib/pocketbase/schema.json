@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-14T11:29:04.114Z",
+  "generatedAt": "2026-11-14T11:38:53.814Z",
   "collections": [
     {
       "name": "users",
@@ -313,6 +313,24 @@
         {
           "name": "optional_stages",
           "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "weight_technical",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "weight_behavioral",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "weight_cultural",
+          "type": "number",
           "required": false,
           "system": false
         }

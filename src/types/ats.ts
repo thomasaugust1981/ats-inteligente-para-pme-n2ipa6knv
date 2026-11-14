@@ -85,6 +85,10 @@ export interface Job {
   stages?: string | JobStage[] // JSON string in PB, or parsed array in app
   high_impact?: boolean
   optional_stages?: string | string[] // JSON string in PB, or parsed array in app
+  // Pesos de avaliação próprios da vaga (régua do score de IA); null = herda a global
+  weight_technical?: number | null
+  weight_behavioral?: number | null
+  weight_cultural?: number | null
   manager_id?: string
   created_by?: string
   expand?: {

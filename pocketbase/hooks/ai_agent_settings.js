@@ -59,6 +59,42 @@ $app.getAgentSettings = function (app) {
   }
 }
 
+// Pesos EFETIVOS do score: se a vaga da candidatura tem a régua própria
+// preenchida (os três campos e soma 100), usa a da vaga; senão, a global.
+// Retorna { weights: {technical, behavioral, cultural}, source: 'job' | 'global' }.
+$app.resolveScoreWeights = function (job, agentSettings) {
+  if (job) {
+    const t = Number(job.get('weight_technical'))
+    const b = Number(job.get('weight_behavioral'))
+    const c = Number(job.get('weight_cultural'))
+    if (
+      job.get('weight_technical') !== '' &&
+      job.get('weight_technical') != null &&
+      job.get('weight_behavioral') !== '' &&
+      job.get('weight_behavioral') != null &&
+      job.get('weight_cultural') !== '' &&
+      job.get('weight_cultural') != null &&
+      isFinite(t) &&
+      isFinite(b) &&
+      isFinite(c) &&
+      Math.round(t) + Math.round(b) + Math.round(c) === 100
+    ) {
+      return {
+        weights: { technical: Math.round(t), behavioral: Math.round(b), cultural: Math.round(c) },
+        source: 'job',
+      }
+    }
+  }
+  return {
+    weights: {
+      technical: agentSettings.weight_technical,
+      behavioral: agentSettings.weight_behavioral,
+      cultural: agentSettings.weight_cultural,
+    },
+    source: 'global',
+  }
+}
+
 $app.onRecordValidate('ai_agent_settings').add((e) => {
   const w1 = Number(e.record.get('weight_technical') || 0)
   const w2 = Number(e.record.get('weight_behavioral') || 0)
