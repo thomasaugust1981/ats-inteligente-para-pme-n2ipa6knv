@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/use-auth'
 import pb from '@/lib/pocketbase/client'
 import { jobsService } from '@/services/jobs'
 import { applicationsService, auditService } from '@/services/candidates'
+import { calculateScore } from '@/services/aiScore'
 import type { Job, Application, JobStage, User } from '@/types/ats'
 import {
   Users,
@@ -46,6 +47,7 @@ import { EmptyState } from '@/components/EmptyState'
 import { useCopyLink } from '@/hooks/use-copy-link'
 import StageOwnerSettings from '@/components/StageOwnerSettings'
 import { DiscFitPanel } from '@/components/DiscFitPanel'
+import { AiScoreBadge } from '@/components/AiScoreBadge'
 import { Plus, BellRing } from 'lucide-react'
 
 export const PipelinePage: React.FC = () => {
@@ -165,6 +167,11 @@ export const PipelinePage: React.FC = () => {
       })
 
       setMoveModalOpen(false)
+
+      // Gatilho de recálculo do score de IA (consultivo) — falha silenciosa:
+      // o score anterior permanece visível até o próximo cálculo.
+      calculateScore(selectedApp.id, 'stage_change').catch(() => {})
+
       if (job) {
         loadPipeline(job.id)
       }
@@ -392,6 +399,8 @@ export const PipelinePage: React.FC = () => {
                             </CardHeader>
 
                             <CardContent className="p-3 pt-0 text-[11px] space-y-2">
+                              <AiScoreBadge applicationId={app.id} className="mb-1" />
+
                               {(stage.id === 'disc' || app.disc_status) && (
                                 <button
                                   type="button"

@@ -32,6 +32,7 @@ import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
 import { ResumeStructuredPanel } from '@/components/ResumeStructuredPanel'
 import { DiscFitPanel } from '@/components/DiscFitPanel'
+import { AiScorePanel } from '@/components/AiScorePanel'
 
 export const CandidateProfilePage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -422,6 +423,13 @@ export const CandidateProfilePage: React.FC = () => {
             <DiscFitPanel applicationId={targetAppId} />
           ) : applications.length > 0 ? (
             <DiscFitPanel applicationId={applications[0].id} />
+          ) : null}
+
+          {/* Score de IA (consultivo) — geral + dimensões + histórico de cálculos */}
+          {targetAppId ? (
+            <AiScorePanel applicationId={targetAppId} />
+          ) : applications.length > 0 ? (
+            <AiScorePanel applicationId={applications[0].id} />
           ) : null}
         </div>
 
