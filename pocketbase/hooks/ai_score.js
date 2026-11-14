@@ -145,14 +145,23 @@ routerAdd('POST', '/backend/v1/candidates/score', (e) => {
     }
   }
 
-  function callScoreAgent(snapshot) {
+  function callScoreAgent(snapshot, agentSettings) {
     const serviceUser = $app.findAuthRecordByEmail('users', 'ai-service@ats.internal')
     const prompt =
       'Calcule o score de aderência deste candidato para a vaga, usando os dados JSON abaixo. ' +
       'Responda APENAS com JSON no formato: {"score_technical":0-100 ou null,"score_behavioral":0-100 ou null,' +
       '"score_cultural":0-100 ou null,"score":0-100,"justification":"...","insufficient_data":false}. ' +
-      'Regras: score geral pondera as dimensões disponíveis. Justificativa OBRIGATÓRIA em português, ' +
-      'citando evidências de cada dimensão avaliada. Sem dados de uma dimensão, use null nela. ' +
+      'Regras: o score geral É UMA MÉDIA PONDERADA das dimensões disponíveis, usando EXATAMENTE os ' +
+      'pesos em snapshot.weights_used (técnica=' +
+      agentSettings.weight_technical +
+      '%, comportamental=' +
+      agentSettings.weight_behavioral +
+      '%, cultural=' +
+      agentSettings.weight_cultural +
+      '%; a soma é 100; ' +
+      'redistribua proporcionalmente entre as dimensões disponíveis quando alguma for null). ' +
+      'Justificativa OBRIGATÓRIA em português, citando evidências de cada dimensão avaliada. ' +
+      'Sem dados de uma dimensão, use null nela. ' +
       'Se faltar quase tudo (nem currículo/skills, nem requisitos da vaga), devolva insufficient_data=true.\n\n' +
       'DADOS: ' +
       JSON.stringify(snapshot).slice(0, 24000)
@@ -208,64 +217,80 @@ routerAdd('POST', '/backend/v1/candidates/score', (e) => {
             responseStatus = 404
             responsePayload = { error: 'Candidato ou vaga não encontrados.' }
           } else {
-            const snapshot = buildSnapshot(e.app, appRecord, candidate, job, trigger)
-            const hasResumeData =
-              (snapshot.candidate.resume_structured &&
-                JSON.stringify(snapshot.candidate.resume_structured).length > 10) ||
-              (snapshot.candidate.skills && snapshot.candidate.skills.trim().length > 0)
-
-            if (!hasResumeData) {
+            // Módulo configurável: agente desativado → endpoint não calcula nada.
+            const agentSettings = $app.getAgentSettings(e.app)
+            if (!agentSettings.enabled) {
               responseStatus = 200
               responsePayload = {
                 insufficient_data: true,
                 message:
-                  'Score ainda não calculado — dados insuficientes (sem currículo estruturado nem habilidades preenchidas).',
+                  'O agente de score de IA está desativado pelo administrador — nenhum score é calculado.',
               }
             } else {
-              try {
-                const parsed = callScoreAgent(snapshot)
+              const snapshot = buildSnapshot(e.app, appRecord, candidate, job, trigger)
+              snapshot.weights_used = {
+                technical: agentSettings.weight_technical,
+                behavioral: agentSettings.weight_behavioral,
+                cultural: agentSettings.weight_cultural,
+              }
+              const hasResumeData =
+                (snapshot.candidate.resume_structured &&
+                  JSON.stringify(snapshot.candidate.resume_structured).length > 10) ||
+                (snapshot.candidate.skills && snapshot.candidate.skills.trim().length > 0)
 
-                // AUDITORIA: grava score + dimensões + snapshot + justificativa
-                let savedId = ''
-                try {
-                  const savedRecord = e.app.runBatch(function (batch) {
-                    return batch.collection('ai_scores').create({
-                      application_id: appRecord.id,
-                      candidate_id: candidate.id,
-                      job_id: job.id,
-                      trigger: trigger,
-                      score: Math.round(Number(parsed.score)),
-                      score_technical: toNumOrNull(parsed.score_technical),
-                      score_behavioral: toNumOrNull(parsed.score_behavioral),
-                      score_cultural: toNumOrNull(parsed.score_cultural),
-                      justification: String(parsed.justification || '').trim(),
-                      insufficient_data: false,
-                      snapshot: snapshot,
-                    })
-                  })
-                  savedId = savedRecord ? savedRecord.id : ''
-                } catch (err) {
-                  console.error('[ai-score] falha ao gravar ai_scores:', err)
-                }
-
+              if (!hasResumeData) {
                 responseStatus = 200
                 responsePayload = {
-                  id: savedId,
-                  score: Math.round(Number(parsed.score)),
-                  score_technical: toNumOrNull(parsed.score_technical),
-                  score_behavioral: toNumOrNull(parsed.score_behavioral),
-                  score_cultural: toNumOrNull(parsed.score_cultural),
-                  justification: String(parsed.justification || '').trim(),
-                  insufficient_data: false,
-                  trigger: trigger,
-                  created: new Date().toISOString(),
+                  insufficient_data: true,
+                  message:
+                    'Score ainda não calculado — dados insuficientes (sem currículo estruturado nem habilidades preenchidas).',
                 }
-              } catch (err) {
-                console.error('[ai-score] erro no agente:', err)
-                responseStatus = 502
-                responsePayload = {
-                  error: 'Falha na análise de IA. Tente novamente em instantes.',
-                  code: 'ai_error',
+              } else {
+                try {
+                  const parsed = callScoreAgent(snapshot, agentSettings)
+
+                  // AUDITORIA: grava score + dimensões + snapshot + justificativa
+                  let savedId = ''
+                  try {
+                    const savedRecord = e.app.runBatch(function (batch) {
+                      return batch.collection('ai_scores').create({
+                        application_id: appRecord.id,
+                        candidate_id: candidate.id,
+                        job_id: job.id,
+                        trigger: trigger,
+                        score: Math.round(Number(parsed.score)),
+                        score_technical: toNumOrNull(parsed.score_technical),
+                        score_behavioral: toNumOrNull(parsed.score_behavioral),
+                        score_cultural: toNumOrNull(parsed.score_cultural),
+                        justification: String(parsed.justification || '').trim(),
+                        insufficient_data: false,
+                        snapshot: snapshot,
+                      })
+                    })
+                    savedId = savedRecord ? savedRecord.id : ''
+                  } catch (err) {
+                    console.error('[ai-score] falha ao gravar ai_scores:', err)
+                  }
+
+                  responseStatus = 200
+                  responsePayload = {
+                    id: savedId,
+                    score: Math.round(Number(parsed.score)),
+                    score_technical: toNumOrNull(parsed.score_technical),
+                    score_behavioral: toNumOrNull(parsed.score_behavioral),
+                    score_cultural: toNumOrNull(parsed.score_cultural),
+                    justification: String(parsed.justification || '').trim(),
+                    insufficient_data: false,
+                    trigger: trigger,
+                    created: new Date().toISOString(),
+                  }
+                } catch (err) {
+                  console.error('[ai-score] erro no agente:', err)
+                  responseStatus = 502
+                  responsePayload = {
+                    error: 'Falha na análise de IA. Tente novamente em instantes.',
+                    code: 'ai_error',
+                  }
                 }
               }
             }

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-14T11:13:54.129Z",
+  "generatedAt": "2026-11-14T11:17:30.785Z",
   "collections": [
     {
       "name": "users",
@@ -1297,6 +1297,89 @@
         "CREATE INDEX idx_ai_scores_application ON ai_scores (application_id)",
         "CREATE INDEX idx_ai_scores_candidate ON ai_scores (candidate_id)"
       ]
+    },
+    {
+      "name": "ai_agent_settings",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.role = 'admin'",
+        "update": "@request.auth.role = 'admin'",
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "enabled",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "weight_technical",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "weight_behavioral",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "weight_cultural",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "trigger_new_application",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "trigger_stage_change",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "trigger_disc_completed",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "trigger_note_added",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "updated_by",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
     }
   ]
 }

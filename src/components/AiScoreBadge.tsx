@@ -1,13 +1,15 @@
-import { Sparkles } from 'lucide-react'
+import { Sparkles, BotOff } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAiScore, formatScoreDate } from '@/hooks/use-ai-score'
+import { useAiAgentSettings } from '@/hooks/use-ai-agent-settings'
 
 // Badge de score de IA do card do pipeline. Consultivo: mostra número +
 // justificativa num popover, data do último cálculo e botão de recalcular.
-// Nunca reprova/aprova — apenas informa o recrutador.
+// Quando o agente está desativado (ai_agent_settings.enabled = false), o badge
+// mostra o estado desativado em vez do número. Nunca reprova/aprova.
 
 const TRIGGER_LABELS: Record<string, string> = {
   manual: 'Recálculo manual',
@@ -26,13 +28,16 @@ export function AiScoreBadge({
   className?: string
 }) {
   const { status, latest, message, error, recalculating, recalculate } = useAiScore(applicationId)
+  const { settings: agentSettings, loading: settingsLoading } = useAiAgentSettings()
+  const agentOff = !settingsLoading && !agentSettings.enabled
 
   if (status === 'loading') {
     return <Skeleton className={`h-6 w-24 rounded-full ${className || ''}`} />
   }
 
-  const scoreColor =
-    latest && latest.score >= 70
+  const scoreColor = agentOff
+    ? 'bg-slate-100 text-slate-500 border-slate-200'
+    : latest && latest.score >= 70
       ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
       : latest && latest.score >= 45
         ? 'bg-amber-100 text-amber-800 border-amber-200'
@@ -44,14 +49,35 @@ export function AiScoreBadge({
         <button
           type="button"
           className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold transition-colors hover:opacity-90 ${scoreColor} ${className || ''}`}
-          title="Score de IA (consultivo)"
+          title={agentOff ? 'Agente desativado' : 'Score de IA (consultivo)'}
         >
-          <Sparkles className="w-3 h-3" />
-          {status === 'ready' && latest ? <>Score IA {latest.score}</> : <>Score IA —</>}
+          {agentOff ? <BotOff className="w-3 h-3" /> : <Sparkles className="w-3 h-3" />}
+          {agentOff ? (
+            <>Agente desativado</>
+          ) : status === 'ready' && latest ? (
+            <>Score IA {latest.score}</>
+          ) : (
+            <>Score IA —</>
+          )}
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-80 text-xs" align="start">
-        {status === 'ready' && latest ? (
+        {agentOff ? (
+          <div className="space-y-2">
+            <p className="font-semibold text-slate-800 flex items-center gap-1.5">
+              <BotOff className="w-3.5 h-3.5" /> Agente de score desativado
+            </p>
+            <p className="text-slate-500">
+              O administrador desativou o agente de score de IA — nenhum score é calculado (nem por
+              gatilho, nem no botão recalcular). Scores anteriores continuam visíveis no perfil.
+            </p>
+            {latest && (
+              <p className="text-[10px] text-slate-400">
+                Último score registrado: {latest.score}/100 · {formatScoreDate(latest.created)}
+              </p>
+            )}
+          </div>
+        ) : status === 'ready' && latest ? (
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
               <span className="font-semibold text-slate-800">Score de IA: {latest.score}/100</span>

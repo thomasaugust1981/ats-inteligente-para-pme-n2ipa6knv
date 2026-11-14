@@ -15,7 +15,9 @@ import {
   UserCheck,
   Rocket,
   Network,
+  Bot,
 } from 'lucide-react'
+import { useAiAgentSettings } from '@/hooks/use-ai-agent-settings'
 import { onboardingService } from '@/services/onboarding'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -26,6 +28,9 @@ const Layout: React.FC = () => {
   const location = useLocation()
   const navigate = useNavigate()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+  // Agente de Score de IA: item dedicado, visível a todos os papéis autenticados
+  const { settings: agentSettings } = useAiAgentSettings()
 
   // Rotas públicas que não usam o sidebar administrativo
   const isPublicRoute =
@@ -148,6 +153,23 @@ const Layout: React.FC = () => {
               <span>Organograma</span>
             </Link>
           )}
+          <Link
+            to="/agente-score"
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition ${
+              location.pathname.startsWith('/agente-score')
+                ? 'bg-sky-600 text-white shadow-xs'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/80'
+            }`}
+          >
+            <Bot className="w-4 h-4" />
+            <span>Agente de Score</span>
+            <span
+              className={`ml-auto w-2 h-2 rounded-full ${
+                agentSettings.enabled ? 'bg-emerald-400' : 'bg-slate-600'
+              }`}
+              title={agentSettings.enabled ? 'Agente ativado' : 'Agente desativado'}
+            />
+          </Link>
         </nav>
 
         {/* Atalhos inferiores: Página de Carreiras & Logout */}
@@ -216,6 +238,19 @@ const Layout: React.FC = () => {
               Organograma
             </Link>
           )}
+          <Link
+            to="/agente-score"
+            onClick={() => setMobileMenuOpen(false)}
+            className="block py-2 text-sm text-slate-300 hover:text-white flex items-center gap-2"
+          >
+            <Bot className="w-4 h-4" />
+            Agente de Score
+            <span
+              className={`ml-auto w-2 h-2 rounded-full ${
+                agentSettings.enabled ? 'bg-emerald-400' : 'bg-slate-600'
+              }`}
+            />
+          </Link>
           <Link
             to="/carreiras"
             target="_blank"

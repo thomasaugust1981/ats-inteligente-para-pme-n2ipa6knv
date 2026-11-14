@@ -4,6 +4,8 @@ import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AuthProvider } from '@/hooks/use-auth'
+import { AiAgentSettingsProvider } from '@/hooks/use-ai-agent-settings'
+import AiAgentSettingsPage from './pages/AiAgentSettingsPage'
 
 import Layout from './components/Layout'
 import Index from './pages/Index'
@@ -29,38 +31,41 @@ import OrganogramaPage from './pages/OrganogramaPage'
 const App = () => (
   <BrowserRouter>
     <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <Routes>
-          {/* Rotas Públicas de Carreiras e Candidatura (com Google for Jobs & LGPD) */}
-          <Route path="/portal" element={<PortalPage />} />
-          <Route path="/carreiras" element={<CareersPage />} />
-          <Route path="/carreiras/vaga/:slug" element={<JobApplicationPage />} />
-          <Route path="/disc/:token" element={<DiscFormPage />} />
+      <AiAgentSettingsProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <Routes>
+            {/* Rotas Públicas de Carreiras e Candidatura (com Google for Jobs & LGPD) */}
+            <Route path="/portal" element={<PortalPage />} />
+            <Route path="/carreiras" element={<CareersPage />} />
+            <Route path="/carreiras/vaga/:slug" element={<JobApplicationPage />} />
+            <Route path="/disc/:token" element={<DiscFormPage />} />
 
-          {/* Autenticação e Recuperação de Senha */}
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/verificar-email" element={<VerifyEmailPage />} />
-          <Route path="/redefinir-senha" element={<ResetPasswordPage />} />
-          <Route path="/onboarding" element={<OnboardingPage />} />
+            {/* Autenticação e Recuperação de Senha */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/verificar-email" element={<VerifyEmailPage />} />
+            <Route path="/redefinir-senha" element={<ResetPasswordPage />} />
+            <Route path="/onboarding" element={<OnboardingPage />} />
 
-          {/* Rotas Protegidas dentro do Layout do ATS */}
-          <Route element={<Layout />}>
-            <Route path="/" element={<Index />} />
-            <Route path="/vagas" element={<JobsListPage />} />
-            <Route path="/vagas/nova" element={<JobFormPage />} />
-            <Route path="/vagas/editar/:id" element={<JobFormPage />} />
-            <Route path="/pipeline" element={<PipelinePage />} />
-            <Route path="/pipeline/:jobId" element={<PipelinePage />} />
-            <Route path="/candidatos" element={<CandidatesListPage />} />
-            <Route path="/candidato/:id" element={<CandidateProfilePage />} />
-            <Route path="/organograma" element={<OrganogramaPage />} />
-          </Route>
+            {/* Rotas Protegidas dentro do Layout do ATS */}
+            <Route element={<Layout />}>
+              <Route path="/" element={<Index />} />
+              <Route path="/vagas" element={<JobsListPage />} />
+              <Route path="/vagas/nova" element={<JobFormPage />} />
+              <Route path="/vagas/editar/:id" element={<JobFormPage />} />
+              <Route path="/pipeline" element={<PipelinePage />} />
+              <Route path="/pipeline/:jobId" element={<PipelinePage />} />
+              <Route path="/candidatos" element={<CandidatesListPage />} />
+              <Route path="/candidato/:id" element={<CandidateProfilePage />} />
+              <Route path="/organograma" element={<OrganogramaPage />} />
+              <Route path="/agente-score" element={<AiAgentSettingsPage />} />
+            </Route>
 
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </TooltipProvider>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </TooltipProvider>
+      </AiAgentSettingsProvider>
     </AuthProvider>
   </BrowserRouter>
 )

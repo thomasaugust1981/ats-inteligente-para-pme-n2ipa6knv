@@ -1,9 +1,10 @@
-import { Sparkles, RefreshCw, ShieldCheck } from 'lucide-react'
+import { Sparkles, RefreshCw, ShieldCheck, BotOff } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { useAiScore, formatScoreDate } from '@/hooks/use-ai-score'
+import { useAiAgentSettings } from '@/hooks/use-ai-agent-settings'
 
 // Painel de score de IA do perfil do candidato: score geral + detalhamento por
 // dimensão (técnica, comportamental/DISC, cultural) + justificativa + HISTÓRICO
@@ -37,6 +38,8 @@ export function AiScorePanel({
 }) {
   const { status, latest, history, message, error, recalculating, recalculate } =
     useAiScore(applicationId)
+  const { settings: agentSettings, loading: settingsLoading } = useAiAgentSettings()
+  const agentOff = !settingsLoading && !agentSettings.enabled
 
   const score = status === 'ready' && latest ? latest.score : null
   const scoreColor =
@@ -58,8 +61,9 @@ export function AiScorePanel({
             size="sm"
             variant="outline"
             className="text-xs"
-            disabled={recalculating || !applicationId}
+            disabled={recalculating || !applicationId || agentOff}
             onClick={() => recalculate('manual')}
+            title={agentOff ? 'O agente está desativado pelo administrador' : undefined}
           >
             <RefreshCw className={`w-3.5 h-3.5 mr-1 ${recalculating ? 'animate-spin' : ''}`} />
             {recalculating ? 'Recalculando...' : 'Recalcular score'}
@@ -67,6 +71,19 @@ export function AiScorePanel({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {agentOff && (
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 flex items-start gap-2">
+            <BotOff className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+            <div className="text-xs">
+              <p className="font-semibold text-slate-700">Agente de score desativado</p>
+              <p className="text-slate-500 mt-0.5">
+                O administrador desativou o agente — nenhum score é calculado. scores anteriores
+                continuam no histórico abaixo.
+              </p>
+            </div>
+          </div>
+        )}
+
         {status === 'loading' && (
           <div className="space-y-2">
             <div className="h-8 w-28 rounded bg-slate-100 animate-pulse" />
@@ -75,7 +92,7 @@ export function AiScorePanel({
           </div>
         )}
 
-        {(status === 'empty' || status === 'insufficient' || status === 'error') && (
+        {!agentOff && (status === 'empty' || status === 'insufficient' || status === 'error') && (
           <div className="text-xs space-y-2">
             <p className="font-semibold text-slate-700">Score ainda não calculado</p>
             <p className="text-slate-500">
@@ -114,6 +131,30 @@ export function AiScorePanel({
                 {TRIGGER_LABELS[latest.trigger || 'manual'] || latest.trigger}
               </Badge>
             </div>
+
+            {(() => {
+              const w =
+                latest.snapshot &&
+                typeof latest.snapshot === 'object' &&
+                'weights_used' in latest.snapshot
+                  ? (
+                      latest.snapshot as {
+                        weights_used?: {
+                          technical?: number
+                          behavioral?: number
+                          cultural?: number
+                        }
+                      }
+                    ).weights_used
+                  : null
+              if (!w) return null
+              return (
+                <p className="text-[10px] text-slate-400 -mt-2">
+                  Pesos usados: técnica {w.technical ?? '—'}% · comportamental {w.behavioral ?? '—'}
+                  % · cultural {w.cultural ?? '—'}%
+                </p>
+              )
+            })()}
 
             <div className="space-y-2">
               {DIMENSIONS.map((dim) => {

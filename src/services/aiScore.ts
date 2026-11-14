@@ -21,6 +21,7 @@ export interface AiScoreRecord extends AiScoreDimensions {
   score: number
   justification: string
   insufficient_data?: boolean
+  snapshot?: unknown
   created: string
 }
 
