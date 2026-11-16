@@ -198,19 +198,18 @@ export const CargosPage: React.FC = () => {
               ? 'Cadastre o primeiro cargo com os blocos CHA — as vagas vão herdar esses requisitos.'
               : 'Ajuste a busca ou os filtros para encontrar o cargo.'
           }
-          action={
-            canEdit && cargos.length === 0 ? (
-              <Button
-                className="bg-sky-600 hover:bg-sky-700 text-white"
-                onClick={() => {
-                  setEditing(null)
-                  setFormOpen(true)
-                }}
-              >
-                <Plus className="w-4 h-4 mr-1.5" />
-                Cadastrar cargo
-              </Button>
-            ) : undefined
+          actions={
+            canEdit && cargos.length === 0
+              ? [
+                  {
+                    label: 'Cadastrar cargo',
+                    onClick: () => {
+                      setEditing(null)
+                      setFormOpen(true)
+                    },
+                  },
+                ]
+              : []
           }
         />
       ) : (

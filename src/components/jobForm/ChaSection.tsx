@@ -15,13 +15,13 @@ import {
   chaItem,
   invalidAttitudes,
   type ChaBlockKey,
-  type ChaBlockData,
+  type ChaData,
   type ChaItem,
 } from '@/lib/cha'
 
 interface Props {
-  value: Record<ChaBlockKey, ChaBlockData>
-  onChange: (next: Record<ChaBlockKey, ChaBlockData>) => void
+  value: ChaData
+  onChange: (next: ChaData) => void
   errors: Record<string, string>
 }
 

@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { ChaSection } from './ChaSection'
 import {
   CHA_BLOCK_KEYS,
   CHA_BLOCK_META,
@@ -61,6 +62,7 @@ interface Props {
 export const ChaInheritCard: React.FC<Props> = ({
   values,
   errors,
+  onField,
   cargos,
   cargosLoading,
   chaRequirements,
@@ -225,7 +227,9 @@ export const ChaInheritCard: React.FC<Props> = ({
           </div>
           <ChaSection
             value={chaRequirements?.specific || emptyChaRequirements().specific}
-            onChange={(specific) => onChaSpecificChange({ specific })}
+            onChange={(specific) =>
+              onChaSpecificChange({ cargo: chaRequirements?.cargo ?? null, specific })
+            }
             errors={errors as Record<string, string>}
           />
           {specificBlocks.length > 0 && (
