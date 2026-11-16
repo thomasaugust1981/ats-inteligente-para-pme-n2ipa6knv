@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-16T13:24:11.158Z",
+  "generatedAt": "2026-11-16T13:56:22.843Z",
   "collections": [
     {
       "name": "users",
@@ -168,6 +168,32 @@
           "required": false,
           "system": false,
           "collectionRef": "organizations"
+        },
+        {
+          "name": "cnpj",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "company_type",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["matriz", "filial"]
+        },
+        {
+          "name": "parent_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "companies"
+        },
+        {
+          "name": "is_active",
+          "type": "bool",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []
@@ -499,6 +525,13 @@
           "required": false,
           "system": false,
           "collectionRef": "organizations"
+        },
+        {
+          "name": "company_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "companies"
         }
       ],
       "indexes": [
