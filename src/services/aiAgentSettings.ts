@@ -74,7 +74,9 @@ export async function getAgentSettings(): Promise<AiAgentSettings> {
 export async function saveAgentSettings(
   settings: Omit<AiAgentSettings, 'id' | 'updated'> & { id?: string },
 ): Promise<AiAgentSettings> {
+  const me = pb.authStore.record as (Record<string, unknown> & { org_id?: string }) | null
   const body = {
+    org_id: me?.org_id || '',
     enabled: settings.enabled,
     weight_technical: settings.weight_technical,
     weight_behavioral: settings.weight_behavioral,

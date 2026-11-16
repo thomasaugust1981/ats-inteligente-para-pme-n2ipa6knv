@@ -74,12 +74,13 @@ export const onboardingService = {
   },
 
   async createInvite(email: string, role: UserRole): Promise<TeamInvite> {
-    const user = pb.authStore.record
+    const user = pb.authStore.record as (Record<string, unknown> & { org_id?: string }) | null
     return await pb.collection('team_invites').create<TeamInvite>({
       email: email.trim().toLowerCase(),
       role,
       status: 'pending',
       invited_by: user?.name || user?.email || 'Administrador',
+      org_id: user?.org_id || '',
     })
   },
 

@@ -61,6 +61,7 @@ export const stageSettingsService = {
 
   /** Cria ou atualiza (idempotente) a configuração de uma etapa da vaga. */
   async upsert(jobId: string, draft: StageConfigDraft): Promise<StageSetting> {
+    const user = pb.authStore.record as (Record<string, unknown> & { org_id?: string }) | null
     const payload = {
       job_id: jobId,
       stage_id: draft.stage_id,
@@ -68,6 +69,7 @@ export const stageSettingsService = {
       owner_email: draft.owner_email.trim().toLowerCase(),
       reminder_enabled: draft.reminder_enabled,
       reminder_days: draft.reminder_days || DEFAULT_REMINDER_DAYS,
+      org_id: user?.org_id || '',
     }
     const existing = await this.getByJobAndStage(jobId, draft.stage_id)
     if (existing) {

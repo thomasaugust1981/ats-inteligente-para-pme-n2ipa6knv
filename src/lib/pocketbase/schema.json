@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-16T21:12:57.280Z",
+  "generatedAt": "2026-11-16T21:27:20.429Z",
   "collections": [
     {
       "name": "users",
@@ -7,7 +7,7 @@
       "apiRules": {
         "list": "@request.auth.id != '' && (@request.auth.role = 'superadmin' || id = @request.auth.id)",
         "view": "@request.auth.id != '' && (@request.auth.role = 'superadmin' || id = @request.auth.id)",
-        "create": "",
+        "create": "(@request.auth.role = 'superadmin') || (@request.auth.id = '' && @request.body.org_id:isset = false && (@request.body.role:isset = false || @request.body.role = 'recruiter' || @request.body.role = 'manager' || @request.body.role = 'admin'))",
         "update": "@request.auth.id != '' && (@request.auth.role = 'superadmin' || (id = @request.auth.id && @request.body.role:changed = false && @request.body.org_id:changed = false))",
         "delete": "id = @request.auth.id"
       },
@@ -68,8 +68,8 @@
       "name": "companies",
       "type": "base",
       "apiRules": {
-        "list": "",
-        "view": "",
+        "list": "(jobs_via_company_id.status = 'published') || (@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "view": "(jobs_via_company_id.status = 'published') || (@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
         "create": "@request.auth.id != '' && @request.auth.org_id != ''",
         "update": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
         "delete": "(@request.auth.id != '' && org_id = @request.auth.org_id && @request.auth.role = 'admin') || @request.auth.role = 'superadmin'"
@@ -669,7 +669,7 @@
       "apiRules": {
         "list": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
         "view": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
-        "create": "@request.auth.id != ''",
+        "create": "(@request.auth.id != '' && @request.auth.org_id != '' && @request.body.org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
         "update": null,
         "delete": null
       },
@@ -785,7 +785,7 @@
       "apiRules": {
         "list": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
         "view": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
-        "create": "@request.auth.id != ''",
+        "create": "(@request.auth.id != '' && @request.auth.org_id != '' && @request.body.org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
         "update": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
         "delete": "(@request.auth.id != '' && org_id = @request.auth.org_id && @request.auth.role = 'admin') || @request.auth.role = 'superadmin'"
       },
@@ -846,7 +846,7 @@
       "apiRules": {
         "list": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
         "view": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
-        "create": "@request.auth.id != '' && @request.auth.org_id != ''",
+        "create": "(@request.auth.id != '' && @request.auth.org_id != '' && @request.body.org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
         "update": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
         "delete": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'"
       },
@@ -1474,7 +1474,7 @@
       "apiRules": {
         "list": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
         "view": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
-        "create": "@request.auth.id != '' && @request.auth.org_id != ''",
+        "create": "(@request.auth.id != '' && @request.auth.org_id != '' && @request.body.org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
         "update": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
         "delete": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'"
       },
@@ -1641,7 +1641,7 @@
       "apiRules": {
         "list": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
         "view": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
-        "create": "@request.auth.id != '' && @request.auth.org_id != ''",
+        "create": "(@request.auth.id != '' && @request.auth.org_id != '' && @request.body.org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
         "update": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
         "delete": "(@request.auth.id != '' && org_id = @request.auth.org_id && @request.auth.role = 'admin') || @request.auth.role = 'superadmin'"
       },

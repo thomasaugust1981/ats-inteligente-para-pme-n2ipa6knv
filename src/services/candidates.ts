@@ -210,7 +210,11 @@ export const auditService = {
   },
 
   async createLog(data: Partial<AuditLog>): Promise<AuditLog> {
-    return await pb.collection('audit_logs').create<AuditLog>(data)
+    const user = pb.authStore.record as (Record<string, unknown> & { org_id?: string }) | null
+    return await pb.collection('audit_logs').create<AuditLog>({
+      org_id: user?.org_id || '',
+      ...data,
+    })
   },
 
   async recordResumeView(candidateId: string, applicationId?: string): Promise<void> {
@@ -218,6 +222,7 @@ export const auditService = {
     if (!user) return
     try {
       await pb.collection('audit_logs').create({
+        org_id: (user as { org_id?: string }).org_id || '',
         candidate_id: candidateId,
         application_id: applicationId || null,
         user_id: user.id,
