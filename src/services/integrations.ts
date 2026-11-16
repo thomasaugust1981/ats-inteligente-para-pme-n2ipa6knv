@@ -417,10 +417,17 @@ export function applyGoldwayMapping(
   return rows.map((values) => {
     const mapped: Partial<Record<GoldwayImportFieldKey, string>> = {}
     for (const [col, field] of Object.entries(mapping)) {
-      if (field && values[col]) mapped[field] = values[col]
+      // Colunas "(ignorar)" (vazio ou sentinela 'none') nunca gravam valor.
+      if (!isGoldwayImportField(field) || !values[col]) continue
+      mapped[field] = values[col]
     }
     return { values, mapped }
   })
+}
+
+/** Verdadeiro só para chaves reais do ATS — "(ignorar)" e sentinelas não passam. */
+export function isGoldwayImportField(value: unknown): value is GoldwayImportFieldKey {
+  return GOLDWAY_IMPORT_FIELDS.some((f) => f.key === value)
 }
 
 export interface GoldwayImportResult {
@@ -468,15 +475,16 @@ export async function confirmGoldwayImport(
       const payload: Record<string, unknown> = {
         name,
         email: email || `${cpf || `sem-cpf-${Date.now()}`}@sem-email.goldway.local`,
-        phone: r.mapped.phone || '',
-        cpf: cpf || '',
-        location: r.mapped.location || '',
         lgpd_consent: true,
         lgpd_consent_date: new Date().toISOString(),
         lgpd_consent_version: 'goldway-import',
         org_id: orgId,
         company_id: companyId,
       }
+      // Campos opcionais só entram no payload quando a coluna foi mapeada.
+      if (r.mapped.phone) payload.phone = r.mapped.phone
+      if (r.mapped.cpf) payload.cpf = cpf
+      if (r.mapped.location) payload.location = r.mapped.location
       if (existing) {
         await pb.collection('candidates').update(existing.id, payload)
       } else {

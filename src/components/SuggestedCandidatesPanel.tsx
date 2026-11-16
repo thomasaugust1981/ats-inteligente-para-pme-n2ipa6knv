@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/hooks/use-auth'
+import { useActiveCompany } from '@/hooks/use-active-company'
 import type { Job } from '@/types/ats'
 import {
   AVAILABILITY_LABELS,
@@ -41,6 +42,7 @@ interface SuggestedCandidatesPanelProps {
 export const SuggestedCandidatesPanel: React.FC<SuggestedCandidatesPanelProps> = ({ job }) => {
   const { toast } = useToast()
   const { user } = useAuth()
+  const { activeCompanyId, companyVersion } = useActiveCompany()
   const [suggestions, setSuggestions] = useState<EnrichedSuggestion[]>([])
   const [loading, setLoading] = useState(true)
   const [inviting, setInviting] = useState<string | null>(null)
@@ -51,7 +53,7 @@ export const SuggestedCandidatesPanel: React.FC<SuggestedCandidatesPanelProps> =
     let cancelled = false
     async function load() {
       try {
-        const res = await loadSuggestions(job)
+        const res = await loadSuggestions(job, activeCompanyId)
         if (!cancelled) setSuggestions(res)
       } catch (err) {
         console.error('Erro ao calcular sugestões:', err)
@@ -64,7 +66,7 @@ export const SuggestedCandidatesPanel: React.FC<SuggestedCandidatesPanelProps> =
     return () => {
       cancelled = true
     }
-  }, [job])
+  }, [job, activeCompanyId, companyVersion])
 
   const withMatch = useMemo(() => suggestions.filter((s) => s.matchScore > 0), [suggestions])
 

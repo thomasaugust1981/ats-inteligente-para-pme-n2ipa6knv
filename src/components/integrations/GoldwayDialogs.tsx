@@ -155,6 +155,9 @@ export function GoldwayExportDialog({
 // IMPORTAÇÃO — arquivo → mapeamento → pré-visualização → confirmação.
 // ---------------------------------------------------------------------------
 
+/** Sentinela do Select do Radix (não aceita valor vazio); internamente vira ''. */
+const IGNORE_OPTION = 'none'
+
 interface ImportDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -288,16 +291,19 @@ export function GoldwayImportDialog({
                       {h}
                     </span>
                     <Select
-                      value={mapping[h] || ''}
+                      value={mapping[h] || IGNORE_OPTION}
                       onValueChange={(v) =>
-                        setMapping((p) => ({ ...p, [h]: (v || '') as GoldwayImportFieldKey | '' }))
+                        setMapping((p) => ({
+                          ...p,
+                          [h]: (v === IGNORE_OPTION ? '' : v) as GoldwayImportFieldKey | '',
+                        }))
                       }
                     >
                       <SelectTrigger className="h-8 w-40 text-xs">
                         <SelectValue placeholder="(ignorar)" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">(ignorar)</SelectItem>
+                        <SelectItem value={IGNORE_OPTION}>(ignorar)</SelectItem>
                         {GOLDWAY_IMPORT_FIELDS.map((f) => (
                           <SelectItem key={f.key} value={f.key}>
                             {f.label}

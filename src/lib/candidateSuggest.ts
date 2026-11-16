@@ -305,11 +305,21 @@ export function buildSuggestions(
   return suggestions.sort((a, b) => b.matchScore - a.matchScore)
 }
 
-/** Carrega tudo que o painel precisa e devolve sugestões ordenadas por aderência. */
-export async function loadSuggestions(job: Job): Promise<EnrichedSuggestion[]> {
+/**
+ * Carrega tudo que o painel precisa e devolve sugestões ordenadas por aderência.
+ * Com `companyId` (empresa ativa), restringe candidatos e candidaturas à empresa.
+ */
+export async function loadSuggestions(
+  job: Job,
+  companyId?: string | null,
+): Promise<EnrichedSuggestion[]> {
   const [candidatesRes, apps, disc] = await Promise.all([
-    pb.collection('candidates').getFullList<Candidate>({ sort: '-created', batch: 200 }),
-    fetchAllApplications(),
+    pb.collection('candidates').getFullList<Candidate>({
+      sort: '-created',
+      batch: 200,
+      filter: companyId ? `company_id = "${companyId}"` : undefined,
+    }),
+    fetchAllApplications(companyId ? `job_id.company_id = "${companyId}"` : undefined),
     pb.collection('disc_results').getFullList<DiscResult>({ batch: 200 }),
   ])
   return buildSuggestions(job, candidatesRes, apps, disc)
