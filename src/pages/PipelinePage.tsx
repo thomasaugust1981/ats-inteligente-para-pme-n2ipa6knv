@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import pb from '@/lib/pocketbase/client'
@@ -52,8 +52,11 @@ import StageOwnerSettings from '@/components/StageOwnerSettings'
 import { DiscFitPanel } from '@/components/DiscFitPanel'
 import { AiScoreBadge } from '@/components/AiScoreBadge'
 import ErpDataDialog from '@/components/candidates/ErpDataDialog'
+import ChaEvaluationDialog from '@/components/candidates/ChaEvaluationDialog'
+import ChaComparisonCard from '@/components/candidates/ChaComparisonCard'
 import { ERP_STAGE_ID, getMissingEssentialFields } from '@/lib/erpIntegration'
-import { Plus, BellRing, ClipboardList } from 'lucide-react'
+import { parseJobCha, type JobChaRequirements } from '@/lib/cha'
+import { Plus, BellRing, ClipboardList, Star } from 'lucide-react'
 
 export const PipelinePage: React.FC = () => {
   const { jobId } = useParams<{ jobId: string }>()
@@ -89,6 +92,10 @@ export const PipelinePage: React.FC = () => {
   const [erpConfirmOpen, setErpConfirmOpen] = useState(false)
   const [erpMissingFields, setErpMissingFields] = useState<string[]>([])
   const [erpMoveTarget, setErpMoveTarget] = useState('')
+
+  // Ficha de avaliação CHA (por candidatura) + sinal para recarregar o comparativo
+  const [chaApp, setChaApp] = useState<Application | null>(null)
+  const [chaRefreshSignal, setChaRefreshSignal] = useState(0)
 
   useEffect(() => {
     if (!ownersModalOpen || users.length > 0) return
@@ -152,6 +159,16 @@ export const PipelinePage: React.FC = () => {
   }, [jobId, activeCompanyId, companyVersion])
 
   const stages: JobStage[] = Array.isArray(job?.stages) ? job!.stages : []
+
+  // Requisitos CHA efetivos da vaga (herdados do cargo + específicos).
+  const jobCha: JobChaRequirements | null = useMemo(
+    () => (job ? parseJobCha(job.cha_requirements) : null),
+    [job],
+  )
+  const jobHasCha =
+    Boolean(jobCha) &&
+    (jobCha!.cargo !== null ||
+      (jobCha!.specific && Object.values(jobCha!.specific).some((b) => b && b.items.length > 0)))
 
   const handleOpenMoveModal = (app: Application, nextStageId: string) => {
     // Saindo da etapa Integração ERP: valida dados essenciais antes de abrir.
@@ -373,6 +390,14 @@ export const PipelinePage: React.FC = () => {
             </div>
           </div>
 
+          {/* Comparativo CHA dos candidatos avaliados da vaga */}
+          <ChaComparisonCard
+            jobId={job.id}
+            jobCha={jobCha}
+            applications={applications}
+            refreshSignal={chaRefreshSignal}
+          />
+
           {/* Quadro Kanban de Etapas */}
           <div className="flex gap-4 overflow-x-auto pb-6 pt-2 items-start min-h-[500px]">
             {stages.map((stage, stageIndex) => {
@@ -440,6 +465,17 @@ export const PipelinePage: React.FC = () => {
 
                             <CardContent className="p-3 pt-0 text-[11px] space-y-2">
                               <AiScoreBadge applicationId={app.id} className="mb-1" />
+
+                              {jobHasCha && (
+                                <button
+                                  type="button"
+                                  onClick={() => setChaApp(app)}
+                                  className="w-full bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 rounded p-1.5 text-indigo-700 font-medium transition flex items-center justify-center gap-1.5"
+                                >
+                                  <Star className="w-3.5 h-3.5" />
+                                  Avaliar CHA
+                                </button>
+                              )}
 
                               <CandidateWhatsAppButton
                                 candidateId={candidate.id}
@@ -770,6 +806,18 @@ export const PipelinePage: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Ficha de avaliação CHA (da candidatura aberta) */}
+      <ChaEvaluationDialog
+        open={Boolean(chaApp)}
+        onOpenChange={(o) => {
+          if (!o) setChaApp(null)
+        }}
+        jobCha={jobCha}
+        jobId={job?.id || ''}
+        application={chaApp}
+        onSaved={() => setChaRefreshSignal((n) => n + 1)}
+      />
 
       {/* Dialog de Responsáveis e Notificações por etapa (da vaga aberta) */}
       <Dialog open={ownersModalOpen} onOpenChange={setOwnersModalOpen}>

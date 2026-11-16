@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-16T20:53:05.970Z",
+  "generatedAt": "2026-11-16T20:58:54.839Z",
   "collections": [
     {
       "name": "users",
@@ -1792,6 +1792,84 @@
         }
       ],
       "indexes": ["CREATE INDEX idx_cargos_org ON cargos (org_id)"]
+    },
+    {
+      "name": "cha_evaluations",
+      "type": "base",
+      "apiRules": {
+        "list": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "view": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "create": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "update": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "delete": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'"
+      },
+      "fields": [
+        {
+          "name": "job_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "jobs"
+        },
+        {
+          "name": "application_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "applications"
+        },
+        {
+          "name": "grades",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "weighted_score",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "block_scores",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "evaluator",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "org_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "organizations"
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_chaeval_application ON cha_evaluations (application_id)",
+        "CREATE INDEX idx_chaeval_job ON cha_evaluations (job_id)",
+        "CREATE INDEX idx_chaeval_org ON cha_evaluations (org_id)"
+      ]
     }
   ]
 }
