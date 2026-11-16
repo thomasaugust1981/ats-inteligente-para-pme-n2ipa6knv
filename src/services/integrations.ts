@@ -5,6 +5,7 @@ import pb from '@/lib/pocketbase/client'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { listConnectors, execute, type ConnectorState } from '@/lib/skipConnectors'
 import type { Candidate } from '@/types/ats'
+import type { ErpIntegrationData } from '@/lib/erpIntegration'
 
 export type IntegrationKey = 'goldway' | 'whatsapp' | 'ponto' | 'calendar'
 
@@ -217,6 +218,30 @@ export function buildGoldwayRow(app: HiredApplication): GoldwayCadastroRow {
     'VALOR SALÁRIO': job.salary_disclosed && job.salary_max ? String(job.salary_max) : '',
     'DESCRIÇÃO DA LOTAÇÃO': String(job.department || ''),
   }
+
+  // Dados coletados pelo RH na etapa "Integração ERP" (candidates.erp_data)
+  // têm prioridade sobre o fallback automático — evita redigitação.
+  const erp = (cand as { erp_data?: Record<string, string> }).erp_data || {}
+  const erpGet = (k: string): string => String((erp as ErpIntegrationData)[k] || '')
+  if (erpGet('data_admissao')) row['DATA ADMISSÃO'] = formatDateBR(erpGet('data_admissao'))
+  if (erpGet('vinculo')) row.VINCULO = erpGet('vinculo')
+  if (erpGet('banco')) row.BANCO = erpGet('banco')
+  if (erpGet('agencia')) row.AGENCIA = erpGet('agencia')
+  if (erpGet('tipo_conta')) row['TIPO CONTA'] = erpGet('tipo_conta')
+  if (erpGet('conta_digito')) row['conta / digito'] = erpGet('conta_digito')
+  if (erpGet('cargo')) row.CARGO = erpGet('cargo')
+  if (erpGet('salario_contratado')) row['VALOR SALÁRIO'] = erpGet('salario_contratado')
+  if (erpGet('lotacao')) row['DESCRIÇÃO DA LOTAÇÃO'] = erpGet('lotacao')
+  if (erpGet('cep')) row['CEP:'] = erpGet('cep')
+  if (erpGet('endereco')) row['ENDEREÇO COMPLETO:'] = erpGet('endereco')
+  if (erpGet('bairro')) row.BAIRRO = erpGet('bairro')
+  if (erpGet('cidade')) row.CIDADE = erpGet('cidade')
+  if (erpGet('estado')) row.ESTADO = erpGet('estado')
+  if (erpGet('sexo')) row.SEXO = erpGet('sexo')
+  if (erpGet('estado_civil')) row['ESTADO CIVIL'] = erpGet('estado_civil')
+  if (erpGet('data_nascimento')) row['DATA NASCIMENTO'] = formatDateBR(erpGet('data_nascimento'))
+  if (erpGet('nr_contrato')) row['NR CONTRATO'] = erpGet('nr_contrato')
+
   return row
 }
 

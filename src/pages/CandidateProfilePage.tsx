@@ -3,6 +3,9 @@ import { useParams, useSearchParams, Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { candidatesService, applicationsService, auditService } from '@/services/candidates'
 import type { Candidate, Application, AuditLog, AuditAction } from '@/types/ats'
+import ErpDataDialog from '@/components/candidates/ErpDataDialog'
+import { ERP_STAGE_ID } from '@/lib/erpIntegration'
+import { ClipboardList } from 'lucide-react'
 import {
   ArrowLeft,
   FileText,
@@ -64,6 +67,11 @@ export const CandidateProfilePage: React.FC = () => {
   // Anotação interna do recrutador
   const [newNote, setNewNote] = useState('')
   const [savingNote, setSavingNote] = useState(false)
+
+  // Etapa "Integração ERP": formulário de dados admissionais
+  const [erpDialogOpen, setErpDialogOpen] = useState(false)
+  const targetApp = applications.find((a) => a.id === targetAppId) ?? applications[0]
+  const isInErpStage = targetApp?.stage_id === ERP_STAGE_ID
 
   const loadData = async () => {
     if (!id) return
@@ -276,6 +284,17 @@ export const CandidateProfilePage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          {isInErpStage && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-sky-700 border-sky-200 hover:bg-sky-50"
+              onClick={() => setErpDialogOpen(true)}
+            >
+              <ClipboardList className="w-4 h-4 mr-1.5" />
+              Dados para integração
+            </Button>
+          )}
           <CandidateWhatsAppButton
             candidateId={candidate.id}
             applicationId={targetAppId || applications[0]?.id}
@@ -591,6 +610,17 @@ export const CandidateProfilePage: React.FC = () => {
           </Card>
         </div>
       </div>
+
+      {/* Dialog "Dados para integração" (etapa Integração ERP) */}
+      {candidate && (
+        <ErpDataDialog
+          open={erpDialogOpen}
+          onOpenChange={setErpDialogOpen}
+          candidate={candidate}
+          job={targetApp?.expand?.job_id}
+          onSaved={loadData}
+        />
+      )}
     </div>
   )
 }

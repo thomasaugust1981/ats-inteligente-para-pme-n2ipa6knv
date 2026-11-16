@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-16T16:46:05.826Z",
+  "generatedAt": "2026-11-16T16:53:02.709Z",
   "collections": [
     {
       "name": "users",
@@ -532,6 +532,12 @@
           "required": false,
           "system": false,
           "collectionRef": "companies"
+        },
+        {
+          "name": "erp_data",
+          "type": "json",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [

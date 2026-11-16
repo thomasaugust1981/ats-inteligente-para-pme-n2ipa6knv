@@ -5,7 +5,7 @@ import pb from '@/lib/pocketbase/client'
 import { jobsService } from '@/services/jobs'
 import { applicationsService, auditService } from '@/services/candidates'
 import { calculateScore } from '@/services/aiScore'
-import type { Job, Application, JobStage, User } from '@/types/ats'
+import type { Job, Application, JobStage, User, Candidate } from '@/types/ats'
 import {
   Users,
   ArrowLeft,
@@ -50,7 +50,9 @@ import { useActiveCompany } from '@/hooks/use-active-company'
 import StageOwnerSettings from '@/components/StageOwnerSettings'
 import { DiscFitPanel } from '@/components/DiscFitPanel'
 import { AiScoreBadge } from '@/components/AiScoreBadge'
-import { Plus, BellRing } from 'lucide-react'
+import ErpDataDialog from '@/components/candidates/ErpDataDialog'
+import { ERP_STAGE_ID, getMissingEssentialFields } from '@/lib/erpIntegration'
+import { Plus, BellRing, ClipboardList } from 'lucide-react'
 
 export const PipelinePage: React.FC = () => {
   const { jobId } = useParams<{ jobId: string }>()
@@ -78,6 +80,14 @@ export const PipelinePage: React.FC = () => {
   const [discModalOpen, setDiscModalOpen] = useState(false)
   const [ownersSaveSignal, setOwnersSaveSignal] = useState(0)
   const [users, setUsers] = useState<User[]>([])
+
+  // Dialog "Dados para integração" (etapa Integração ERP)
+  const [erpDialogOpen, setErpDialogOpen] = useState(false)
+  const [erpApp, setErpApp] = useState<Application | null>(null)
+  // Confirmação de avanço com dados essenciais faltando
+  const [erpConfirmOpen, setErpConfirmOpen] = useState(false)
+  const [erpMissingFields, setErpMissingFields] = useState<string[]>([])
+  const [erpMoveTarget, setErpMoveTarget] = useState('')
 
   useEffect(() => {
     if (!ownersModalOpen || users.length > 0) return
@@ -143,6 +153,23 @@ export const PipelinePage: React.FC = () => {
   const stages: JobStage[] = Array.isArray(job?.stages) ? job!.stages : []
 
   const handleOpenMoveModal = (app: Application, nextStageId: string) => {
+    // Saindo da etapa Integração ERP: valida dados essenciais antes de abrir.
+    if (app.stage_id === ERP_STAGE_ID && nextStageId !== ERP_STAGE_ID) {
+      const missing = getMissingEssentialFields(
+        app.expand?.candidate_id?.erp_data as Record<string, string> | null | undefined,
+      ).map((f) => f.label)
+      if (missing.length > 0) {
+        setErpApp(app)
+        setErpMissingFields(missing)
+        setErpMoveTarget(nextStageId)
+        setErpConfirmOpen(true)
+        return
+      }
+    }
+    openMoveModal(app, nextStageId)
+  }
+
+  const openMoveModal = (app: Application, nextStageId: string) => {
     setSelectedApp(app)
     setTargetStageId(nextStageId)
     setMoveReason('')
@@ -422,6 +449,20 @@ export const PipelinePage: React.FC = () => {
                                 stageLabel={stage.label}
                               />
 
+                              {stage.id === ERP_STAGE_ID && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setErpApp(app)
+                                    setErpDialogOpen(true)
+                                  }}
+                                  className="w-full bg-sky-50 hover:bg-sky-100 border border-sky-100 rounded p-1.5 text-sky-700 font-medium transition flex items-center justify-center gap-1.5"
+                                >
+                                  <ClipboardList className="w-3.5 h-3.5" />
+                                  Dados para integração
+                                </button>
+                              )}
+
                               {(stage.id === 'disc' || app.disc_status) && (
                                 <button
                                   type="button"
@@ -642,6 +683,81 @@ export const PipelinePage: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
           {selectedApp && <DiscFitPanel applicationId={selectedApp.id} />}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog "Dados para integração" (etapa Integração ERP) */}
+      {erpApp?.expand?.candidate_id && (
+        <ErpDataDialog
+          open={erpDialogOpen}
+          onOpenChange={(open) => {
+            setErpDialogOpen(open)
+            if (!open) {
+              setErpApp(null)
+              // Recarrega o pipeline: os dados do candidato mudaram.
+              if (job) loadPipeline(job.id)
+            }
+          }}
+          candidate={erpApp.expand.candidate_id as Candidate}
+          job={job || undefined}
+          admissionDate={erpApp.updated || erpApp.created}
+          onSaved={() => {
+            if (job) loadPipeline(job.id)
+          }}
+        />
+      )}
+
+      {/* Confirmação de avanço com dados essenciais faltando (Integração ERP) */}
+      <Dialog open={erpConfirmOpen} onOpenChange={setErpConfirmOpen}>
+        <DialogContent className="sm:max-w-md bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-amber-500" />
+              Dados essenciais pendentes
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              O candidato <strong>
+                {erpApp?.expand?.candidate_id?.name || 'selecionado'}
+              </strong>{' '}
+              ainda está sem alguns dados essenciais para a integração no ERP:
+            </DialogDescription>
+          </DialogHeader>
+          <ul className="list-disc list-inside text-xs text-amber-700 space-y-0.5">
+            {erpMissingFields.map((label) => (
+              <li key={label}>{label}</li>
+            ))}
+          </ul>
+          <p className="text-[11px] text-slate-500">
+            Você pode avançar mesmo assim — a integração no ERP precisará completar esses dados
+            depois. Ou volte e preencha agora em "Dados para integração".
+          </p>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setErpConfirmOpen(false)
+                if (erpApp) {
+                  setErpDialogOpen(true) // volta para o formulário de dados
+                }
+              }}
+            >
+              Voltar e preencher
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              className="bg-sky-600 hover:bg-sky-700 text-white"
+              onClick={() => {
+                setErpConfirmOpen(false)
+                if (erpApp) openMoveModal(erpApp, erpMoveTarget)
+                setErpApp(null)
+              }}
+            >
+              Avançar mesmo assim
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

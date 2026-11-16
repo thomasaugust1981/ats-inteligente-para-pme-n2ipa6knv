@@ -7,6 +7,7 @@ export const DEFAULT_STAGES: JobStage[] = [
   { id: 'interview_hr', label: 'Entrevista RH', color: '#8b5cf6' },
   { id: 'tech_interview', label: 'Entrevista Técnica', color: '#06b6d4' },
   { id: 'proposal', label: 'Proposta', color: '#f59e0b' },
+  { id: 'erp_integration', label: 'Integração ERP', color: '#0ea5e9' },
   { id: 'hired', label: 'Contratado', color: '#10b981' },
   { id: 'rejected', label: 'Reprovado', color: '#ef4444' },
 ]

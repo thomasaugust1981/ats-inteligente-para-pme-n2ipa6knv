@@ -1,3 +1,5 @@
+import type { ErpIntegrationData } from '@/lib/erpIntegration'
+
 export type UserRole = 'admin' | 'recruiter' | 'manager' | 'superadmin'
 
 export interface User {
@@ -166,6 +168,8 @@ export interface Candidate {
   notes?: string
   resume_structured?: StructuredResume | null
   resume_source?: ResumeSource | null
+  /** Dados admissionais coletados pelo RH na etapa "Integração ERP" (layout Goldway). */
+  erp_data?: ErpIntegrationData | null
   created: string
   updated: string
 }
