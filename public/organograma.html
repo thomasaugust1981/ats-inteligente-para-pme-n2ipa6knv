@@ -1857,7 +1857,9 @@
           const out = []
           let page = 1
           while (true) {
-            const res = await fetch(`${API_URL}?page=${page}&perPage=200&sort=node_key`)
+            const res = await fetch(`${API_URL}?page=${page}&perPage=200&sort=node_key`, {
+              headers: pbAuthHeaders(),
+            })
             if (!res.ok) throw new Error('API org_nodes indisponível (' + res.status + ')')
             const data = await res.json()
             for (const r of data.items || []) {
@@ -1872,7 +1874,7 @@
         async create(node) {
           const res = await fetch(API_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: Object.assign({ 'Content-Type': 'application/json' }, pbAuthHeaders()),
             body: JSON.stringify(this.nodePayload(node)),
           })
           if (!res.ok) throw new Error('Falha ao criar nó no banco (' + res.status + ')')
@@ -1888,7 +1890,7 @@
           }
           const res = await fetch(`${API_URL}/${recId}`, {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
+            headers: Object.assign({ 'Content-Type': 'application/json' }, pbAuthHeaders()),
             body: JSON.stringify(this.nodePayload(node)),
           })
           if (!res.ok) throw new Error('Falha ao atualizar nó no banco (' + res.status + ')')
@@ -1897,7 +1899,10 @@
         async remove(id) {
           const recId = this.recordIds.get(id)
           if (!recId) return
-          const res = await fetch(`${API_URL}/${recId}`, { method: 'DELETE' })
+          const res = await fetch(`${API_URL}/${recId}`, {
+            method: 'DELETE',
+            headers: pbAuthHeaders(),
+          })
           if (!res.ok && res.status !== 404)
             throw new Error('Falha ao excluir nó no banco (' + res.status + ')')
           this.recordIds.delete(id)
@@ -4149,6 +4154,14 @@
       // O token do PocketBase vive no localStorage do PAI (mesma origem: o
       // organograma roda em iframe do próprio app). Chave registrada pelo
       // pocketbase js-sdk: 'pocketbase_auth' ({ token, record }).
+      // Header Authorization com o token da sessão PocketBase (via atsAuth).
+      // Retorna {} quando não há sessão — as coleções do organograma exigem
+      // usuário logado da organização (migração 0024); sem token as chamadas
+      // voltam 401 e a página cai no modo local, com aviso ao usuário.
+      function pbAuthHeaders() {
+        const t = atsAuth().token
+        return t ? { Authorization: t } : {}
+      }
       function atsAuth() {
         const out = { token: '', userId: '' }
         try {
@@ -4324,7 +4337,16 @@
           }
         } catch (e) {
           api.available = false
-          setSyncBadge('local', 'modo local')
+          if (!atsAuth().token) {
+            setSyncBadge('local', 'Faça login no ATS para carregar os dados do servidor')
+            toast(
+              'Sessão não encontrada — faça login no ATS para carregar o organograma do banco. Exibindo dados locais.',
+              'warn',
+              6000,
+            )
+          } else {
+            setSyncBadge('local', 'modo local')
+          }
           console.warn('[organograma] banco indisponível, seguindo em modo local:', e)
         }
         render()
@@ -4347,6 +4369,8 @@
          org_approvals (trilha de decisões). As transições (submit/approve/
          reject/clone) são POSTs em org_versions validados pelo hook
          org_versions_server no backend — este script só orquestra a UI.
+         Todas as chamadas enviam o header Authorization com o token da
+         sessão PocketBase (migração 0024 exige usuário logado).
          ===================================================================== */
       ;(function () {
         if (window.__orgVersioning) return
@@ -4442,7 +4466,7 @@
         async function versionAction(payload) {
           const res = await fetch(VER_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: Object.assign({ 'Content-Type': 'application/json' }, pbAuthHeaders()),
             body: JSON.stringify(payload),
           })
           let data = null
@@ -4454,7 +4478,9 @@
           return data
         }
         async function fetchVersions() {
-          const res = await fetch(`${VER_URL}?perPage=200&sort=-version_number`)
+          const res = await fetch(`${VER_URL}?perPage=200&sort=-version_number`, {
+            headers: pbAuthHeaders(),
+          })
           if (!res.ok) throw new Error('org_versions (' + res.status + ')')
           const data = await res.json()
           versions = (data.items || []).map((r) => ({
@@ -4479,7 +4505,9 @@
         }
         async function fetchApprovals() {
           try {
-            const res = await fetch(`${APR_URL}?perPage=200&sort=-created`)
+            const res = await fetch(`${APR_URL}?perPage=200&sort=-created`, {
+              headers: pbAuthHeaders(),
+            })
             if (!res.ok) return []
             const data = await res.json()
             return (data.items || []).map((r) => ({
@@ -4519,7 +4547,7 @@
           try {
             const res = await fetch(`${VER_URL}/${v.id}`, {
               method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
+              headers: Object.assign({ 'Content-Type': 'application/json' }, pbAuthHeaders()),
               body: JSON.stringify({ nodes_json: JSON.stringify(state.nodes) }),
             })
             if (!res.ok) throw new Error('status ' + res.status)
@@ -5107,7 +5135,7 @@
             try {
               await fetch(APR_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: Object.assign({ 'Content-Type': 'application/json' }, pbAuthHeaders()),
                 body: JSON.stringify({ version_number: 1, company: c, ...t }),
               })
             } catch (e) {}
@@ -5148,7 +5176,7 @@
           try {
             await fetch(APR_URL, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: Object.assign({ 'Content-Type': 'application/json' }, pbAuthHeaders()),
               body: JSON.stringify({
                 version_number: 2,
                 company: c,
