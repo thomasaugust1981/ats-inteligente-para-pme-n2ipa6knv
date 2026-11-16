@@ -13,22 +13,8 @@ export const candidatesService = {
     return await pb.collection('candidates').getOne<Candidate>(id)
   },
 
-  async findByEmail(email: string): Promise<Candidate | null> {
-    try {
-      return await pb
-        .collection('candidates')
-        .getFirstListItem<Candidate>(`email = "${email.trim().toLowerCase()}"`)
-    } catch (_) {
-      return null
-    }
-  },
-
   async createCandidate(data: FormData | Partial<Candidate>): Promise<Candidate> {
     return await pb.collection('candidates').create<Candidate>(data)
-  },
-
-  async updateCandidate(id: string, data: FormData | Partial<Candidate>): Promise<Candidate> {
-    return await pb.collection('candidates').update<Candidate>(id, data)
   },
 
   /**

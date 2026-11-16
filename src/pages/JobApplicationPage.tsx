@@ -93,9 +93,6 @@ export const JobApplicationPage: React.FC = () => {
   const [structuredData, setStructuredData] = useState<StructuredResume | null>(null)
   const [wasExtracted, setWasExtracted] = useState(false)
 
-  // Pré-preenchimento a partir do Banco de Talentos (flag para mostrar aviso ao candidato)
-  const [prefilled, setPrefilled] = useState(false)
-
   // Flag que indica que o candidato tentou enviar sem concluir tudo (destaca erros no progresso)
   const [submitAttempted, setSubmitAttempted] = useState(false)
 
@@ -163,55 +160,6 @@ export const JobApplicationPage: React.FC = () => {
     }
     loadJobAndCompany()
   }, [slug])
-
-  // Checar se o e-mail já existe no banco de talentos para autocompletar dados
-  const handleEmailBlur = async () => {
-    if (!email || !email.includes('@')) return
-    try {
-      const existing = await candidatesService.findByEmail(email)
-      if (existing) {
-        let changed = false
-        if (!name && existing.name) {
-          setName(existing.name)
-          changed = true
-        }
-        if (!phone && existing.phone) {
-          setPhone(existing.phone)
-          changed = true
-        }
-        if (!cpf && existing.cpf) {
-          setCpf(existing.cpf)
-          changed = true
-        }
-        if (!linkedin && existing.linkedin) {
-          setLinkedin(existing.linkedin)
-          changed = true
-        }
-        if (!location && existing.location) {
-          setLocation(existing.location)
-          changed = true
-        }
-        if (!skills && existing.skills) {
-          setSkills(existing.skills)
-          changed = true
-        }
-        // Senioridade e disponibilidade sempre refletem o cadastro conhecido
-        if (existing.seniority) setSeniority(existing.seniority)
-        if (existing.availability) setAvailability(existing.availability)
-
-        if (changed) {
-          setPrefilled(true)
-          toast({
-            title: 'Bem-vindo(a) de volta!',
-            description:
-              'Encontramos seu cadastro no Banco de Talentos e preenchemos alguns campos. Confira e edite o que precisar.',
-          })
-        }
-      }
-    } catch (_) {
-      // Silencioso se não encontrar — segue fluxo normal
-    }
-  }
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -357,82 +305,57 @@ export const JobApplicationPage: React.FC = () => {
     try {
       setSubmitting(true)
 
-      // 1. Verificar se o candidato já existe no Banco de Talentos
-      let candidate = await candidatesService.findByEmail(email)
+      // Envio em UMA chamada: o servidor (hook application_dedupe) resolve o
+      // vínculo por e-mail de forma segura — se o candidato já existir na mesma
+      // organização, a candidatura é vinculada ao cadastro existente SEM
+      // sobrescrever nenhum campo dele; se não existir, o candidato é criado
+      // com os dados do formulário e o consentimento LGPD datado. O cliente
+      // anônimo nunca lê nem atualiza cadastros de candidatos existentes.
       const consentTimestamp = new Date().toISOString()
 
-      const candidateFormData = new FormData()
-      candidateFormData.append('name', name.trim())
-      candidateFormData.append('email', email.trim().toLowerCase())
-      if (phone) candidateFormData.append('phone', phone.trim())
-      if (cpf) candidateFormData.append('cpf', cpf.trim())
-      if (linkedin) candidateFormData.append('linkedin', linkedin.trim())
-      if (location) candidateFormData.append('location', location.trim())
-      if (seniority) candidateFormData.append('seniority', seniority)
-      if (skills) candidateFormData.append('skills', skills.trim())
-      if (availability) candidateFormData.append('availability', availability)
-      candidateFormData.append('lgpd_consent', 'true')
-      candidateFormData.append('lgpd_consent_date', consentTimestamp)
-      candidateFormData.append('lgpd_consent_version', 'LGPD-v1.0-2025')
-
-      if (resumeFile) {
-        candidateFormData.append('resume', resumeFile)
-      }
-
-      // Dados estruturados do modelo padrão (extraídos por IA e revisados, ou manuais)
-      if (structuredData) {
-        candidateFormData.append('resume_structured', JSON.stringify(structuredData))
-        candidateFormData.append('resume_source', wasExtracted ? 'ai_extracted' : 'manual')
-      }
-
-      if (candidate) {
-        // Atualizar candidato no Banco de Talentos
-        candidate = await candidatesService.updateCandidate(candidate.id, candidateFormData)
-      } else {
-        // Criar novo candidato
-        candidate = await candidatesService.createCandidate(candidateFormData)
-      }
-
-      // 2. Verificar se já existe candidatura para esta mesma vaga
-      const existingApps = await applicationsService.listApplications(job.id)
-      const alreadyApplied = existingApps.find((a) => a.candidate_id === candidate?.id)
-
-      if (alreadyApplied) {
-        toast({
-          title: 'Candidatura já registrada',
-          description:
-            'Você já possui uma candidatura ativa para esta vaga! Seus dados e currículo foram atualizados.',
-        })
-        setSuccessSubmitted(true)
-        return
-      }
-
-      // 3. Criar registro de aplicação vinculando vaga e candidato
       const stages = (Array.isArray(job.stages) ? job.stages : []) as { id: string }[]
       const initialStageId = stages[0]?.id || 'applied'
 
-      const newApp = await applicationsService.createApplication({
-        candidate_id: candidate.id,
-        job_id: job.id,
-        stage_id: initialStageId,
-        status: 'active',
-        source: source,
-      })
+      const applicationFormData = new FormData()
+      applicationFormData.append('job_id', job.id)
+      applicationFormData.append('stage_id', initialStageId)
+      applicationFormData.append('status', 'active')
+      applicationFormData.append('source', source)
+      applicationFormData.append(
+        'dedupe',
+        JSON.stringify({
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          phone: phone.trim(),
+          cpf: cpf.trim(),
+          linkedin: linkedin.trim(),
+          location: location.trim(),
+          seniority: seniority,
+          skills: skills.trim(),
+          availability: availability,
+          lgpd_consent: true,
+          lgpd_consent_date: consentTimestamp,
+          lgpd_consent_version: 'LGPD-v1.0-2025',
+          resume_structured: structuredData ? JSON.stringify(structuredData) : '',
+          resume_source: structuredData ? (wasExtracted ? 'ai_extracted' : 'manual') : '',
+        }),
+      )
 
-      // 4. Log de auditoria da inscrição
-      await auditService.createLog({
-        application_id: newApp.id,
-        candidate_id: candidate.id,
-        action: 'candidate_created',
-        user_name: name,
-        user_role: 'candidato',
-        details: `Candidatura submetida via canal: ${source}. Consentimento LGPD aceito em ${new Date(consentTimestamp).toLocaleString('pt-BR')}.`,
-      })
+      if (resumeFile) {
+        applicationFormData.append('resume', resumeFile)
+      }
+
+      const result = await applicationsService.createWithDedupe(applicationFormData)
+      const linkedExisting = result.outcome === 'linked_existing'
 
       setSuccessSubmitted(true)
       toast({
-        title: 'Candidatura enviada com sucesso!',
-        description: 'Recebemos suas informações e currículo. Boa sorte!',
+        title: linkedExisting
+          ? 'Candidatura vinculada com sucesso!'
+          : 'Candidatura enviada com sucesso!',
+        description: linkedExisting
+          ? 'Já existe uma candidatura registrada com este e-mail. Sua nova candidatura foi vinculada ao seu cadastro existente.'
+          : 'Recebemos suas informações e currículo. Boa sorte!',
       })
     } catch (err) {
       console.error('Erro ao enviar candidatura:', err)
@@ -657,21 +580,11 @@ export const JobApplicationPage: React.FC = () => {
                       errorSteps={errorSteps}
                     />
                   </div>
-                  {/* Aviso de pré-preenchimento (Banco de Talentos) */}
-                  {prefilled && (
-                    <div className="mt-3 flex items-start gap-2 text-xs text-sky-800 bg-sky-50 border border-sky-200 rounded-lg p-2.5">
-                      <Users className="w-4 h-4 shrink-0 mt-0.5" />
-                      <span>
-                        Alguns campos foram preenchidos com os dados do seu cadastro anterior.
-                        Revise e edite livremente — suas alterações serão salvas.
-                      </span>
-                    </div>
-                  )}
                 </CardHeader>
 
                 <form onSubmit={handleSubmit}>
                   <CardContent className="space-y-4 pt-4">
-                    {/* E-mail (com auto-complete do Banco de Talentos) */}
+                    {/* E-mail */}
                     <div>
                       <Label htmlFor="email" className="text-xs font-semibold">
                         E-mail <span className="text-rose-500">*</span>
@@ -683,11 +596,11 @@ export const JobApplicationPage: React.FC = () => {
                         placeholder="seu.email@exemplo.com.br"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        onBlur={handleEmailBlur}
                         className="mt-1 text-sm"
                       />
                       <p className="text-[11px] text-slate-400 mt-0.5">
-                        Se já se candidatou antes, seus dados serão preenchidos automaticamente.
+                        Se você já tem cadastro, sua nova candidatura será vinculada a ele — nada do
+                        seu cadastro existente será alterado.
                       </p>
                     </div>
 
