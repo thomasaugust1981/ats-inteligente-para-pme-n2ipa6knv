@@ -44,7 +44,8 @@ onRecordAfterUpdateSuccess((e) => {
     if (!trigger) return
 
     // Módulo configurável: agente desativado → nenhum gatilho dispara cálculo.
-    const agentSettings = $app.getAgentSettings(app)
+    // Config POR ORGANIZAÇÃO (0029): usa a org da vaga; vaga sem org cai na global.
+    const agentSettings = $app.getAgentSettings(app, String(job.get('org_' + 'id') || ''))
     if (!agentSettings.enabled) return
 
     const candidate = (() => {
@@ -261,9 +262,6 @@ onRecordAfterCreateSuccess((e) => {
     const app = e.app
     const record = e.record
 
-    const agentSettings = $app.getAgentSettings(app)
-    if (!agentSettings.enabled) return
-
     const candidate = (() => {
       try {
         return app.findRecordById('candidates', record.get('candidate_id'))
@@ -279,6 +277,10 @@ onRecordAfterCreateSuccess((e) => {
       }
     })()
     if (!candidate || !job) return
+
+    // Config POR ORGANIZAÇÃO (0029): org da vaga; sem org → global.
+    const agentSettings = $app.getAgentSettings(app, String(job.get('org_' + 'id') || ''))
+    if (!agentSettings.enabled) return
 
     const snapshot = {
       trigger_hint: 'application_created',
@@ -400,9 +402,6 @@ onRecordAfterUpdateSuccess((e) => {
     } catch (_) {}
     if (wasCompleted) return
 
-    const agentSettings = $app.getAgentSettings(app)
-    if (!agentSettings.enabled) return
-
     const appRecord = (() => {
       try {
         return app.findRecordById('applications', record.get('application_id'))
@@ -427,6 +426,10 @@ onRecordAfterUpdateSuccess((e) => {
       }
     })()
     if (!candidate || !job) return
+
+    // Config POR ORGANIZAÇÃO (0029): org da vaga; sem org → global.
+    const agentSettings = $app.getAgentSettings(app, String(job.get('org_' + 'id') || ''))
+    if (!agentSettings.enabled) return
 
     const snapshot = {
       trigger_hint: 'disc_completed',

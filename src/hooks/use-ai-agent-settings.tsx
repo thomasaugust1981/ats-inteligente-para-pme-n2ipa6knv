@@ -8,6 +8,7 @@ import {
   DEFAULT_AGENT_SETTINGS,
   type AiAgentSettings,
 } from '@/services/aiAgentSettings'
+import pb from '@/lib/pocketbase/client'
 
 interface AiAgentSettingsContextType {
   settings: AiAgentSettings
@@ -19,9 +20,12 @@ interface AiAgentSettingsContextType {
 const AiAgentSettingsContext = createContext<AiAgentSettingsContextType | undefined>(undefined)
 
 export function AiAgentSettingsProvider({ children }: { children: ReactNode }) {
+  // Config POR ORGANIZAÇÃO (0029): recarrega quando a org do usuário muda.
+  const orgId = String((pb.authStore.record as Record<string, unknown> | null)?.org_id || '')
   const [settings, setSettings] = useState<AiAgentSettings>({
     ...DEFAULT_AGENT_SETTINGS,
     id: '',
+    org_id: orgId,
     updated: '',
   })
   const [loading, setLoading] = useState(true)
@@ -37,7 +41,7 @@ export function AiAgentSettingsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     refresh()
-  }, [refresh])
+  }, [refresh, orgId])
 
   return (
     <AiAgentSettingsContext.Provider value={{ settings, loading, refresh, applyLocal }}>

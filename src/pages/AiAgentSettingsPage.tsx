@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
+import pb from '@/lib/pocketbase/client'
 import Layout from '@/components/Layout'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -23,6 +24,7 @@ import {
   saveProviderKey,
   testProviderConnection,
 } from '@/services/aiAgentSettings'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { formatScoreDate } from '@/hooks/use-ai-score'
 
 const PROVIDERS: { value: AiProvider; label: string; description: string }[] = [
@@ -45,6 +47,7 @@ const PROVIDERS: { value: AiProvider; label: string; description: string }[] = [
 
 export default function AiAgentSettingsPage() {
   const { user } = useAuth()
+  const userOrgId = String((pb.authStore.record as Record<string, unknown> | null)?.org_id || '')
   const { toast } = useToast()
   const location = useLocation()
   const isAdmin = user?.role === 'admin'
@@ -57,20 +60,28 @@ export default function AiAgentSettingsPage() {
   const [settings, setSettings] = useState<AiAgentSettings>({
     ...DEFAULT_AGENT_SETTINGS,
     id: '',
+    org_id: '',
     updated: '',
   })
   const [aiProvider, setAiProvider] = useState<AiProvider>('native')
   const [apiKey, setApiKey] = useState('')
   const [aiModel, setAiModel] = useState('')
 
+  // Recarrega quando a organização ativa muda (config por organização, 0029).
   useEffect(() => {
+    let cancelled = false
     getAgentSettings().then((data) => {
+      if (cancelled) return
       setSettings(data)
       setAiProvider(data.ai_provider || 'native')
       setAiModel(data.ai_model || '')
+      setApiKey('')
       setLoading(false)
     })
-  }, [])
+    return () => {
+      cancelled = true
+    }
+  }, [userOrgId])
 
   // Sincroniza com a Sidebar (item ativo do menu).
   useEffect(() => {
@@ -107,6 +118,7 @@ export default function AiAgentSettingsPage() {
       const saved = await saveAgentSettings({
         ...settings,
         id: settings.id,
+        org_id: settings.org_id || userOrgId,
         ai_provider: aiProvider,
         ai_model: aiModel,
       })
@@ -120,11 +132,16 @@ export default function AiAgentSettingsPage() {
       setAiModel(refreshed.ai_model || '')
       setApiKey('')
       setTestingResult(null)
-      toast({ title: 'Configuração salva com sucesso.' })
+      toast({
+        title: 'Configuração salva com sucesso.',
+        description: settings.ai_key_last4
+          ? `Chave ativa: •••• ${refreshed.ai_key_last4 || settings.ai_key_last4}`
+          : undefined,
+      })
     } catch (err) {
       toast({
         title: 'Erro ao salvar',
-        description: 'Verifique os dados e tente novamente.',
+        description: getErrorMessage(err) || 'Verifique os dados e tente novamente.',
         variant: 'destructive',
       })
     } finally {
@@ -139,6 +156,8 @@ export default function AiAgentSettingsPage() {
           : ''
       }`
     : 'Nenhuma chave configurada ainda.'
+
+  const saveKeyLabel = settings.ai_key_last4 ? 'Trocar chave' : 'Salvar chave'
 
   const canEdit = !readOnly && settings.enabled !== undefined
 
@@ -273,20 +292,43 @@ export default function AiAgentSettingsPage() {
               {aiProvider !== 'native' && (
                 <div className="space-y-4 rounded-lg border p-4">
                   <div className="space-y-2">
-                    <Label htmlFor="api-key">
-                      Chave de API{' '}
-                      {settings.ai_key_last4 ? '(deixe vazio para manter a atual)' : ''}
-                    </Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="api-key">
+                        Chave de API
+                        {settings.ai_key_last4 ? ' (deixe vazio para manter a atual)' : ''}
+                      </Label>
+                      {settings.ai_key_last4 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-muted-foreground h-7 px-2 text-xs"
+                          disabled={readOnly}
+                          onClick={() => {
+                            setApiKey('')
+                            document.getElementById('api-key')?.focus()
+                          }}
+                        >
+                          <KeyRound className="mr-1 h-3 w-3" /> Trocar chave
+                        </Button>
+                      )}
+                    </div>
                     <Input
                       id="api-key"
                       type="password"
-                      placeholder="sk-..."
+                      placeholder={
+                        settings.ai_key_last4 ? `•••• ${settings.ai_key_last4}` : 'sk-...'
+                      }
                       value={apiKey}
                       disabled={readOnly}
                       onChange={(e) => setApiKey(e.target.value)}
                       autoComplete="off"
                     />
                     <p className="text-muted-foreground text-xs">{keyMasked}</p>
+                    <p className="text-muted-foreground/70 text-[11px]">
+                      A chave nunca é exibida por inteiro — apenas os 4 últimos caracteres (
+                      {saveKeyLabel} substitui a atual).
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="ai-model">Modelo (opcional)</Label>

@@ -114,6 +114,8 @@ routerAdd('POST', '/backend/v1/candidates/score', (e) => {
 
     return {
       trigger: trigger,
+      // Org da vaga — o computeScore resolve provider/chave POR ORGANIZAÇÃO (0029).
+      org_id: String(job.get('org_' + 'id') || ''),
       stage_id: appRecord.get('stage_id') || '',
       application_status: appRecord.get('status') || '',
       candidate: {
@@ -174,7 +176,8 @@ routerAdd('POST', '/backend/v1/candidates/score', (e) => {
             responsePayload = { error: 'Candidato ou vaga não encontrados.' }
           } else {
             // Módulo configurável: agente desativado → endpoint não calcula nada.
-            const agentSettings = $app.getAgentSettings(e.app)
+            // Config POR ORGANIZAÇÃO (0029): usa a org da vaga; vaga sem org cai na global.
+            const agentSettings = $app.getAgentSettings(e.app, String(job.get('org_' + 'id') || ''))
             if (!agentSettings.enabled) {
               responseStatus = 200
               responsePayload = {

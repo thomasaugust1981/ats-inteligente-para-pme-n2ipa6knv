@@ -16,12 +16,31 @@
 // TODOS os caminhos de saída chamam e.next().
 //
 
-$app.getAiProvider = function (app) {
+$app.getAiProvider = function (app, orgId) {
   let record = null
-  try {
-    record = app.findFirstRecordByFilter('ai_agent_settings', 'id != ""')
-  } catch (_) {
-    record = null
+  const wantOrg = String(orgId || '')
+  if (wantOrg) {
+    // Config POR ORGANIZAÇÃO (0029): primeiro a da org, depois a global (org vazio).
+    try {
+      record = app.findFirstRecordByFilter('ai_agent_settings', 'org_' + 'id = {:oid}', null, {
+        oid: wantOrg,
+      })
+    } catch (_) {
+      record = null
+    }
+    if (!record) {
+      try {
+        record = app.findFirstRecordByFilter('ai_agent_settings', 'org_' + 'id = ""')
+      } catch (_) {
+        record = null
+      }
+    }
+  } else {
+    try {
+      record = app.findFirstRecordByFilter('ai_agent_settings', 'id != ""')
+    } catch (_) {
+      record = null
+    }
   }
   const provider = record ? String(record.get('ai_provider') || 'native') : 'native'
   const apiKey = record ? String(record.get('ai_api_key') || '').trim() : ''
@@ -132,7 +151,8 @@ $app.parseScoreJson = function (rawText) {
 // com fallback OBRIGATÓRIO ao agente nativo em caso de falha.
 $app.computeScore = function (app, snapshot, agentSettings) {
   const weights = agentSettings || {}
-  const providerCfg = $app.getAiProvider(app)
+  // Resolução por ORG: org da vaga (carregada no snapshot pelo chamador) → global.
+  const providerCfg = $app.getAiProvider(app, snapshot && snapshot.org_id)
   const prompt =
     'Calcule o score de aderência deste candidato para a vaga, usando os dados JSON abaixo. ' +
     'Responda APENAS com JSON no formato: {"score_technical":0-100 ou null,"score_behavioral":0-100 ou null,' +
@@ -153,7 +173,8 @@ $app.computeScore = function (app, snapshot, agentSettings) {
     '\n\nDADOS: ' +
     JSON.stringify(snapshot).slice(0, 24000)
 
-  // 1. Provedor próprio do cliente, se configurado.
+  // 1. Provedor próprio do cliente, se configurado (config da ORG do snapshot
+  //    — o job/organization que originou o cálculo — com fallback à global).
   if (providerCfg.provider !== 'native' && providerCfg.apiKey) {
     try {
       const model = $app.providerModelFor(providerCfg.provider, providerCfg.model)
@@ -248,16 +269,35 @@ routerAdd('POST', '/backend/v1/ai-provider/key', (e) => {
       return
     }
 
+    // Config POR ORGANIZAÇÃO (0029): grava na config da ORG do admin autenticado,
+    // criando-a se ainda não existir (a org nunca herda nem sobrescreve a de outra).
+    const orgId = String(e.auth.get('org_' + 'id') || '')
     let record = null
-    try {
-      record = e.app.findFirstRecordByFilter('ai_agent_settings', 'id != ""')
-    } catch (_) {
-      record = null
-    }
-    if (!record) {
-      e.json(404, { error: 'Configuração do agente não encontrada.' })
-      e.next()
-      return
+    if (orgId) {
+      try {
+        record = e.app.findFirstRecordByFilter('ai_agent_settings', 'org_' + 'id = {:oid}', null, {
+          oid: orgId,
+        })
+      } catch (_) {
+        record = null
+      }
+      if (!record) {
+        const col = e.app.findCollectionByNameOrId('ai_agent_settings')
+        record = new Record(col)
+        record.set('org_' + 'id', orgId)
+      }
+    } else {
+      // Sem org (conta de sistema/legado): mantém o comportamento anterior.
+      try {
+        record = e.app.findFirstRecordByFilter('ai_agent_settings', 'id != ""')
+      } catch (_) {
+        record = null
+      }
+      if (!record) {
+        e.json(404, { error: 'Configuração do agente não encontrada.' })
+        e.next()
+        return
+      }
     }
 
     record.set('ai_provider', provider)
@@ -277,6 +317,7 @@ routerAdd('POST', '/backend/v1/ai-provider/key', (e) => {
         e.next()
         return
       }
+      // apiKey vazio + chave existente → PRESERVA a chave anterior (não apaga).
       record.set('ai_model', model)
     }
     e.app.save(record)
@@ -327,12 +368,29 @@ routerAdd('POST', '/backend/v1/ai-provider/test', (e) => {
       return
     }
 
-    // Sem chave no payload → usa a já gravada (troca de modelo sem redigitar).
+    // Sem chave no payload → usa a JÁ GRAVADA da org do admin (troca de modelo
+    // sem redigitar a chave).
     if (!apiKey) {
+      const orgId = String(e.auth.get('org_' + 'id') || '')
       try {
-        const cfg = $app.getAiProvider(e.app)
-        if (cfg.provider === provider && cfg.apiKey) {
-          apiKey = cfg.apiKey
+        const cfg = $app.getAiProvider(e.app, orgId)
+        // getAiProvider faz fallback à global — só reaproveita se for da PRÓPRIA org.
+        if (cfg.apiKey) {
+          let own = null
+          try {
+            own = e.app.findFirstRecordByFilter('ai_agent_settings', 'org_' + 'id = {:oid}', null, {
+              oid: orgId,
+            })
+          } catch (_) {
+            own = null
+          }
+          const ownProvider = own ? String(own.get('ai_provider') || '') : ''
+          const ownKey = own ? String(own.get('ai_api_key') || '').trim() : ''
+          if (ownKey && ownProvider === provider) {
+            apiKey = ownKey
+          } else if (!orgId) {
+            apiKey = cfg.apiKey
+          }
         }
       } catch (_) {}
     }

@@ -1,11 +1,10 @@
 // Serviço de configuração do agente de score de IA (coleção ai_agent_settings).
-// Registro global único; leitura para qualquer usuário autenticado, escrita
-// apenas administrador (regras da coleção, migração 0013).
-// Provedor de IA (BYOK, migração 0014): ai_provider + modelo + chave.
-// A chave (ai_api_key) é write-only — campo HIDDEN no PocketBase, o backend
-// NUNCA a devolve; o frontend guarda apenas os 4 dígitos (ai_key_last4) e a
-// data (ai_key_updated_at) para exibição mascarada. A gravação da chave e o
-// teste de conexão passam pelas rotas admin em /backend/v1/ai-provider/*.
+// Config POR ORGANIZAÇÃO (migração 0029): cada organização tem sua própria
+// config (org_id no authStore do usuário logado); regras server-side (0029)
+// só deixam a org ver/editar a própria config. Provedor de IA (BYOK, 0014):
+// ai_provider + modelo + chave write-only — o backend NUNCA devolve ai_api_key;
+// o frontend exibe apenas ai_key_last4 + ai_key_updated_at. A gravação da chave
+// e o teste de conexão passam pelas rotas admin em /backend/v1/ai-provider/*.
 
 import pb from '@/lib/pocketbase/client'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
@@ -14,6 +13,7 @@ export type AiProvider = 'native' | 'openai' | 'gemini'
 
 export interface AiAgentSettings {
   id: string
+  org_id: string
   enabled: boolean
   weight_technical: number
   weight_behavioral: number
@@ -29,7 +29,7 @@ export interface AiAgentSettings {
   updated: string
 }
 
-export const DEFAULT_AGENT_SETTINGS: Omit<AiAgentSettings, 'id' | 'updated'> = {
+export const DEFAULT_AGENT_SETTINGS: Omit<AiAgentSettings, 'id' | 'org_id' | 'updated'> = {
   enabled: true,
   weight_technical: 50,
   weight_behavioral: 30,
@@ -50,33 +50,43 @@ export const PROVIDER_MODEL_PLACEHOLDER: Record<AiProvider, string> = {
   gemini: 'gemini-2.0-flash',
 }
 
-/** Lê a configuração global do agente (um único registro). Falha → defaults. */
-export async function getAgentSettings(): Promise<AiAgentSettings> {
-  try {
-    const record = await pb.collection('ai_agent_settings').getList<AiAgentSettings>(1, 1)
-    if (record.items.length > 0) {
-      const item = record.items[0]
-      return {
-        ...item,
-        ai_provider: (item.ai_provider || 'native') as AiProvider,
-        ai_model: item.ai_model || '',
-        ai_key_last4: item.ai_key_last4 || '',
-        ai_key_updated_at: item.ai_key_updated_at || '',
-      }
-    }
-  } catch (err) {
-    console.error('[aiAgentSettings] falha ao ler configuração:', getErrorMessage(err))
-  }
-  return { ...DEFAULT_AGENT_SETTINGS, id: '', updated: '' }
+function currentOrgId(): string {
+  const me = pb.authStore.record as (Record<string, unknown> & { org_id?: string }) | null
+  return String(me?.org_id || '')
 }
 
-/** Salva a configuração (apenas administrador — regra server-side). */
+/** Lê a configuração do agente da organização do usuário logado. Falha → defaults. */
+export async function getAgentSettings(): Promise<AiAgentSettings> {
+  try {
+    const orgId = currentOrgId()
+    const filter = pb.filter('org_id = {:oid}', { oid: orgId })
+    const record = await pb
+      .collection('ai_agent_settings')
+      .getFirstListItem<AiAgentSettings>(filter)
+    return {
+      ...record,
+      org_id: String((record as unknown as Record<string, unknown>).org_id || orgId),
+      ai_provider: (record.ai_provider || 'native') as AiProvider,
+      ai_model: record.ai_model || '',
+      ai_key_last4: record.ai_key_last4 || '',
+      ai_key_updated_at: record.ai_key_updated_at || '',
+    }
+  } catch (err) {
+    // 404 esperado (org ainda sem config) — não loga como erro.
+    if (!String(getErrorMessage(err)).includes('404')) {
+      console.error('[aiAgentSettings] falha ao ler configuração:', getErrorMessage(err))
+    }
+    return { ...DEFAULT_AGENT_SETTINGS, id: '', org_id: currentOrgId(), updated: '' }
+  }
+}
+
+/** Salva a configuração da organização do usuário logado (apenas admin). */
 export async function saveAgentSettings(
   settings: Omit<AiAgentSettings, 'id' | 'updated'> & { id?: string },
 ): Promise<AiAgentSettings> {
-  const me = pb.authStore.record as (Record<string, unknown> & { org_id?: string }) | null
+  const orgId = String(settings.org_id || currentOrgId())
   const body = {
-    org_id: me?.org_id || '',
+    org_id: orgId,
     enabled: settings.enabled,
     weight_technical: settings.weight_technical,
     weight_behavioral: settings.weight_behavioral,
@@ -94,7 +104,7 @@ export async function saveAgentSettings(
   return (await pb.collection('ai_agent_settings').create(body)) as AiAgentSettings
 }
 
-/** Grava a chave do provedor (write-only, somente admin). */
+/** Grava a chave do provedor (write-only, somente admin) — org do usuário logado. */
 export async function saveProviderKey(
   provider: AiProvider,
   apiKey: string,

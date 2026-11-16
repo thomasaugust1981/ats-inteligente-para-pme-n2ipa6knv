@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-16T21:27:20.429Z",
+  "generatedAt": "2026-11-16T21:35:59.086Z",
   "collections": [
     {
       "name": "users",
@@ -1472,11 +1472,11 @@
       "name": "ai_agent_settings",
       "type": "base",
       "apiRules": {
-        "list": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
-        "view": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
+        "list": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "view": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
         "create": "(@request.auth.id != '' && @request.auth.org_id != '' && @request.body.org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
-        "update": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
-        "delete": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'"
+        "update": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "delete": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'"
       },
       "fields": [
         {
@@ -1581,7 +1581,9 @@
           "collectionRef": "organizations"
         }
       ],
-      "indexes": []
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_aiagents_org ON ai_agent_settings (org_id) WHERE org_id != ''"
+      ]
     },
     {
       "name": "organizations",
