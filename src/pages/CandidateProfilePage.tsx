@@ -33,6 +33,7 @@ import { useToast } from '@/hooks/use-toast'
 import { ResumeStructuredPanel } from '@/components/ResumeStructuredPanel'
 import { DiscFitPanel } from '@/components/DiscFitPanel'
 import { AiScorePanel } from '@/components/AiScorePanel'
+import { CandidateWhatsAppButton } from '@/components/candidates/CandidateWhatsAppButton'
 
 export const CandidateProfilePage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -275,6 +276,20 @@ export const CandidateProfilePage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <CandidateWhatsAppButton
+            candidateId={candidate.id}
+            applicationId={targetAppId || applications[0]?.id}
+            candidateName={candidate.name}
+            phone={candidate.phone || ''}
+            jobTitle={
+              (applications.find((a) => a.id === targetAppId) ?? applications[0])?.expand?.job_id
+                ?.title || ''
+            }
+            stageLabel={
+              (applications.find((a) => a.id === targetAppId) ?? applications[0])?.stage_id || ''
+            }
+            className="text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+          />
           {resumeUrl && (
             <Button
               size="sm"

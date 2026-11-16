@@ -23,6 +23,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { CandidateWhatsAppButton } from '@/components/candidates/CandidateWhatsAppButton'
 import {
   Dialog,
   DialogContent,
@@ -411,6 +412,15 @@ export const PipelinePage: React.FC = () => {
 
                             <CardContent className="p-3 pt-0 text-[11px] space-y-2">
                               <AiScoreBadge applicationId={app.id} className="mb-1" />
+
+                              <CandidateWhatsAppButton
+                                candidateId={candidate.id}
+                                applicationId={app.id}
+                                candidateName={candidate.name}
+                                phone={candidate.phone || ''}
+                                jobTitle={job?.title || ''}
+                                stageLabel={stage.label}
+                              />
 
                               {(stage.id === 'disc' || app.disc_status) && (
                                 <button
