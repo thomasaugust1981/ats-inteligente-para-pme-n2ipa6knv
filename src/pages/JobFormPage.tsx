@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { useActiveCompany } from '@/hooks/use-active-company'
@@ -13,7 +13,18 @@ import { SuggestedCandidatesPanel } from '@/components/SuggestedCandidatesPanel'
 import { BasicInfoCard } from '@/components/jobForm/BasicInfoCard'
 import { DescriptionCard } from '@/components/jobForm/DescriptionCard'
 import { StagesCard } from '@/components/jobForm/StagesCard'
+import { ChaSection } from '@/components/jobForm/ChaSection'
 import { ScoreWeightsCard } from '@/components/jobForm/ScoreWeightsCard'
+import { ChaInheritCard } from '@/components/jobForm/ChaInheritCard'
+import { useCargos } from '@/hooks/use-cargos'
+import {
+  CHA_BLOCK_KEYS,
+  emptyChaRequirements,
+  invalidAttitudes,
+  legacyToChaDraft,
+  parseJobCha,
+  type JobChaRequirements,
+} from '@/lib/cha'
 import type { JobFormValues, JobFormErrors, SetJobFormField } from '@/components/jobForm/types'
 
 const INITIAL_VALUES: JobFormValues = {
@@ -36,6 +47,7 @@ const INITIAL_VALUES: JobFormValues = {
   weightTechnical: '',
   weightBehavioral: '',
   weightCultural: '',
+  cargoId: '',
 }
 
 export const JobFormPage: React.FC = () => {
@@ -57,6 +69,12 @@ export const JobFormPage: React.FC = () => {
   const [savedJob, setSavedJob] = useState<Job | null>(null)
   // Erros de validação, exibidos junto a cada campo
   const [errors, setErrors] = useState<JobFormErrors>({})
+  // FASE 1 CHA: requisitos efetivos em edição (specific é editável; cargo vem do cargo_id)
+  const [chaRequirements, setChaRequirements] = useState<JobChaRequirements>(() =>
+    emptyChaRequirements(),
+  )
+  const { cargos, loading: cargosLoading } = useCargos()
+  // Import do tipo usado no estado acima (mantido no topo via lib/cha)
 
   /** Setter único: mantém os tipos de cada campo e limpa o erro do campo ao digitar. */
   const setField: SetJobFormField = (field, value) => {
@@ -119,7 +137,11 @@ export const JobFormPage: React.FC = () => {
           weightTechnical: job.weight_technical != null ? String(job.weight_technical) : '',
           weightBehavioral: job.weight_behavioral != null ? String(job.weight_behavioral) : '',
           weightCultural: job.weight_cultural != null ? String(job.weight_cultural) : '',
+          cargoId: job.cargo_id || '',
         })
+        // FASE 1 CHA: requisitos efetivos salvos na vaga (ou herdados do cargo)
+        const parsedCha = parseJobCha(job.cha_requirements)
+        setChaRequirements(parsedCha)
         setHighImpact(Boolean(job.high_impact))
         let parsedOptional: string[] = []
         if (typeof job.optional_stages === 'string') {
@@ -191,6 +213,12 @@ export const JobFormPage: React.FC = () => {
     }
   }
 
+  // FASE 1 CHA: o CHA efetivo da vaga = requisitos do cargo (somente leitura) + específicos
+  const cargoCha = useMemo(
+    () => cargos.find((c) => c.id === values.cargoId)?.cha || null,
+    [cargos, values.cargoId],
+  )
+
   // Validação com erros exibidos junto a cada campo (em pt-BR)
   const validate = (): boolean => {
     const next: JobFormErrors = {}
@@ -201,6 +229,24 @@ export const JobFormPage: React.FC = () => {
       next.slug = 'Use apenas letras minúsculas, números e hífens (ex.: vendedor-pleno).'
     }
     if (!values.description.trim()) next.description = 'Descreva as responsabilidades do cargo.'
+    // FASE 1 CHA — bloqueio de publicação: os três blocos precisam estar preenchidos
+    if (values.status === 'published') {
+      for (const key of CHA_BLOCK_KEYS) {
+        const items = chaRequirements.specific[key]?.items || []
+        const hasCargoItems = (cargoCha?.[key]?.items || []).length > 0
+        if (items.length === 0 && !hasCargoItems) {
+          next.cha =
+            'Para publicar, os três blocos CHA precisam de pelo menos 1 requisito — vincule um cargo ou preencha em "Requisitos específicos da vaga".'
+          break
+        }
+      }
+      // Atitudes específicas da vaga: rejeita adjetivo isolado (mesma regra do editor de cargos)
+      const badAttitudes = invalidAttitudes(chaRequirements.specific.atitudes)
+      if (badAttitudes.length > 0) {
+        next.atitudes =
+          'Atitudes: descreva comportamentos observáveis, não adjetivos isolados (ex.: em vez de "proativo", "identifica e reporta desvios de processo sem supervisão").'
+      }
+    }
     const min = parseFloat(values.salaryMin)
     const max = parseFloat(values.salaryMax)
     if (values.salaryMin && values.salaryMax && !isNaN(min) && !isNaN(max) && min > max) {
@@ -263,6 +309,9 @@ export const JobFormPage: React.FC = () => {
         stages: stages,
         high_impact: highImpact,
         optional_stages: optionalStages,
+        // FASE 1 CHA: cargo vinculado + requisitos efetivos (cargo herda automático + específicos)
+        cargo_id: values.cargoId || null,
+        cha_requirements: chaRequirements,
       }
       // Pesos da vaga: só grava quando a régua própria está ligada e fecha 100;
       // caso contrário envia null (a vaga herda a régua global de /agente-score).
@@ -402,6 +451,21 @@ export const JobFormPage: React.FC = () => {
             <DescriptionCard values={values} errors={errors} onField={setField} />
           </CardContent>
         </Card>
+
+        {/* Bloco 2.5: Cargo & requisitos CHA (FASE 1) */}
+        <ChaInheritCard
+          values={values}
+          errors={errors}
+          onField={setField}
+          cargos={cargos}
+          cargosLoading={cargosLoading}
+          chaRequirements={chaRequirements}
+          onChaSpecificChange={setChaRequirements}
+          onConvertLegacy={() =>
+            setChaRequirements((prev) => ({ ...prev, specific: legacyToChaDraft(values) }))
+          }
+          hasLegacyText={Boolean(values.requirements.trim())}
+        />
 
         {/* Bloco 3: Aspectos de avaliação (régua de pesos do score de IA) */}
         <Card className="bg-white">

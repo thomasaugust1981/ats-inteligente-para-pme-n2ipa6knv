@@ -15,6 +15,7 @@ import {
   UserCheck,
   Rocket,
   Network,
+  Boxes,
   Bot,
   Plug,
 } from 'lucide-react'
@@ -152,6 +153,18 @@ const Layout: React.FC = () => {
               </Link>
             )
           })}
+          {/* Cargos (modelo CHA): admin/RH editam, recrutador/gestor somente leitura */}
+          <Link
+            to="/cargos"
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition ${
+              location.pathname.startsWith('/cargos')
+                ? 'bg-sky-600 text-white shadow-xs'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/80'
+            }`}
+          >
+            <Boxes className="w-4 h-4" />
+            <span>Cargos</span>
+          </Link>
           {showOrganograma && (
             <Link
               to="/organograma"

@@ -22,6 +22,8 @@ export interface JobFormValues {
   weightTechnical: string
   weightBehavioral: string
   weightCultural: string
+  /** FASE 1 CHA: cargo vinculado à vaga ('' = sem cargo). */
+  cargoId: string
 }
 
 /** Erros de validação por campo (mensagem em pt-BR exibida junto ao campo). */

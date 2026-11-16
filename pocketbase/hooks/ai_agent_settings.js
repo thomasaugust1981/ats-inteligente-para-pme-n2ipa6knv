@@ -1,18 +1,42 @@
 //
-// Configuração do agente de score de IA (coleção ai_agent_settings, mig 0013).
+// Configuração do agente de score de IA (coleção ai_agent_settings, migs
+// 0013/0014/0025). Desde a 0025 a config é POR ORGANIZAÇÃO (org_id), com
+// fallback para o registro global (org_id vazio) e depois para os defaults
+// de código — o registro global deixa de vazar a régua entre clientes.
 // 1. OnRecordValidate: os pesos das três dimensões DEVEM somar 100 — validado
 //    server-side (a JSVM de migração não tem onRecordValidate).
-// 2. getAgentSettings(app) fica global (a JSVM não tem module.exports): ai_score.js
-//    e ai_score_triggers.js leem $app.getAgentSettings(app) para decidir se
-//    calculam e com quais pesos (defaults: habilitado, 50/30/20, gatilhos on).
+// 2. getAgentSettings(app, orgId) fica global (a JSVM não tem module.exports):
+//    ai_score.js e ai_score_triggers.js leem $app.getAgentSettings(app, orgId)
+//    para decidir se calculam e com quais pesos (defaults: habilitado,
+//    50/30/20, gatilhos on). Sem orgId, mantém o comportamento legado
+//    (primeiro registro — compatibilidade com chamadas antigas).
 //
 
-$app.getAgentSettings = function (app) {
+$app.getAgentSettings = function (app, orgId) {
   let record = null
-  try {
-    record = app.findFirstRecordByFilter('ai_agent_settings', 'id != ""')
-  } catch (_) {
-    record = null
+  const wantOrg = String(orgId || '')
+  if (wantOrg) {
+    // 1. config da própria organização; 2. global (org_id vazio) como fallback.
+    try {
+      record = app.findFirstRecordByFilter('ai_agent_settings', 'org_' + 'id = {:oid}', null, {
+        oid: wantOrg,
+      })
+    } catch (_) {
+      record = null
+    }
+    if (!record) {
+      try {
+        record = app.findFirstRecordByFilter('ai_agent_settings', 'org_' + 'id = ""')
+      } catch (_) {
+        record = null
+      }
+    }
+  } else {
+    try {
+      record = app.findFirstRecordByFilter('ai_agent_settings', 'id != ""')
+    } catch (_) {
+      record = null
+    }
   }
 
   if (!record) {

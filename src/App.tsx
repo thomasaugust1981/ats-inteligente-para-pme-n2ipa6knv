@@ -33,6 +33,7 @@ import { SuperAdminRouteGuard } from './components/SuperAdminRouteGuard'
 import { AdminRouteGuard } from './components/AdminRouteGuard'
 import EmpresasPage from './pages/EmpresasPage'
 import IntegrationsPage from './pages/IntegrationsPage'
+import { CargosPage } from './pages/CargosPage'
 
 const App = () => (
   <BrowserRouter>
@@ -67,6 +68,7 @@ const App = () => (
                 <Route path="/candidato/:id" element={<CandidateProfilePage />} />
                 <Route path="/organograma" element={<OrganogramaPage />} />
                 <Route path="/empresas" element={<EmpresasPage />} />
+                <Route path="/cargos" element={<CargosPage />} />
                 <Route path="/agente-score" element={<AiAgentSettingsPage />} />
                 <Route element={<AdminRouteGuard />}>
                   <Route path="/integracoes" element={<IntegrationsPage />} />

@@ -1,4 +1,5 @@
 import type { ErpIntegrationData } from '@/lib/erpIntegration'
+import type { JobChaRequirements, ChaData } from '@/lib/cha'
 
 export type UserRole = 'admin' | 'recruiter' | 'manager' | 'superadmin'
 
@@ -63,6 +64,26 @@ export interface JobStage {
   color?: string
 }
 
+/**
+ * FASE 1 do modelo CHA — Cargo da organização (coleção "cargos").
+ * `cha` chega como string JSON do PocketBase e é normalizada pelo
+ * cargosService (parseCha) antes de chegar à UI.
+ */
+export interface Cargo {
+  id: string
+  title: string
+  area?: string
+  level?: 'junior' | 'pleno' | 'senior'
+  mission?: string
+  salary_min?: number | null
+  salary_med?: number | null
+  salary_max?: number | null
+  cha: ChaData | null
+  org_id?: string
+  created: string
+  updated: string
+}
+
 /** Configuração de responsável/notificações de uma etapa de uma vaga. */
 export interface StageSetting {
   id: string
@@ -99,12 +120,16 @@ export interface Job {
   weight_technical?: number | null
   weight_behavioral?: number | null
   weight_cultural?: number | null
+  // FASE 1 CHA: cargo vinculado + requisitos efetivos (JSON no PB)
+  cargo_id?: string
+  cha_requirements?: string | JobChaRequirements | null
   manager_id?: string
   created_by?: string
   company_id?: string
   expand?: {
     manager_id?: User
     created_by?: User
+    cargo_id?: Cargo
   }
   created: string
   updated: string
