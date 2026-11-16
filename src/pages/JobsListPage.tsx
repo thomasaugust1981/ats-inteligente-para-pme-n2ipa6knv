@@ -48,9 +48,11 @@ import {
 import { useCopyLink } from '@/hooks/use-copy-link'
 import { LoadingState } from '@/components/LoadingState'
 import { EmptyState } from '@/components/EmptyState'
+import { useActiveCompany } from '@/hooks/use-active-company'
 
 export const JobsListPage: React.FC = () => {
   const { user, isManager, isAdmin } = useAuth()
+  const { activeCompanyId, companyVersion } = useActiveCompany()
   const navigate = useNavigate()
   const { copyLink } = useCopyLink()
   const { toast } = useToast()
@@ -64,8 +66,11 @@ export const JobsListPage: React.FC = () => {
     try {
       setLoading(true)
       let filter = ''
+      if (activeCompanyId) {
+        filter = `company_id = "${activeCompanyId}"`
+      }
       if (isManager && user?.id) {
-        filter = `manager_id = "${user.id}"`
+        filter = filter ? `${filter} && manager_id = "${user.id}"` : `manager_id = "${user.id}"`
       }
       const list = await jobsService.listJobs(filter || undefined)
       setJobs(list)
@@ -83,7 +88,7 @@ export const JobsListPage: React.FC = () => {
 
   useEffect(() => {
     loadJobs()
-  }, [user, isManager])
+  }, [user, isManager, activeCompanyId, companyVersion])
 
   const handleCopyLink = (slug: string) => {
     const url = `${window.location.origin}/carreiras/vaga/${slug}?origem=direct_link`

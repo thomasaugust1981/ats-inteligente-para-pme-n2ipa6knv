@@ -2,8 +2,15 @@ import pb from '@/lib/pocketbase/client'
 import type { Company } from '@/types/ats'
 
 export const companyService = {
-  async getCompany(): Promise<Company | null> {
+  /**
+   * Empresa pública por ID (páginas de carreiras/portal/candidatura).
+   * Sem ID, cai no primeiro registro publicado (fallback legado).
+   */
+  async getCompany(companyId?: string): Promise<Company | null> {
     try {
+      if (companyId) {
+        return await pb.collection('companies').getOne<Company>(companyId)
+      }
       const records = await pb.collection('companies').getList<Company>(1, 1)
       return records.items[0] || null
     } catch (err) {

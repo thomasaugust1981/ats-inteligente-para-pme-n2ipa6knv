@@ -22,6 +22,7 @@ import { onboardingService } from '@/services/onboarding'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { SuperadminPasswordBanner } from '@/components/SuperadminPasswordBanner'
+import CompanySelector from '@/components/CompanySelector'
 import { useState } from 'react'
 
 const Layout: React.FC = () => {
@@ -97,6 +98,11 @@ const Layout: React.FC = () => {
               {user.company_name || 'Vanguard Soluções'}
             </p>
           </div>
+        </div>
+
+        {/* Seletor de empresa ativa (multi-empresa) */}
+        <div className="px-3 mt-3">
+          <CompanySelector />
         </div>
 
         {/* Info do usuário logado */}
@@ -291,6 +297,7 @@ const Layout: React.FC = () => {
           </button>
         </div>
       )}
+      {/* /Menu Mobile Dropdown */}
 
       {/* Conteúdo Principal */}
       <main className="flex-1 p-4 md:p-8 overflow-y-auto">

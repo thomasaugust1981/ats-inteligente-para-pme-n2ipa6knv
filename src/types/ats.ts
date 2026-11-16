@@ -7,6 +7,7 @@ export interface User {
   role: UserRole
   company_name?: string
   avatar?: string
+  org_id?: string
   created: string
   updated: string
 }
@@ -26,9 +27,15 @@ export interface Company {
   state?: string
   brand_color?: string
   onboarding_status?: OnboardingStatus
+  org_id?: string
+  company_type?: CompanyType
+  parent_id?: string
   created: string
   updated: string
 }
+
+/** Hierarquia multi-empresa: a matriz pode ter filiais. */
+export type CompanyType = 'matriz' | 'filial'
 
 export type TeamInviteStatus = 'pending' | 'accepted' | 'cancelled'
 

@@ -151,7 +151,7 @@ export const JobApplicationPage: React.FC = () => {
         setLoading(true)
         const [jobData, comp] = await Promise.all([
           jobsService.getJobBySlug(slug),
-          companyService.getCompany(),
+          companyService.getCompany(jobData?.company_id || undefined),
         ])
         setJob(jobData)
         setCompany(comp)
