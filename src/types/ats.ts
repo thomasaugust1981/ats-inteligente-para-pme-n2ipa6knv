@@ -234,6 +234,7 @@ export type AuditAction =
   | 'stage_owner_assigned'
   | 'evaluation_comment'
   | 'candidate_suggested'
+  | 'interview_scheduled'
 
 export interface AuditLog {
   id: string

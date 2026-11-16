@@ -37,6 +37,7 @@ import { ResumeStructuredPanel } from '@/components/ResumeStructuredPanel'
 import { DiscFitPanel } from '@/components/DiscFitPanel'
 import { AiScorePanel } from '@/components/AiScorePanel'
 import { CandidateWhatsAppButton } from '@/components/candidates/CandidateWhatsAppButton'
+import { CandidateScheduleInterviewButton } from '@/components/candidates/CandidateScheduleInterviewButton'
 
 export const CandidateProfilePage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -208,6 +209,12 @@ export const CandidateProfilePage: React.FC = () => {
             Parecer / Anotação
           </Badge>
         )
+      case 'interview_scheduled':
+        return (
+          <Badge variant="outline" className="text-[10px] bg-sky-50 text-sky-800 border-sky-200">
+            Entrevista Agendada
+          </Badge>
+        )
       case 'candidate_created':
         return (
           <Badge variant="outline" className="text-[10px] bg-slate-50 text-slate-700">
@@ -308,6 +315,16 @@ export const CandidateProfilePage: React.FC = () => {
               (applications.find((a) => a.id === targetAppId) ?? applications[0])?.stage_id || ''
             }
             className="text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+          />
+          <CandidateScheduleInterviewButton
+            candidateId={candidate.id}
+            applicationId={targetAppId || applications[0]?.id}
+            candidateName={candidate.name}
+            jobTitle={
+              (applications.find((a) => a.id === targetAppId) ?? applications[0])?.expand?.job_id
+                ?.title || ''
+            }
+            className="text-sky-700 border-sky-200 hover:bg-sky-50"
           />
           {resumeUrl && (
             <Button

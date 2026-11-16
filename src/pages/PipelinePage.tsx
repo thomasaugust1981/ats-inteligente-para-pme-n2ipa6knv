@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { CandidateWhatsAppButton } from '@/components/candidates/CandidateWhatsAppButton'
+import { CandidateScheduleInterviewButton } from '@/components/candidates/CandidateScheduleInterviewButton'
 import {
   Dialog,
   DialogContent,
@@ -448,6 +449,15 @@ export const PipelinePage: React.FC = () => {
                                 jobTitle={job?.title || ''}
                                 stageLabel={stage.label}
                               />
+
+                              {(stage.id === 'interview_hr' || stage.id === 'tech_interview') && (
+                                <CandidateScheduleInterviewButton
+                                  candidateId={candidate.id}
+                                  applicationId={app.id}
+                                  candidateName={candidate.name}
+                                  jobTitle={job?.title || ''}
+                                />
+                              )}
 
                               {stage.id === ERP_STAGE_ID && (
                                 <button
