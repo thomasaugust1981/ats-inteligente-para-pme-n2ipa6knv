@@ -21,6 +21,7 @@ import { useAiAgentSettings } from '@/hooks/use-ai-agent-settings'
 import { onboardingService } from '@/services/onboarding'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { SuperadminPasswordBanner } from '@/components/SuperadminPasswordBanner'
 import { useState } from 'react'
 
 const Layout: React.FC = () => {
@@ -74,6 +75,7 @@ const Layout: React.FC = () => {
   const showSuperadminLink = isSuperadmin
 
   const getRoleLabel = () => {
+    if (isSuperadmin) return 'Super Admin'
     if (isAdmin) return 'Administrador'
     if (isManager) return 'Gestor Solicitante'
     return 'Recrutador'
@@ -292,6 +294,7 @@ const Layout: React.FC = () => {
 
       {/* Conteúdo Principal */}
       <main className="flex-1 p-4 md:p-8 overflow-y-auto">
+        <SuperadminPasswordBanner />
         <Outlet />
       </main>
     </div>

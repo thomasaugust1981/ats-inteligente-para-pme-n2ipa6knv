@@ -358,7 +358,7 @@ const SuperAdminPage: React.FC = () => {
 
       {/* Tabela de organizações */}
       {loading ? (
-        <LoadingState label="Carregando organizações…" />
+        <LoadingState message="Carregando organizações…" />
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={Building2}

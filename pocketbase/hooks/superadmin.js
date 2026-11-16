@@ -1,5 +1,6 @@
 //
-// Painel superadmin — criação atômica de organização + primeiro admin do cliente.
+// Painel superadmin — criação atômica de organização + primeiro admin do cliente
+// e contagens reais por organização (GET /backend/v1/superadmin/organizations/counts).
 // POST /backend/v1/superadmin/organizations { name, slug, admin_name, admin_email,
 //   admin_password, notes? } — rota EXCLUSIVA de papel superadmin (403 para os
 // demais). Grava organization + usuário admin numa única transação
@@ -133,5 +134,46 @@ routerAdd('POST', '/backend/v1/superadmin/organizations', (e) => {
       })
     }
     return e.json(500, { error: 'Falha ao criar a organização. Tente novamente.' })
+  }
+})
+
+//
+// GET /backend/v1/superadmin/organizations/counts
+// Contagens reais de usuários e empresas por organização, em uma chamada —
+// substitui o expand 'orgs_users_count/orgs_companies_count', que nunca existiu
+// no schema (organizations só tem name/slug/is_active/notes).
+//
+routerAdd('GET', '/backend/v1/superadmin/organizations/counts', (e) => {
+  const auth = e.auth
+  if (!auth) {
+    return e.json(401, { error: 'Autenticação necessária.' })
+  }
+  if (String(auth.get('role') || '') !== 'superadmin') {
+    return e.json(403, { error: 'Acesso restrito ao superadmin.' })
+  }
+
+  try {
+    const userCounts = {}
+    const usersRows = e.app
+      .db()
+      .newQuery("SELECT org_id, COUNT(*) AS n FROM users WHERE org_id != '' GROUP BY org_id")
+      .all()
+    for (let i = 0; i < usersRows.length; i++) {
+      userCounts[usersRows[i].org_id] = usersRows[i].n
+    }
+
+    const companyCounts = {}
+    const companyRows = e.app
+      .db()
+      .newQuery("SELECT org_id, COUNT(*) AS n FROM companies WHERE org_id != '' GROUP BY org_id")
+      .all()
+    for (let i = 0; i < companyRows.length; i++) {
+      companyCounts[companyRows[i].org_id] = companyRows[i].n
+    }
+
+    return e.json(200, { counts: { users: userCounts, companies: companyCounts } })
+  } catch (err) {
+    console.error('[superadmin] erro ao calcular contagens:', String((err && err.message) || err))
+    return e.json(500, { error: 'Falha ao calcular as contagens.' })
   }
 })

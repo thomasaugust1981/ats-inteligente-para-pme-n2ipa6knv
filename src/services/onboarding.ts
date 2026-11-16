@@ -6,6 +6,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   admin: 'Administrador',
   recruiter: 'Recrutador',
   manager: 'Gestor Solicitante',
+  superadmin: 'Super Admin',
 }
 
 export const DEFAULT_BRAND_COLOR = '#0284c7' // sky-600, padrão visual atual do app

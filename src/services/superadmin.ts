@@ -1,5 +1,9 @@
 import pb from '@/lib/pocketbase/client'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
+import type { Company, User } from '@/types/ats'
+
+/** org_id chega como string (id) em registros de usuários/empresas. */
+type WithOrgId = { org_id?: string }
 
 export const SUPERADMIN_SEED_EMAIL = 'superadmin@ats.local'
 export const SUPERADMIN_DEFAULT_PASSWORD = 'Mudar@123'
@@ -10,10 +14,16 @@ export interface Organization {
   slug: string
   is_active?: boolean
   notes?: string
-  orgs_users_count?: number
-  orgs_companies_count?: number
   created: string
   updated: string
+}
+
+/** Mapa org_id → contagem, devolvido pela rota do hook superadmin. */
+interface OrgCountsResponse {
+  counts?: {
+    users?: Record<string, number>
+    companies?: Record<string, number>
+  }
 }
 
 export interface OrganizationWithCounts extends Organization {
@@ -47,16 +57,55 @@ export function slugify(text: string): string {
 }
 
 export const superadminService = {
-  /** Lista todas as organizações (só superadmin tem acesso pela regra da coleção). */
+  /**
+   * Lista todas as organizações (só superadmin tem acesso pela regra da coleção)
+   * com contagens REAIS de usuários e empresas por org_id — via rota do hook
+   * (uma chamada, SQL GROUP BY) com fallback para filtros por collection.
+   */
   async listOrganizations(): Promise<OrganizationWithCounts[]> {
     const records = await pb.collection('organizations').getFullList<Organization>({
       sort: '-created',
-      expand: 'orgs_users_count,orgs_companies_count',
     })
+
+    let userCounts: Record<string, number> = {}
+    let companyCounts: Record<string, number> = {}
+    try {
+      const res = await fetch(`${pb.buildUrl('')}/backend/v1/superadmin/organizations/counts`, {
+        headers: { Authorization: pb.authStore.token },
+      })
+      if (res.ok) {
+        const data = (await res.json().catch(() => null)) as OrgCountsResponse | null
+        userCounts = data?.counts?.users || {}
+        companyCounts = data?.counts?.companies || {}
+      }
+    } catch (_) {
+      // segue para o fallback abaixo
+    }
+
+    if (Object.keys(userCounts).length === 0 && Object.keys(companyCounts).length === 0) {
+      // Fallback: contagens por filtro org_id (duas consultas por coleção).
+      try {
+        const [users, companies] = await Promise.all([
+          pb.collection('users').getFullList<User & WithOrgId>({ filter: "org_id != ''" }),
+          pb.collection('companies').getFullList<Company & WithOrgId>({ filter: "org_id != ''" }),
+        ])
+        for (const u of users) {
+          const orgId = String(u.org_id || '')
+          if (orgId) userCounts[orgId] = (userCounts[orgId] || 0) + 1
+        }
+        for (const c of companies) {
+          const orgId = String(c.org_id || '')
+          if (orgId) companyCounts[orgId] = (companyCounts[orgId] || 0) + 1
+        }
+      } catch (_) {
+        // sem contagens — exibe 0
+      }
+    }
+
     return records.map((r) => ({
       ...r,
-      users_count: r.orgs_users_count || 0,
-      companies_count: r.orgs_companies_count || 0,
+      users_count: userCounts[r.id] || 0,
+      companies_count: companyCounts[r.id] || 0,
     }))
   },
 
