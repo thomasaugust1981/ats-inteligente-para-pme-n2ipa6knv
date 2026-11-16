@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-16T20:58:54.839Z",
+  "generatedAt": "2026-11-16T21:12:57.280Z",
   "collections": [
     {
       "name": "users",
@@ -1869,6 +1869,82 @@
         "CREATE UNIQUE INDEX idx_chaeval_application ON cha_evaluations (application_id)",
         "CREATE INDEX idx_chaeval_job ON cha_evaluations (job_id)",
         "CREATE INDEX idx_chaeval_org ON cha_evaluations (org_id)"
+      ]
+    },
+    {
+      "name": "salary_history",
+      "type": "base",
+      "apiRules": {
+        "list": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "view": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "create": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "update": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "delete": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'"
+      },
+      "fields": [
+        {
+          "name": "cargo_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "cargos"
+        },
+        {
+          "name": "field",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "old_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "new_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "changed_by",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "changed_by_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "org_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "organizations"
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_salaryhist_cargo ON salary_history (cargo_id)",
+        "CREATE INDEX idx_salaryhist_org ON salary_history (org_id)"
       ]
     }
   ]

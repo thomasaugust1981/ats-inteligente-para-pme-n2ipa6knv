@@ -11,6 +11,7 @@ import {
   HeartHandshake,
   Building2,
   GraduationCap,
+  FileDown,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -36,6 +37,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { LoadingState } from '@/components/LoadingState'
 import { EmptyState } from '@/components/EmptyState'
 import { cargosService } from '@/services/cargos'
+import { exportCargoPdf } from '@/lib/chaExport'
 import type { Cargo } from '@/types/ats'
 import {
   CHA_BLOCK_KEYS,
@@ -103,6 +105,27 @@ export const CargosPage: React.FC = () => {
   }, [cargos, search, areaFilter, levelFilter])
 
   const countRequired = (cargo: Cargo, key: ChaBlockKey) => (cargo.cha?.[key]?.items || []).length
+
+  // FASE 3 — PDF da descrição do cargo direto da lista.
+  const handleExportPdf = (cargo: Cargo) => {
+    exportCargoPdf(
+      {
+        title: cargo.title,
+        area: cargo.area,
+        level: cargo.level,
+        levelLabel: cargo.level ? CHA_LEVEL_LABELS[cargo.level as ChaLevel] || cargo.level : '',
+        mission: cargo.mission,
+        salaryMin: cargo.salary_min ?? null,
+        salaryMed: cargo.salary_med ?? null,
+        salaryMax: cargo.salary_max ?? null,
+        cha: (cargo.cha || {}) as Record<
+          string,
+          { items?: { description: string; required: boolean; weight: number }[] }
+        >,
+      },
+      '',
+    )
+  }
 
   const handleDelete = async () => {
     if (!deleting) return
@@ -253,29 +276,40 @@ export const CargosPage: React.FC = () => {
                       })}
                     </div>
                   </div>
-                  {canEdit && (
-                    <div className="flex items-center gap-1 shrink-0">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => {
-                          setEditing(cargo)
-                          setFormOpen(true)
-                        }}
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-rose-600 hover:text-rose-700"
-                        onClick={() => setDeleting(cargo)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      title="Exportar descrição do cargo em PDF"
+                      onClick={() => handleExportPdf(cargo)}
+                    >
+                      <FileDown className="w-4 h-4" />
+                    </Button>
+                    {canEdit && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => {
+                            setEditing(cargo)
+                            setFormOpen(true)
+                          }}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-rose-600 hover:text-rose-700"
+                          onClick={() => setDeleting(cargo)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -293,6 +327,7 @@ export const CargosPage: React.FC = () => {
       <CargoFormDialog
         open={formOpen}
         cargo={editing}
+        allCargos={cargos}
         onClose={() => setFormOpen(false)}
         onSaved={() => {
           setFormOpen(false)

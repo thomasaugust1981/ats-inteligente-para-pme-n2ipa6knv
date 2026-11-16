@@ -4,11 +4,13 @@
 //
 
 import React, { useEffect, useMemo, useState } from 'react'
-import { ClipboardList } from 'lucide-react'
+import { ClipboardList, FileSpreadsheet } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { CHA_BLOCK_KEYS, type ChaBlockKey, type JobChaRequirements } from '@/lib/cha'
+import { exportChaEvaluationsCsv, type ChaCsvRow } from '@/lib/chaExport'
 import {
   CHA_EVAL_BLOCK_LABELS,
   chaEvaluationService,
@@ -23,6 +25,7 @@ interface ChaComparisonCardProps {
   applications: Application[]
   /** Mudou quando uma ficha é salva (para recarregar). */
   refreshSignal?: number
+  jobTitle?: string
 }
 
 function scoreColor(score: number): string {
@@ -37,6 +40,7 @@ export const ChaComparisonCard: React.FC<ChaComparisonCardProps> = ({
   jobCha,
   applications,
   refreshSignal = 0,
+  jobTitle = 'vaga',
 }) => {
   const [evals, setEvals] = useState<ChaEvaluation[]>([])
   const [loading, setLoading] = useState(false)
@@ -97,13 +101,47 @@ export const ChaComparisonCard: React.FC<ChaComparisonCardProps> = ({
 
   const evaluated = rows.filter((r) => r.evaluation)
 
+  // FASE 3 — CSV das avaliações (padrão do exportador Goldway).
+  const cargoTitle = (jobCha?.cargo as { title?: string } | undefined)?.title || ''
+  const handleExportCsv = () => {
+    const csvRows: ChaCsvRow[] = evaluated.map((r) => {
+      const ev = r.evaluation!
+      const evaluatorExp = ev.expand?.evaluator as { name?: string; email?: string } | undefined
+      return {
+        candidateName: r.candidate?.name || r.candidate?.email || r.app.candidate_id,
+        jobTitle: jobTitle,
+        cargoTitle,
+        items: parseGrades(ev.grades),
+        weightedScore: ev.weighted_score ?? 0,
+        blockScores: r.blocks as unknown as Record<string, number>,
+        evaluatorName: evaluatorExp?.name || evaluatorExp?.email || ev.evaluator || '—',
+        evaluatedAt: ev.updated || ev.created,
+      }
+    })
+    exportChaEvaluationsCsv(csvRows, jobTitle)
+  }
+
   return (
     <Card className="border-sky-100">
       <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-bold flex items-center gap-2">
-          <ClipboardList className="w-4 h-4 text-sky-600" />
-          Comparativo CHA — candidatos avaliados
-        </CardTitle>
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle className="text-sm font-bold flex items-center gap-2">
+            <ClipboardList className="w-4 h-4 text-sky-600" />
+            Comparativo CHA — candidatos avaliados
+          </CardTitle>
+          {evaluated.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-[11px]"
+              onClick={handleExportCsv}
+              title="Gera planilha CSV com as notas por requisito, evidências e scores"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 mr-1" />
+              Exportar avaliações
+            </Button>
+          )}
+        </div>
         <p className="text-[11px] text-slate-500">
           Score ponderado = soma(nota × peso) ÷ soma(peso × 5). Ordenado pelo score total.
         </p>

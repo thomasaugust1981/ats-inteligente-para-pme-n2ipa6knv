@@ -396,6 +396,7 @@ export const PipelinePage: React.FC = () => {
             jobCha={jobCha}
             applications={applications}
             refreshSignal={chaRefreshSignal}
+            jobTitle={job.title}
           />
 
           {/* Quadro Kanban de Etapas */}

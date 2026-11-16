@@ -168,6 +168,7 @@ export const chaEvaluationService = {
       return await pb.collection('cha_evaluations').getFullList<ChaEvaluation>({
         filter: `job_id = "${jobId}"`,
         sort: '-weighted_score',
+        expand: 'evaluator',
       })
     } catch (err) {
       console.error('[chaEvaluation] falha ao listar fichas da vaga:', getErrorMessage(err))

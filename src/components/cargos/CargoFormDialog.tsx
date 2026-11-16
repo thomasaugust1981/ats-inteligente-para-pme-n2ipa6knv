@@ -1,5 +1,13 @@
-import React, { useEffect, useState } from 'react'
-import { Plus, Trash2, BookOpen, Wrench, HeartHandshake, AlertTriangle } from 'lucide-react'
+import React, { useEffect, useMemo, useState } from 'react'
+import {
+  Plus,
+  Trash2,
+  BookOpen,
+  Wrench,
+  HeartHandshake,
+  AlertTriangle,
+  FileDown,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -37,12 +45,17 @@ import {
   type ChaItem,
   type ChaLevel,
 } from '@/lib/cha'
+import { salaryCoherenceAlerts, type SalaryAlert } from '@/lib/salaryCoherence'
+import { exportCargoPdf } from '@/lib/chaExport'
+import { SalaryHistorySection } from '@/components/cargos/SalaryHistorySection'
 
 interface Props {
   open: boolean
   cargo: Cargo | null // null = criação
   onClose: () => void
   onSaved: () => void
+  /** Demais cargos da org — base do alerta de coerência de faixa entre níveis. */
+  allCargos?: Cargo[]
 }
 
 const BLOCK_ICONS: Record<ChaBlockKey, React.ElementType> = {
@@ -52,9 +65,16 @@ const BLOCK_ICONS: Record<ChaBlockKey, React.ElementType> = {
 }
 
 /** Editor de cargo com os três blocos CHA obrigatórios (FASE 1 do modelo CHA). */
-export const CargoFormDialog: React.FC<Props> = ({ open, cargo, onClose, onSaved }) => {
+export const CargoFormDialog: React.FC<Props> = ({
+  open,
+  cargo,
+  onClose,
+  onSaved,
+  allCargos = [],
+}) => {
   const { toast } = useToast()
   const [saving, setSaving] = useState(false)
+  const [exportingPdf, setExportingPdf] = useState(false)
   const [title, setTitle] = useState('')
   const [area, setArea] = useState('')
   const [level, setLevel] = useState<string>('pleno')
@@ -115,6 +135,46 @@ export const CargoFormDialog: React.FC<Props> = ({ open, cargo, onClose, onSaved
     }))
   }
 
+  // FASE 3 — alerta de coerência cargo/nível × faixa (aviso, não bloqueia).
+  const numeric = (v: string) => (v.trim() && !isNaN(parseFloat(v)) ? parseFloat(v) : null)
+  const salaryAlerts = useMemo(
+    () =>
+      open
+        ? salaryCoherenceAlerts(
+            { id: cargo?.id, title, area, level },
+            { min: numeric(salaryMin), med: numeric(salaryMed), max: numeric(salaryMax) },
+            allCargos,
+          )
+        : [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [open, cargo?.id, title, area, level, salaryMin, salaryMed, salaryMax, allCargos],
+  )
+
+  const handleExportPdf = () => {
+    setExportingPdf(true)
+    try {
+      exportCargoPdf(
+        {
+          title: title.trim() || cargo?.title || 'Cargo',
+          area: area.trim() || cargo?.area,
+          level: level,
+          levelLabel: CHA_LEVEL_LABELS[level as ChaLevel] || level,
+          mission: mission.trim() || cargo?.mission,
+          salaryMin: numeric(salaryMin) ?? cargo?.salary_min ?? null,
+          salaryMed: numeric(salaryMed) ?? cargo?.salary_med ?? null,
+          salaryMax: numeric(salaryMax) ?? cargo?.salary_max ?? null,
+          cha: cha as unknown as Record<
+            string,
+            { items?: { description: string; required: boolean; weight: number }[] }
+          >,
+        },
+        '',
+      )
+    } finally {
+      setExportingPdf(false)
+    }
+  }
+
   const validate = (): boolean => {
     const next: Record<string, string> = {}
     if (!title.trim()) next.title = 'Informe o título do cargo.'
@@ -149,7 +209,6 @@ export const CargoFormDialog: React.FC<Props> = ({ open, cargo, onClose, onSaved
     if (!validate()) return
     try {
       setSaving(true)
-      const numeric = (v: string) => (v.trim() && !isNaN(parseFloat(v)) ? parseFloat(v) : null)
       const payload: Partial<Cargo> = {
         title: title.trim(),
         area: area.trim(),
@@ -274,6 +333,26 @@ export const CargoFormDialog: React.FC<Props> = ({ open, cargo, onClose, onSaved
             </div>
           </div>
 
+          {/* FASE 3 — alerta de coerência faixa × nível (aviso, não bloqueia) */}
+          {salaryAlerts.length > 0 && (
+            <div className="border border-amber-200 bg-amber-50 rounded-lg px-3 py-2.5 space-y-1.5">
+              <p className="text-xs font-semibold text-amber-800 flex items-center gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                Faixa salarial possivelmente incoerente com o nível
+              </p>
+              <ul className="list-disc pl-5 space-y-0.5">
+                {salaryAlerts.map((a, i) => (
+                  <li key={i} className="text-[11px] text-amber-800">
+                    {a.message}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-[11px] text-amber-700">
+                Aviso apenas — você ainda pode salvar o cargo assim.
+              </p>
+            </div>
+          )}
+
           {/* Blocos CHA */}
           {CHA_BLOCK_KEYS.map((key) => {
             const Icon = BLOCK_ICONS[key]
@@ -380,7 +459,20 @@ export const CargoFormDialog: React.FC<Props> = ({ open, cargo, onClose, onSaved
           })}
         </div>
 
+        {/* FASE 3 — histórico de alteração de faixa (somente leitura) */}
+        <SalaryHistorySection cargoId={cargo?.id || null} />
+
         <DialogFooter className="pt-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleExportPdf}
+            disabled={exportingPdf || !title.trim()}
+            title="Gera a descrição do cargo em PDF (impressão → Salvar como PDF)"
+          >
+            <FileDown className="w-4 h-4 mr-1.5" />
+            Exportar PDF
+          </Button>
           <Button type="button" variant="outline" onClick={onClose}>
             Cancelar
           </Button>
