@@ -38,6 +38,7 @@ import { DiscFitPanel } from '@/components/DiscFitPanel'
 import { AiScorePanel } from '@/components/AiScorePanel'
 import { CandidateWhatsAppButton } from '@/components/candidates/CandidateWhatsAppButton'
 import { CandidateScheduleInterviewButton } from '@/components/candidates/CandidateScheduleInterviewButton'
+import LgpdDeleteDialog from '@/components/candidates/LgpdDeleteDialog'
 
 export const CandidateProfilePage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -143,28 +144,33 @@ export const CandidateProfilePage: React.FC = () => {
     }
   }
 
+  const [lgpdDialogOpen, setLgpdDialogOpen] = useState(false)
+
   const handlePermanentDelete = async () => {
     if (!candidate) return
 
-    const confirmation = window.prompt(
-      `EXCLUSÃO REAL LGPD:\nEsta ação apagará permanentemente todos os dados de ${candidate.name}, arquivo de currículo e candidaturas associadas.\nDigite EXCLUIR para confirmar:`,
-    )
-
-    if (confirmation !== 'EXCLUIR') return
-
     try {
-      await candidatesService.deleteCandidateRealLGPD(candidate.id)
+      const result = await candidatesService.deleteCandidateRealLGPD(candidate.id)
+      const d = result.deleted || {}
       toast({
         title: 'Candidato excluído em definitivo (LGPD)',
-        description: 'Todos os registros pessoais e arquivo foram removidos.',
+        description:
+          `Candidaturas: ${d.applications ?? 0} · Scores de IA: ${d.ai_scores ?? 0} · ` +
+          `DISC: ${d.disc_results ?? 0} · Fichas CHA: ${d.cha_evaluations ?? 0}. ` +
+          'Currículo removido e auditoria anonimizada.',
       })
       navigate('/candidatos')
     } catch (err) {
       toast({
         title: 'Erro na exclusão',
-        description: 'Não foi possível apagar o candidato.',
+        description:
+          err instanceof Error && err.message
+            ? err.message
+            : 'Não foi possível apagar o candidato.',
         variant: 'destructive',
       })
+    } finally {
+      setLgpdDialogOpen(false)
     }
   }
 
@@ -349,6 +355,17 @@ export const CandidateProfilePage: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      {/* Exclusão LGPD: lista o que será apagado/anonimizado e exige
+          confirmação explícita (Grupo 3 da auditoria). */}
+      <LgpdDeleteDialog
+        open={lgpdDialogOpen}
+        onOpenChange={setLgpdDialogOpen}
+        candidateName={candidate.name}
+        applicationsCount={applications.length}
+        hasResume={!!candidate.resume}
+        onConfirm={handlePermanentDelete}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Lado Esquerdo: Dados Pessoais & Consentimento LGPD */}

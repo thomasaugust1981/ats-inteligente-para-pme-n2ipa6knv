@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { candidatesService } from '@/services/candidates'
+import { candidatesService, applicationsService, auditService } from '@/services/candidates'
 import { jobsService } from '@/services/jobs'
 import type { Candidate, SeniorityLevel, CandidateAvailability, Job } from '@/types/ats'
 import {
@@ -29,17 +29,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
 import { useToast } from '@/hooks/use-toast'
+import LgpdDeleteDialog from '@/components/candidates/LgpdDeleteDialog'
 import { LoadingState } from '@/components/LoadingState'
 import { EmptyState } from '@/components/EmptyState'
 import { useCopyLink } from '@/hooks/use-copy-link'
@@ -60,8 +51,12 @@ export const CandidatesListPage: React.FC = () => {
   const [searchParams] = useSearchParams()
   const { toast } = useToast()
   const { copyLink } = useCopyLink()
-  const [lgpdTarget, setLgpdTarget] = useState<{ id: string; name: string } | null>(null)
-  const [lgpdConfirmText, setLgpdConfirmText] = useState('')
+  const [lgpdTarget, setLgpdTarget] = useState<{
+    id: string
+    name: string
+    hasResume: boolean
+    appsCount: number
+  } | null>(null)
 
   // Filtros solicitados na especificação: competência, senioridade, localidade e disponibilidade
   const [searchTerm, setSearchTerm] = useState('')
@@ -80,6 +75,18 @@ export const CandidatesListPage: React.FC = () => {
         activeCompanyId ? `job_id.company_id = "${activeCompanyId}"` : undefined,
       )
       setRejections(latestRejectionsByCandidate(apps))
+      setAppsByCandidate(
+        new Map(
+          Array.from(
+            apps.reduce((acc, a) => {
+              const key = a.candidate_id
+              const list = acc.get(key) || []
+              acc.set(key, [...list, a])
+              return acc
+            }, new Map<string, typeof apps>()),
+          ),
+        ),
+      )
       setCandidates(list)
     } catch (err) {
       console.error('Erro ao carregar candidatos:', err)
@@ -97,23 +104,39 @@ export const CandidatesListPage: React.FC = () => {
     loadCandidates()
   }, [activeCompanyId, companyVersion])
 
+  const [lgpdDialogOpen, setLgpdDialogOpen] = useState(false)
+  const [lgpdBusy, setLgpdBusy] = useState(false)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [appsByCandidate, setAppsByCandidate] = useState<Map<string, any[]>>(new Map())
+
   const handlePermanentDelete = async () => {
     if (!lgpdTarget) return
     const { id, name } = lgpdTarget
+    setLgpdBusy(true)
     try {
-      await candidatesService.deleteCandidateRealLGPD(id)
+      const result = await candidatesService.deleteCandidateRealLGPD(id)
+      const d = result.deleted || {}
       toast({
         title: 'Dados excluídos com sucesso (LGPD)',
-        description: `Todos os registros e currículo de ${name} foram removidos de forma definitiva.`,
+        description:
+          `Candidaturas: ${d.applications ?? 0} · Scores de IA: ${d.ai_scores ?? 0} · ` +
+          `DISC: ${d.disc_results ?? 0} · Fichas CHA: ${d.cha_evaluations ?? 0}. ` +
+          `Currículo de ${name} removido e auditoria anonimizada.`,
       })
       setLgpdTarget(null)
+      setLgpdDialogOpen(false)
       loadCandidates()
     } catch (err) {
       toast({
         title: 'Erro ao excluir candidato',
-        description: 'Não foi possível completar a exclusão. Tente novamente.',
+        description:
+          err instanceof Error && err.message
+            ? err.message
+            : 'Não foi possível completar a exclusão. Tente novamente.',
         variant: 'destructive',
       })
+    } finally {
+      setLgpdBusy(false)
     }
   }
 
@@ -414,10 +437,14 @@ export const CandidatesListPage: React.FC = () => {
                   variant="ghost"
                   size="sm"
                   className="h-8 text-rose-600 hover:text-rose-700 hover:bg-rose-50 text-xs"
-                  onClick={() => {
-                    setLgpdConfirmText('')
-                    setLgpdTarget({ id: candidate.id, name: candidate.name })
-                  }}
+                  onClick={() =>
+                    setLgpdTarget({
+                      id: candidate.id,
+                      name: candidate.name,
+                      hasResume: !!candidate.resume,
+                      appsCount: appsByCandidate.get(candidate.id)?.length || 0,
+                    })
+                  }
                   title="Exclusão real LGPD"
                 >
                   <Trash2 className="w-3.5 h-3.5 mr-1" />
@@ -429,45 +456,19 @@ export const CandidatesListPage: React.FC = () => {
         </div>
       )}
 
-      {/* Confirmação de exclusão definitiva (LGPD) — exige digitar EXCLUIR */}
-      <AlertDialog
+      {/* Exclusão LGPD — mesmo diálogo padrão do perfil: lista o que será
+          apagado/anonimizado, exige digitar EXCLUIR e marcar o checkbox LGPD. */}
+      <LgpdDeleteDialog
         open={!!lgpdTarget}
         onOpenChange={(open) => {
-          if (!open) {
-            setLgpdTarget(null)
-            setLgpdConfirmText('')
-          }
+          setLgpdDialogOpen(open)
+          if (!open) setLgpdTarget(null)
         }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir definitivamente {lgpdTarget?.name}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta ação elimina de forma <strong>permanente e irreversível</strong> todos os dados,
-              candidaturas e o currículo desta pessoa, conforme direito do titular na LGPD. Não há
-              como desfazer. Para confirmar, digite <strong>EXCLUIR</strong> abaixo.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <Input
-            placeholder="Digite EXCLUIR para confirmar"
-            value={lgpdConfirmText}
-            onChange={(e) => setLgpdConfirmText(e.target.value)}
-          />
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-rose-600 hover:bg-rose-700"
-              disabled={lgpdConfirmText.trim().toUpperCase() !== 'EXCLUIR'}
-              onClick={(e) => {
-                e.preventDefault()
-                handlePermanentDelete()
-              }}
-            >
-              Excluir definitivamente
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        candidateName={lgpdTarget?.name || ''}
+        applicationsCount={lgpdTarget?.appsCount || 0}
+        hasResume={!!lgpdTarget?.hasResume}
+        onConfirm={handlePermanentDelete}
+      />
     </div>
   )
 }

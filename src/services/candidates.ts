@@ -18,25 +18,35 @@ export const candidatesService = {
   },
 
   /**
-   * Exclusão real LGPD: remove o registro do candidato, arquivo de currículo físico
-   * e todas as candidaturas/vínculos associados.
+   * Exclusão real LGPD: rota server-side (hook lgpd_delete, Grupo 3 da
+   * auditoria) que apaga em cascata — candidaturas, scores de IA (com
+   * snapshot), resultados DISC, fichas CHA e o arquivo de currículo — e
+   * ANONIMIZA a trilha de auditoria do titular ("candidato removido via
+   * LGPD", mantendo ação/data/autor). Nada de dados pessoais sobrevive.
    */
-  async deleteCandidateRealLGPD(candidateId: string): Promise<boolean> {
-    try {
-      // 1. Remover candidaturas do candidato (cascadeDelete limpa na base também)
-      const apps = await pb.collection('applications').getFullList({
-        filter: `candidate_id = "${candidateId}"`,
-      })
-      for (const appItem of apps) {
-        await pb.collection('applications').delete(appItem.id)
-      }
-      // 2. Excluir registro do candidato e seu arquivo
-      await pb.collection('candidates').delete(candidateId)
-      return true
-    } catch (err) {
-      console.error('Failed to permanently delete candidate under LGPD:', err)
-      throw err
+  async deleteCandidateRealLGPD(
+    candidateId: string,
+  ): Promise<{ ok: boolean; deleted: Record<string, number> }> {
+    const res = await fetch(
+      `${pb.buildUrl('')}/backend/v1/candidates/${encodeURIComponent(candidateId)}/lgpd`,
+      {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: pb.authStore.token,
+        },
+      },
+    )
+    const payload = await res.json().catch(() => null)
+    if (!res.ok || !payload?.ok) {
+      const message =
+        payload?.message ||
+        (res.status === 403
+          ? 'Candidato fora da sua organização.'
+          : 'Não foi possível completar a exclusão LGPD.')
+      throw new Error(message)
     }
+    return { ok: true, deleted: payload.deleted || {} }
   },
 
   getResumeUrl(candidate: Candidate): string | null {
