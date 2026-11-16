@@ -1,7 +1,6 @@
 // Gestão de empresas da organização (multi-empresa): listar, criar matriz
 // ou filial, editar e excluir (com aviso de vagas/candidaturas vinculadas).
 import React, { useCallback, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import {
   Building2,
   Plus,
@@ -17,7 +16,6 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { useToast } from '@/hooks/use-toast'
 import { LoadingState } from '@/components/LoadingState'
@@ -175,7 +173,8 @@ export const EmpresasPage: React.FC = () => {
         await companiesService.update(form.id, payload)
         toast({ title: 'Empresa atualizada com sucesso' })
       } else {
-        await companiesService.create(payload)
+        const created = await companiesService.create(payload)
+        setActiveCompany(created.id)
         toast({
           title: 'Empresa criada com sucesso',
           description: 'Ela já está disponível no seletor do topo.',
@@ -243,10 +242,10 @@ export const EmpresasPage: React.FC = () => {
       </div>
 
       {loading ? (
-        <LoadingState label="Carregando empresas..." />
+        <LoadingState message="Carregando empresas..." />
       ) : companies.length === 0 ? (
         <EmptyState
-          icon={<Building2 className="w-10 h-10" />}
+          icon={Building2}
           title="Nenhuma empresa ainda"
           description="Crie a matriz da sua organização para começar a publicar vagas."
         />

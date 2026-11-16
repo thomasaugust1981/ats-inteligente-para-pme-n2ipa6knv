@@ -149,10 +149,9 @@ export const JobApplicationPage: React.FC = () => {
       if (!slug) return
       try {
         setLoading(true)
-        const [jobData, comp] = await Promise.all([
-          jobsService.getJobBySlug(slug),
-          companyService.getCompany(jobData?.company_id || undefined),
-        ])
+        // A vaga precisa vir primeiro: o company_id da marca vem dela
+        const jobData = await jobsService.getJobBySlug(slug)
+        const comp = await companyService.getCompany(jobData?.company_id || undefined)
         setJob(jobData)
         setCompany(comp)
       } catch (err) {

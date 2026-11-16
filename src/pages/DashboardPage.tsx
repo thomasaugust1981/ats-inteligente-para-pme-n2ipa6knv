@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
+import { useActiveCompany } from '@/hooks/use-active-company'
 import { jobsService } from '@/services/jobs'
 import { candidatesService, applicationsService } from '@/services/candidates'
 import { onboardingService } from '@/services/onboarding'
@@ -27,6 +28,7 @@ import { useToast } from '@/hooks/use-toast'
 
 export const DashboardPage: React.FC = () => {
   const { user, role, isManager } = useAuth()
+  const { activeCompanyId, companyVersion } = useActiveCompany()
   const { toast } = useToast()
   const [jobs, setJobs] = useState<Job[]>([])
   const [candidates, setCandidates] = useState<Candidate[]>([])
@@ -47,14 +49,24 @@ export const DashboardPage: React.FC = () => {
         setLoading(true)
         // Regra de perfil: Gestor visualiza apenas as vagas das quais é responsável
         let jobsFilter = ''
+        if (activeCompanyId) {
+          jobsFilter = `company_id = "${activeCompanyId}"`
+        }
         if (isManager && user?.id) {
-          jobsFilter = `manager_id = "${user.id}"`
+          jobsFilter = jobsFilter
+            ? `${jobsFilter} && manager_id = "${user.id}"`
+            : `manager_id = "${user.id}"`
         }
 
         const [jobsList, candsList, appsList] = await Promise.all([
           jobsService.listJobs(jobsFilter || undefined),
-          candidatesService.listCandidates(),
-          applicationsService.listApplications(),
+          candidatesService.listCandidates(
+            activeCompanyId ? `company_id = "${activeCompanyId}"` : undefined,
+          ),
+          // applications não tem company_id — filtra pela vaga (relação job_id.company_id)
+          applicationsService.listApplications(
+            activeCompanyId ? `job_id.company_id = "${activeCompanyId}"` : undefined,
+          ),
         ])
 
         setJobs(jobsList)
@@ -79,7 +91,7 @@ export const DashboardPage: React.FC = () => {
       }
     }
     loadDashboardData()
-  }, [user, isManager])
+  }, [user, isManager, activeCompanyId, companyVersion])
 
   const publishedJobsCount = jobs.filter((j) => j.status === 'published').length
   const activeApplicationsCount = applications.filter((a) => a.status === 'active').length

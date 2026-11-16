@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
+import { useActiveCompany } from '@/hooks/use-active-company'
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
 import StageOwnerSettings from '@/components/StageOwnerSettings'
@@ -64,6 +65,7 @@ const BRAND_PRESETS = ['#0284c7', '#4f46e5', '#059669', '#d97706', '#dc2626', '#
 
 function OnboardingPage() {
   const { user } = useAuth()
+  const { setActiveCompany, refreshCompanies } = useActiveCompany()
   const navigate = useNavigate()
   const { toast } = useToast()
 
@@ -99,6 +101,10 @@ function OnboardingPage() {
         const comp = await onboardingService.getOrCreateCompany(user?.company_name)
         if (comp) {
           setCompany(comp)
+          // A empresa criada/encontrada no onboarding passa a ser a empresa ativa
+          // (aparece selecionada no seletor do topo imediatamente).
+          setActiveCompany(comp.id)
+          void refreshCompanies()
           setBrandDraft({
             name: comp.name || '',
             tradeName: comp.trade_name || '',

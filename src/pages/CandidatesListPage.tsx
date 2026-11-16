@@ -43,6 +43,7 @@ import { useToast } from '@/hooks/use-toast'
 import { LoadingState } from '@/components/LoadingState'
 import { EmptyState } from '@/components/EmptyState'
 import { useCopyLink } from '@/hooks/use-copy-link'
+import { useActiveCompany } from '@/hooks/use-active-company'
 import {
   fetchAllApplications,
   latestRejectionsByCandidate,
@@ -50,6 +51,7 @@ import {
 } from '@/lib/candidateSuggest'
 
 export const CandidatesListPage: React.FC = () => {
+  const { activeCompanyId, companyVersion } = useActiveCompany()
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const [loading, setLoading] = useState(true)
   const [rejections, setRejections] = useState<Map<string, RejectionInfo & { created: string }>>(
@@ -71,8 +73,12 @@ export const CandidatesListPage: React.FC = () => {
   const loadCandidates = async () => {
     try {
       setLoading(true)
-      const list = await candidatesService.listCandidates()
-      const apps = await fetchAllApplications()
+      const list = await candidatesService.listCandidates(
+        activeCompanyId ? `company_id = "${activeCompanyId}"` : undefined,
+      )
+      const apps = await fetchAllApplications(
+        activeCompanyId ? `job_id.company_id = "${activeCompanyId}"` : undefined,
+      )
       setRejections(latestRejectionsByCandidate(apps))
       setCandidates(list)
     } catch (err) {
@@ -89,7 +95,7 @@ export const CandidatesListPage: React.FC = () => {
 
   useEffect(() => {
     loadCandidates()
-  }, [])
+  }, [activeCompanyId, companyVersion])
 
   const handlePermanentDelete = async () => {
     if (!lgpdTarget) return

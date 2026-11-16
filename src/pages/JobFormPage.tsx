@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
+import { useActiveCompany } from '@/hooks/use-active-company'
 import { jobsService, DEFAULT_STAGES, OPTIONAL_STAGE_DEFS } from '@/services/jobs'
 import pb from '@/lib/pocketbase/client'
 import type { Job, JobStage, User } from '@/types/ats'
@@ -42,6 +43,7 @@ export const JobFormPage: React.FC = () => {
   const isEditing = Boolean(id)
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { activeCompanyId } = useActiveCompany()
   const { toast } = useToast()
 
   const [loading, setLoading] = useState(false)
@@ -272,6 +274,11 @@ export const JobFormPage: React.FC = () => {
         payload.weight_technical = null
         payload.weight_behavioral = null
         payload.weight_cultural = null
+      }
+
+      // Vaga nova: vincula à empresa ativa do seletor (multi-empresa)
+      if (!isEditing) {
+        payload.company_id = activeCompanyId || user?.company_id || undefined
       }
 
       if (isEditing && id) {

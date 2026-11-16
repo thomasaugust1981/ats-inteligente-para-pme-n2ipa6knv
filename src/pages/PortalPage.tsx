@@ -40,12 +40,12 @@ export const PortalPage: React.FC = () => {
     async function loadData() {
       try {
         setLoading(true)
-        const [comp, jobs] = await Promise.all([
-          companyService.getCompany(),
-          jobsService.getPublishedJobs(),
-        ])
-        setCompany(comp)
+        // Mesmo padrão de JobApplicationPage/CareersPage: a marca vem do
+        // company_id da vaga publicada (não do primeiro registro da coleção).
+        const jobs = await jobsService.getPublishedJobs()
         setOpenJobs(jobs.length)
+        const comp = await companyService.getCompany(jobs[0]?.company_id)
+        setCompany(comp)
       } catch (err) {
         console.error('Erro ao carregar dados do portal:', err)
       } finally {

@@ -45,6 +45,7 @@ import { useToast } from '@/hooks/use-toast'
 import { LoadingState } from '@/components/LoadingState'
 import { EmptyState } from '@/components/EmptyState'
 import { useCopyLink } from '@/hooks/use-copy-link'
+import { useActiveCompany } from '@/hooks/use-active-company'
 import StageOwnerSettings from '@/components/StageOwnerSettings'
 import { DiscFitPanel } from '@/components/DiscFitPanel'
 import { AiScoreBadge } from '@/components/AiScoreBadge'
@@ -53,6 +54,7 @@ import { Plus, BellRing } from 'lucide-react'
 export const PipelinePage: React.FC = () => {
   const { jobId } = useParams<{ jobId: string }>()
   const { user, isManager } = useAuth()
+  const { activeCompanyId, companyVersion } = useActiveCompany()
   const { toast } = useToast()
   const { copyLink } = useCopyLink()
 
@@ -96,7 +98,14 @@ export const PipelinePage: React.FC = () => {
       const [currentJob, appsList, jobsList] = await Promise.all([
         jobsService.getJobById(targetJobId),
         applicationsService.listApplications(targetJobId),
-        jobsService.listJobs(isManager && user?.id ? `manager_id = "${user.id}"` : undefined),
+        jobsService.listJobs(
+          [
+            activeCompanyId ? `company_id = "${activeCompanyId}"` : '',
+            isManager && user?.id ? `manager_id = "${user.id}"` : '',
+          ]
+            .filter(Boolean)
+            .join(' && ') || undefined,
+        ),
       ])
       setJob(currentJob)
       setApplications(appsList)
@@ -117,16 +126,18 @@ export const PipelinePage: React.FC = () => {
     if (jobId) {
       loadPipeline(jobId)
     } else {
-      // Se não passou jobId, busca a primeira vaga disponível
-      jobsService.listJobs().then((list) => {
-        if (list.length > 0) {
-          loadPipeline(list[0].id)
-        } else {
-          setLoading(false)
-        }
-      })
+      // Se não passou jobId, busca a primeira vaga disponível (da empresa ativa)
+      jobsService
+        .listJobs(activeCompanyId ? `company_id = "${activeCompanyId}"` : undefined)
+        .then((list) => {
+          if (list.length > 0) {
+            loadPipeline(list[0].id)
+          } else {
+            setLoading(false)
+          }
+        })
     }
-  }, [jobId])
+  }, [jobId, activeCompanyId, companyVersion])
 
   const stages: JobStage[] = Array.isArray(job?.stages) ? job!.stages : []
 

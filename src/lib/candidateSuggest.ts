@@ -226,14 +226,18 @@ export const SOURCE_LABELS: Record<string, string> = {
   erp: 'ERP',
 }
 
-/** Busca TODAS as candidaturas (ativas e reprovadas) com o título da vaga. */
-export async function fetchAllApplications(): Promise<AppSummary[]> {
+/** Busca TODAS as candidaturas (ativas e reprovadas) com o título da vaga.
+ *  Aceita filtro opcional do PocketBase (ex.: `job_id.company_id = "..."` para
+ *  restringir às candidaturas da empresa ativa no modo multi-empresa). */
+export async function fetchAllApplications(filter?: string): Promise<AppSummary[]> {
   const results: AppSummary[] = []
   let page = 1
   for (;;) {
-    const res = await pb
-      .collection('applications')
-      .getList<Application>(page, 200, { sort: '-created', expand: 'job_id' })
+    const res = await pb.collection('applications').getList<Application>(page, 200, {
+      sort: '-created',
+      expand: 'job_id',
+      filter,
+    })
     for (const item of res.items) {
       results.push({
         id: item.id,

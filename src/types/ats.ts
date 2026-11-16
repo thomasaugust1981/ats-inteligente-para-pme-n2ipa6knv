@@ -8,6 +8,7 @@ export interface User {
   company_name?: string
   avatar?: string
   org_id?: string
+  company_id?: string
   created: string
   updated: string
 }
@@ -98,6 +99,7 @@ export interface Job {
   weight_cultural?: number | null
   manager_id?: string
   created_by?: string
+  company_id?: string
   expand?: {
     manager_id?: User
     created_by?: User
@@ -160,6 +162,7 @@ export interface Candidate {
   lgpd_consent: boolean
   lgpd_consent_date: string
   lgpd_consent_version: string
+  company_id?: string
   notes?: string
   resume_structured?: StructuredResume | null
   resume_source?: ResumeSource | null
