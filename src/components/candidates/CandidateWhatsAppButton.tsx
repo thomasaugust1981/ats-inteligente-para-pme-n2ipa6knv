@@ -3,7 +3,7 @@ import { MessageCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { SendWhatsAppDialog } from '@/components/candidates/SendWhatsAppDialog'
 import { auditService } from '@/services/candidates'
-import { pb } from '@/lib/pocketbase/client'
+import pb from '@/lib/pocketbase/client'
 
 interface CandidateWhatsAppButtonProps {
   candidateId: string
