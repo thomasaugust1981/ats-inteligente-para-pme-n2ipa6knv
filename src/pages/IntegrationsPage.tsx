@@ -1,5 +1,7 @@
 // Painel de integrações do ATS — /integracoes (apenas admin/superadmin).
-// 4 cartões: Goldway (ERP), WhatsApp, Ponto e Calendário.
+// 3 cartões: Goldway (ERP), WhatsApp e Calendário. O ponto eletrônico fica por
+// conta do próprio ERP: após a aprovação, o cadastro do contratado é exportado
+// para o Goldway e o ERP cuida do cadastro no ponto.
 // O estado de ativação (Goldway) vive na coleção integration_settings (0021),
 // um registro por empresa ativa; WhatsApp e Calendário são contas PRÓPRIAS de
 // cada usuário conectadas via conectores (ConnectorButton).
@@ -7,10 +9,8 @@ import { useCallback, useEffect, useState } from 'react'
 import {
   Building2,
   CalendarPlus,
-  Clock,
   Download,
   MessageCircle,
-  Plug,
   PlugZap,
   RefreshCw,
   Upload,
@@ -197,7 +197,7 @@ export default function IntegrationsPage() {
 
       {hasCompany && loading && (
         <div className="grid gap-4 md:grid-cols-2">
-          {[0, 1, 2, 3].map((i) => (
+          {[0, 1, 2].map((i) => (
             <Card key={i}>
               <CardHeader className="pb-2">
                 <Skeleton className="h-5 w-40" />
@@ -225,8 +225,10 @@ export default function IntegrationsPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-sm text-muted-foreground">
-                Exporta os candidatos contratados no layout "Cadastro Profissional" do ERP, em
-                planilha pronta para importação.
+                Destino pós-contratação: após a aprovação do candidato, o cadastro do contratado é
+                exportado para o ERP no layout "Cadastro Profissional" (planilha pronta para
+                importação). O ponto eletrônico fica por conta do próprio ERP, que cadastra o
+                usuário diretamente nele — sem integração adicional no ATS.
               </p>
               <p className="text-sm">
                 <span className="font-medium">{goldwayCount ?? '—'}</span>{' '}
@@ -287,36 +289,6 @@ export default function IntegrationsPage() {
                   <RefreshCw className="mr-2 h-4 w-4" />
                   Atualizar status
                 </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* ---------------- PONTO ---------------- */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <Clock className="h-4 w-4 text-slate-500" />
-                Ponto eletrônico
-              </CardTitle>
-              <Badge variant="outline">Em breve</Badge>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                Importação de arquivo de marcações de ponto (AFD/folha) e espelhamento dos turnos no
-                pipeline de admissão. Ainda não há provedor de ponto conectado à plataforma.
-              </p>
-              <div>
-                <Button
-                  size="sm"
-                  disabled
-                  title="Integração de ponto em desenvolvimento — sem provedor disponível nesta plataforma."
-                >
-                  <Plug className="mr-2 h-4 w-4" />
-                  Conectar provedor
-                </Button>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Disponível em uma próxima atualização.
-                </p>
               </div>
             </CardContent>
           </Card>
