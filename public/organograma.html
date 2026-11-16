@@ -960,6 +960,11 @@
         border-color: #fca5a5;
         background: #fef2f2;
       }
+      .vpill[data-status='ARQUIVADA'] {
+        color: #57534e;
+        border-color: #d6d3d1;
+        background: #fafaf9;
+      }
       .version-banner {
         background: #fffbeb;
         border-bottom: 1px solid #fcd34d;
@@ -1138,6 +1143,11 @@
         border-color: #fca5a5;
         color: #991b1b;
         background: #fef2f2;
+      }
+      #verSel[data-status='ARQUIVADA'] {
+        border-color: #d6d3d1;
+        color: #57534e;
+        background: #fafaf9;
       }
       .version-banner.show {
         display: flex;
@@ -1558,6 +1568,24 @@
                 <label>Data de início</label>
                 <input name="dataInicio" type="date" />
               </div>
+              <div class="form-field">
+                <label>Centro de custo</label>
+                <input name="costCenter" autocomplete="off" placeholder="Ex.: CC-1042" />
+              </div>
+              <div class="form-field">
+                <label>Tipo de posição</label>
+                <select name="tipoPosicao">
+                  <option value="efetivo">Efetivo</option>
+                  <option value="temporario">Temporário</option>
+                  <option value="terceiro">Terceiro</option>
+                </select>
+              </div>
+              <div class="form-field full">
+                <label style="display: flex; align-items: center; gap: 0.45rem; font-weight: 600">
+                  <input type="checkbox" name="isNewPosition" style="width: auto" />
+                  Posição nova (aumenta o headcount)
+                </label>
+              </div>
               <div class="form-field full">
                 <label>Status</label>
                 <div class="status-pills" id="statusPills">
@@ -1637,6 +1665,43 @@
         <footer>
           <button class="btn" data-close="atsModal">Cancelar</button>
           <button class="btn primary" id="btnAtsCreate">▶ Criar vaga no ATS</button>
+        </footer>
+      </div>
+    </div>
+
+    <!-- Modal: aprovar versão (comentário obrigatório — o servidor bloqueia sem ele) -->
+    <div class="modal-overlay" id="approveModal">
+      <div class="modal" style="max-width: 460px">
+        <header>
+          <h2>✔ Aprovar versão</h2>
+          <button class="close-x" data-close="approveModal">✕</button>
+        </header>
+        <div class="body">
+          <p
+            id="approveInfo"
+            style="font-size: 0.76rem; color: var(--muted); margin: 0 0 0.7rem; line-height: 1.45"
+          ></p>
+          <label style="font-size: 0.72rem; font-weight: 700; color: #334155">
+            Comentário <span class="req">*</span>
+          </label>
+          <textarea
+            id="approveComment"
+            rows="4"
+            style="
+              width: 100%;
+              padding: 0.5rem;
+              border: 1px solid var(--line);
+              border-radius: 9px;
+              font-size: 0.76rem;
+              font-family: inherit;
+            "
+            placeholder="Ex.: Estrutura revisada, sem posições órfãs — aprovada."
+          ></textarea>
+          <span class="err" id="approveErr" style="display: block; margin-top: 0.3rem"></span>
+        </div>
+        <footer>
+          <button class="btn" data-close="approveModal">Cancelar</button>
+          <button class="btn primary" id="btnApproveYes">✔ Aprovar versão</button>
         </footer>
       </div>
     </div>
@@ -1833,6 +1898,9 @@
             status: r.status || 'ativo',
             foto: r.photo_url || '',
             jobId: r.job_id || '',
+            costCenter: r.cost_center || '',
+            tipoPosicao: r.position_type || 'efetivo',
+            isNewPosition: !!r.is_new_position,
           }
         },
         nodePayload(n) {
@@ -1849,6 +1917,9 @@
             status: n.status || 'ativo',
             photo_url: n.foto && n.foto.startsWith('http') ? n.foto : n.foto || '',
             company: state.company || '',
+            cost_center: n.costCenter || '',
+            position_type: n.tipoPosicao || 'efetivo',
+            is_new_position: !!n.isNewPosition,
           }
           if (n.jobId) p.job_id = n.jobId
           return p
@@ -1903,8 +1974,22 @@
             method: 'DELETE',
             headers: pbAuthHeaders(),
           })
-          if (!res.ok && res.status !== 404)
-            throw new Error('Falha ao excluir nó no banco (' + res.status + ')')
+          if (!res.ok && res.status !== 404) {
+            let body = null
+            try {
+              body = await res.json()
+            } catch (e) {}
+            const err = new Error(
+              'Falha ao excluir nó no banco (' +
+                res.status +
+                ')' +
+                (body && body.error ? ' — ' + body.error : ''),
+            )
+            // O guard do servidor oferece arquivar quando a posição tem
+            // vaga/cargo vinculada (archiveOffered: true).
+            if (body && body.archiveOffered) err.archiveOffered = true
+            throw err
+          }
           this.recordIds.delete(id)
         },
       }
@@ -3208,6 +3293,9 @@
         form.elements['localidade'].value = node?.localidade || ''
         form.elements['tipoContrato'].value = node?.tipoContrato || 'CLT'
         form.elements['dataInicio'].value = node?.dataInicio || ''
+        form.elements['costCenter'].value = node?.costCenter || ''
+        form.elements['tipoPosicao'].value = node?.tipoPosicao || 'efetivo'
+        form.elements['isNewPosition'].checked = !!node?.isNewPosition
         // opções de gestor (exclui o próprio nó e seus descendentes)
         const sel = form.elements['parentId']
         const exclude = new Set(node ? [node.id, ...descendantsOf(node.id).map((d) => d.id)] : [])
@@ -3299,6 +3387,9 @@
           dataInicio: form.elements['dataInicio'].value,
           status: formStatus,
           foto: formFoto,
+          costCenter: form.elements['costCenter'].value.trim(),
+          tipoPosicao: form.elements['tipoPosicao'].value,
+          isNewPosition: form.elements['isNewPosition'].checked,
         }
         const errs = {}
         if (!v.nome) errs.nome = 'Informe o nome.'
@@ -3339,6 +3430,9 @@
             'tipoContrato',
             'dataInicio',
             'status',
+            'costCenter',
+            'tipoPosicao',
+            'isNewPosition',
           ]) {
             const before = n[k] == null ? '' : String(n[k])
             const after = v[k] == null ? '' : String(v[k])
@@ -3355,9 +3449,18 @@
                       tipoContrato: 'Contrato',
                       dataInicio: 'Início',
                       status: 'Status',
+                      costCenter: 'Centro de custo',
+                      tipoPosicao: 'Tipo de posição',
+                      isNewPosition: 'Posição nova',
                     }[k]
               const fmt = (val) =>
-                k === 'parentId' ? nodeIndex.get(val)?.nome || (val ? '—' : 'raiz') : val || '—'
+                k === 'parentId'
+                  ? nodeIndex.get(val)?.nome || (val ? '—' : 'raiz')
+                  : k === 'isNewPosition'
+                    ? val === 'true'
+                      ? 'Sim'
+                      : 'Não'
+                    : val || '—'
               diffs.push(`${label}: ${fmt(before)} → ${fmt(after)}`)
             }
           }
@@ -3391,6 +3494,46 @@
       }
 
       /* ---------------- Excluir ---------------------------------------------------- */
+      function doDeleteLocal(n, id, desc) {
+        const ids = new Set([id, ...desc.map((d) => d.id)])
+        // Marca para remoção no banco central (o sweep do syncToCloud só
+        // apaga o que está aqui — nunca nós criados remotamente).
+        for (const k of ids) deletedKeys.add(k)
+        state.nodes = state.nodes.filter((x) => !ids.has(x.id))
+        pushHistory(
+          `Exclusão: ${n.nome}${desc.length ? ` (com ${desc.length} subordinados)` : ''}.`,
+        )
+        if (selectedId && ids.has(selectedId)) selectNode(null)
+        if (focusRootId && ids.has(focusRootId)) {
+          focusRootId = null
+          btnClearFocus.style.display = 'none'
+        }
+        persist()
+        render()
+        fitScreen()
+        toast('Registro(s) excluído(s).', 'ok')
+      }
+      // Guard do servidor recusou a exclusão (vaga/cargo vinculada): oferece
+      // arquivar — PATCH status=inativo + is_new_position=false, mantendo o
+      // histórico e o vínculo com a vaga.
+      function offerArchive(n) {
+        confirmAction(
+          'Arquivar posição',
+          `<b>${esc(n.nome || 'Esta posição')}</b> tem vaga/cargo vinculada no ATS e <b>não pode ser excluída</b>.<br>Arquivar agora? Ela fica <b>inativa</b>, preservando o vínculo com a vaga.`,
+          () => {
+            const rec = state.nodes.find((x) => x.id === n.id)
+            if (!rec) return
+            rec.status = 'inativo'
+            rec.isNewPosition = false
+            pushHistory(
+              `Arquivamento: ${rec.nome} (posição inativada, vínculo com a vaga mantido).`,
+            )
+            persist()
+            render()
+            toast('Posição arquivada (status inativo).', 'ok')
+          },
+        )
+      }
       function askDelete(id) {
         if (editLockBlocked()) {
           warnLocked()
@@ -3402,24 +3545,21 @@
         confirmAction(
           'Excluir do organograma',
           `Excluir <b>${esc(n.nome || 'este nó')}</b>${desc.length ? ` e <b>todos os ${desc.length} subordinados</b> abaixo dele` : ''}? Esta ação não pode ser desfeita.`,
-          () => {
-            const ids = new Set([id, ...desc.map((d) => d.id)])
-            // Marca para remoção no banco central (o sweep do syncToCloud só
-            // apaga o que está aqui — nunca nós criados remotamente).
-            for (const k of ids) deletedKeys.add(k)
-            state.nodes = state.nodes.filter((x) => !ids.has(x.id))
-            pushHistory(
-              `Exclusão: ${n.nome}${desc.length ? ` (com ${desc.length} subordinados)` : ''}.`,
-            )
-            if (selectedId && ids.has(selectedId)) selectNode(null)
-            if (focusRootId && ids.has(focusRootId)) {
-              focusRootId = null
-              btnClearFocus.style.display = 'none'
+          async () => {
+            // Backend no ar e nó já persistido: consulta o servidor PRIMEIRO —
+            // o guard pode recusar (vaga/cargo vinculada) e oferecer arquivar.
+            if (API_BASE_URL && api.available && api.recordIds.has(id)) {
+              try {
+                await api.remove(id)
+              } catch (err) {
+                if (err && err.archiveOffered) {
+                  offerArchive(n)
+                  return
+                }
+                // outro erro: segue o fluxo local (o sweep tentará de novo)
+              }
             }
-            persist()
-            render()
-            fitScreen()
-            toast('Registro(s) excluído(s).', 'ok')
+            doDeleteLocal(n, id, desc)
           },
         )
       }
@@ -4391,6 +4531,7 @@
           APROVADA: 'Aprovada',
           SUBSTITUIDA: 'Substituída',
           REJEITADA: 'Rejeitada',
+          ARQUIVADA: 'Arquivada',
         }
         const STEP_LABEL = {
           ENVIO: 'Enviado para aprovação',
@@ -4417,6 +4558,9 @@
           tipoContrato: 'Contrato',
           dataInicio: 'Início',
           status: 'Status',
+          costCenter: 'Centro de custo',
+          tipoPosicao: 'Tipo de posição',
+          isNewPosition: 'Posição nova',
         }
 
         let versions = []
@@ -4425,6 +4569,8 @@
         let initialized = false
         let draftTimer = null
         let rejectNum = null
+        let approveNum = null
+        let approveIsLast = false
 
         /* ---------------- helpers ------------------------------------------ */
         const company = () => state.company || 'Tecnobrasil'
@@ -4453,6 +4599,11 @@
           return isNaN(d)
             ? String(iso)
             : d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+        }
+        function fmtD(iso) {
+          if (!iso) return ''
+          const d = new Date(iso)
+          return isNaN(d) ? String(iso) : d.toLocaleDateString('pt-BR')
         }
         function canEditStructure() {
           if (!API_BASE_URL || !api.available) return true // modo local: comportamento antigo
@@ -4500,6 +4651,8 @@
             rejected_by: r.rejected_by || '',
             next_approver_role: r.next_approver_role || '',
             created: r.created || '',
+            vigencia_inicio: r.vigencia_inicio || '',
+            vigencia_fim: r.vigencia_fim || '',
           }))
           approvals = await fetchApprovals()
         }
@@ -4659,6 +4812,8 @@
                 msg = `🗂 <b>v${v.version_number}</b> foi substituída — visualização somente leitura.`
               else if (v.status === 'REJEITADA')
                 msg = `⛔ <b>v${v.version_number}</b> foi rejeitada${v.rejected_by ? ' por ' + esc(v.rejected_by) : ''}${v.rejection_reason ? ': “' + esc(v.rejection_reason) + '”' : ''}. Corrija em um novo rascunho.`
+              else if (v.status === 'ARQUIVADA')
+                msg = `🗄 <b>v${v.version_number}</b> está arquivada${v.vigencia_fim ? ' (vigência encerrada em ' + fmtDT(v.vigencia_fim) + ')' : ''} — mantida como histórico; visualização somente leitura.`
               banner.innerHTML = msg
               banner.classList.add('show')
             }
@@ -4750,34 +4905,49 @@
             return
           }
           const isLast = expected === 'Gerente Administrativo'
-          confirmAction(
-            'Aprovar versão',
-            `Aprovar <b>v${v.version_number}</b> como <b>${esc(me.role)}</b>?` +
-              (isLast
-                ? '<br>✅ Última instância — a versão será <b>publicada</b> e passa a ser a vigente no ATS.'
-                : '<br>Depois ainda falta a aprovação do <b>Gerente Administrativo</b>.'),
-            async () => {
-              try {
-                await versionAction({
-                  action: 'approve',
-                  version_number: v.version_number,
-                  company: v.company || company(),
-                  actor_name: me.name,
-                  actor_role: me.role,
-                })
-                await fetchVersions()
-                refreshVersionUI()
-                toast(
-                  isLast
-                    ? `v${v.version_number} aprovada e publicada — agora é a versão vigente.`
-                    : 'Instância 1 aprovada — falta o Gerente Administrativo.',
-                  'ok',
-                )
-              } catch (e) {
-                toast('Não foi possível aprovar: ' + e.message, 'err')
-              }
-            },
-          )
+          // Modal próprio com comentário obrigatório — o servidor bloqueia a
+          // aprovação sem comentário (400 "Comentário obrigatório para aprovar").
+          approveNum = v.version_number
+          approveIsLast = isLast
+          $('#approveInfo').innerHTML =
+            `Versão <b>v${v.version_number}</b> — ${esc(v.label || 'sem rótulo')}<br>` +
+            `Aprovação como <b>${esc(me.role)}</b>.` +
+            (isLast
+              ? '<br>✅ Última instância — a versão será <b>publicada</b> e passa a ser a vigente no ATS.'
+              : '<br>Depois ainda falta a aprovação do <b>Gerente Administrativo</b>.')
+          $('#approveComment').value = ''
+          $('#approveErr').textContent = ''
+          $('#approveModal').classList.add('open')
+          setTimeout(() => $('#approveComment').focus(), 60)
+        }
+        async function confirmApprove() {
+          const comment = ($('#approveComment').value || '').trim()
+          if (!comment) {
+            $('#approveErr').textContent = 'Comentário obrigatório para aprovar.'
+            return
+          }
+          const me = actor()
+          try {
+            await versionAction({
+              action: 'approve',
+              version_number: approveNum,
+              company: company(),
+              actor_name: me.name,
+              actor_role: me.role,
+              comment,
+            })
+            $('#approveModal').classList.remove('open')
+            await fetchVersions()
+            refreshVersionUI()
+            toast(
+              approveIsLast
+                ? `v${approveNum} aprovada e publicada — agora é a versão vigente.`
+                : 'Instância 1 aprovada — falta o Gerente Administrativo.',
+              'ok',
+            )
+          } catch (e) {
+            $('#approveErr').textContent = e.message
+          }
         }
         function rejectCurrent() {
           const v = currentVersion()
@@ -4872,6 +5042,7 @@
                 · criada em ${fmtDT(v.created)}
                 ${v.published_at ? '<br>Publicada em ' + fmtDT(v.published_at) : ''}
                 ${v.status === 'EM_APROVACAO' && v.next_approver_role ? '<br>Aguardando: <b>' + esc(v.next_approver_role) + '</b>' : ''}
+               ${v.vigencia_inicio || v.vigencia_fim ? '<br>Vigência: ' + (fmtD(v.vigencia_inicio) || '—') + ' → ' + (fmtD(v.vigencia_fim) || 'em vigor') : ''}
               </div>
               ${trail ? `<div class="trail">${trail}</div>` : ''}
               <div class="ver-actions">
@@ -5210,6 +5381,7 @@
           on('btnApprove', 'click', approveCurrent)
           on('btnReject', 'click', rejectCurrent)
           on('btnRejectYes', 'click', confirmReject)
+          on('btnApproveYes', 'click', confirmApprove)
           on('btnTimeline', 'click', () => {
             renderTimeline()
             togglePanel('versionsPanel')
