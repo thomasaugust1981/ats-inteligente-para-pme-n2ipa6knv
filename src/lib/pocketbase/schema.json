@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-16T22:30:23.746Z",
+  "generatedAt": "2026-11-16T22:44:38.954Z",
   "collections": [
     {
       "name": "users",
@@ -1755,9 +1755,9 @@
       "apiRules": {
         "list": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
         "view": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
-        "create": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
-        "update": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
-        "delete": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'"
+        "create": "(@request.auth.id != '' && org_id = @request.auth.org_id && @request.auth.role != 'recruiter') || @request.auth.role = 'superadmin'",
+        "update": "(@request.auth.id != '' && org_id = @request.auth.org_id && @request.auth.role != 'recruiter') || @request.auth.role = 'superadmin'",
+        "delete": "(@request.auth.id != '' && org_id = @request.auth.org_id && @request.auth.role != 'recruiter') || @request.auth.role = 'superadmin'"
       },
       "fields": [
         {
@@ -1829,9 +1829,100 @@
           "required": false,
           "system": false,
           "collectionRef": "organizations"
+        },
+        {
+          "name": "org_node_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "org_nodes"
+        },
+        {
+          "name": "purpose",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["PREENCHIMENTO", "ESTRUTURAL", "SUCCESSAO", "PROMOCAO"]
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["RASCUNHO", "EM_APROVACAO", "APROVADO", "REPROVADO"]
+        },
+        {
+          "name": "created_by",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created_by_role",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created_by_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "approved_by",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "approved_by_role",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "rejection_reason",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "rejected_by",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "rejected_by_role",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "approved_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "submitted_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "salary_defined",
+          "type": "bool",
+          "required": false,
+          "system": false
         }
       ],
-      "indexes": ["CREATE INDEX idx_cargos_org ON cargos (org_id)"]
+      "indexes": [
+        "CREATE INDEX idx_cargos_org ON cargos (org_id)",
+        "CREATE INDEX `idx_cargos_status` ON `cargos` (status)",
+        "CREATE INDEX `idx_cargos_node` ON `cargos` (org_node_id)"
+      ]
     },
     {
       "name": "cha_evaluations",
@@ -1986,6 +2077,114 @@
         "CREATE INDEX idx_salaryhist_cargo ON salary_history (cargo_id)",
         "CREATE INDEX idx_salaryhist_org ON salary_history (org_id)"
       ]
+    },
+    {
+      "name": "cargo_approvals",
+      "type": "base",
+      "apiRules": {
+        "list": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "view": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "create": "(@request.auth.id != '' && org_id = @request.auth.org_id && @request.auth.role != 'recruiter') || @request.auth.role = 'superadmin'",
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "cargo_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "cargos"
+        },
+        {
+          "name": "cargo_title",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "step",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "decision",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "from_value",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "to_value",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "from_status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "to_status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "comment",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "user_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "user_role",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "user_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "org_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "organizations"
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_cargo_approvals_cargo ON cargo_approvals (cargo_id)"]
     }
   ]
 }

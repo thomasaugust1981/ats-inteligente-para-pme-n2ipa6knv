@@ -30,7 +30,9 @@ import {
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 import { cargosService } from '@/services/cargos'
-import type { Cargo } from '@/types/ats'
+import { orgPositionsService, type OrgPositionOption } from '@/services/orgPositions'
+import type { Cargo, CargoPurpose } from '@/types/ats'
+import { CARGO_PURPOSES } from '@/types/ats'
 import {
   CHA_BLOCK_KEYS,
   CHA_BLOCK_META,
@@ -47,6 +49,7 @@ import {
 } from '@/lib/cha'
 import { salaryCoherenceAlerts, type SalaryAlert } from '@/lib/salaryCoherence'
 import { exportCargoPdf } from '@/lib/chaExport'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { SalaryHistorySection } from '@/components/cargos/SalaryHistorySection'
 
 interface Props {
@@ -84,6 +87,12 @@ export const CargoFormDialog: React.FC<Props> = ({
   const [salaryMax, setSalaryMax] = useState('')
   const [cha, setCha] = useState<ChaData>(emptyCha())
   const [errors, setErrors] = useState<Record<string, string>>({})
+  // FASE 2 — posição do organograma (obrigatória, imutável após criar) + finalidade
+  const [orgNodeId, setOrgNodeId] = useState('')
+  const [purpose, setPurpose] = useState<CargoPurpose | ''>('')
+  const [positions, setPositions] = useState<OrgPositionOption[]>([])
+  const [loadingPositions, setLoadingPositions] = useState(false)
+  const selectedPosition = positions.find((p) => p.id === orgNodeId) || null
 
   useEffect(() => {
     if (!open) return
@@ -106,8 +115,32 @@ export const CargoFormDialog: React.FC<Props> = ({
       setSalaryMed('')
       setSalaryMax('')
       setCha(emptyCha())
+      setOrgNodeId('')
+      setPurpose('')
     }
   }, [open, cargo])
+
+  // FASE 2 — posições do organograma vigente (APROVADO) para vincular ao cargo
+  useEffect(() => {
+    if (!open) return
+    let alive = true
+    setLoadingPositions(true)
+    orgPositionsService
+      .listActive()
+      .then((opts) => {
+        if (alive) setPositions(opts)
+      })
+      .catch((err) => {
+        console.error('Erro ao carregar posições do organograma:', err)
+        if (alive) setPositions([])
+      })
+      .finally(() => {
+        if (alive) setLoadingPositions(false)
+      })
+    return () => {
+      alive = false
+    }
+  }, [open])
 
   const setBlock = (key: ChaBlockKey, items: ChaItem[]) =>
     setCha((prev) => ({ ...prev, [key]: { items } }))
@@ -179,6 +212,13 @@ export const CargoFormDialog: React.FC<Props> = ({
     const next: Record<string, string> = {}
     if (!title.trim()) next.title = 'Informe o título do cargo.'
     if (!mission.trim()) next.mission = 'Informe a missão do cargo (1 parágrafo).'
+    if (!cargo) {
+      if (!orgNodeId) {
+        next.org_node_id =
+          'Selecione a posição do organograma — o cargo só é criado a partir de uma posição APROVADA no organograma vigente.'
+      }
+      if (!purpose) next.purpose = 'Informe a finalidade do cargo.'
+    }
     for (const key of CHA_BLOCK_KEYS) {
       const items = cha[key]?.items || []
       if (items.length === 0) {
@@ -221,16 +261,32 @@ export const CargoFormDialog: React.FC<Props> = ({
       }
       if (cargo) {
         await cargosService.update(cargo.id, payload)
+        toast({ title: 'Cargo atualizado!', description: title.trim() })
       } else {
-        await cargosService.create(payload)
+        payload.org_node_id = orgNodeId
+        payload.purpose = purpose as Cargo['purpose']
+        try {
+          await cargosService.create(payload)
+          toast({
+            title: 'Cargo cadastrado!',
+            description: title.trim() + ' — status inicial: rascunho.',
+          })
+        } catch (createErr) {
+          console.error('Erro ao criar cargo:', createErr)
+          toast({
+            title: 'Erro ao criar cargo',
+            description: getErrorMessage(createErr),
+            variant: 'destructive',
+          })
+          return
+        }
       }
-      toast({ title: cargo ? 'Cargo atualizado!' : 'Cargo cadastrado!', description: title.trim() })
       onSaved()
     } catch (err) {
       console.error('Erro ao salvar cargo:', err)
       toast({
         title: 'Erro ao salvar cargo',
-        description: 'Verifique os campos e tente novamente.',
+        description: getErrorMessage(err),
         variant: 'destructive',
       })
     } finally {
@@ -272,6 +328,83 @@ export const CargoFormDialog: React.FC<Props> = ({
               />
             </div>
           </div>
+          {/* FASE 2 — posição do organograma (obrigatória na criação, travada depois) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Posição do organograma *</Label>
+              {cargo ? (
+                <Input value={selectedPosition?.title || '—'} disabled />
+              ) : (
+                <Select
+                  value={orgNodeId}
+                  onValueChange={(v) => {
+                    setOrgNodeId(v)
+                    // espelha o nível da posição no cargo (editável depois)
+                    const pos = positions.find((p) => p.id === v)
+                    if (pos && pos.level) setLevel(pos.level)
+                  }}
+                  disabled={loadingPositions}
+                >
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        loadingPositions ? 'Carregando posições…' : 'Selecione a posição'
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {positions.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.title}
+                        {p.area ? ` — ${p.area}` : ''}
+                        {p.level ? ` (${p.level})` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {errors.org_node_id && <p className="text-xs text-rose-600">{errors.org_node_id}</p>}
+              <p className="text-[11px] text-slate-500">
+                {cargo
+                  ? 'Posição não pode ser alterada após a criação do cargo.'
+                  : 'Somente posições APROVADAS no organograma vigente são listadas.'}
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Finalidade *</Label>
+              {cargo ? (
+                <Input
+                  value={
+                    CARGO_PURPOSES.find((p) => p.value === (cargo.purpose || ''))?.label || '—'
+                  }
+                  disabled
+                />
+              ) : (
+                <Select value={purpose} onValueChange={(v) => setPurpose(v as CargoPurpose)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a finalidade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CARGO_PURPOSES.map((p) => (
+                      <SelectItem key={p.value} value={p.value}>
+                        {p.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {errors.purpose && <p className="text-xs text-rose-600">{errors.purpose}</p>}
+              <p className="text-[11px] text-slate-500">
+                {cargo
+                  ? 'Finalidade pode ser convertida em “Preenchimento imediato” pela ação na lista.'
+                  : selectedPosition
+                    ? CARGO_PURPOSES.find((p) => p.value === purpose)?.hint ||
+                      'O cargo só gera vaga com finalidade “Preenchimento imediato”.'
+                    : 'Selecione primeiro a posição do organograma.'}
+              </p>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Nível *</Label>

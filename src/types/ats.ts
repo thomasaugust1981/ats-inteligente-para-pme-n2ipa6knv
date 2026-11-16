@@ -68,7 +68,69 @@ export interface JobStage {
  * FASE 1 do modelo CHA — Cargo da organização (coleção "cargos").
  * `cha` chega como string JSON do PocketBase e é normalizada pelo
  * cargosService (parseCha) antes de chegar à UI.
+ *
+ * FASE 2 (Organograma → Cargo → Vaga) — ciclo de aprovação e finalidade:
+ *   • org_node_id: posição do organograma VIGENTE — obrigatória na criação,
+ *     imutável depois (validado no hook cargo_server).
+ *   • purpose: finalidade do cargo (ver CARGO_PURPOSES).
+ *   • status: RASCUNHO → EM_APROVACAO → APROVADO | REPROVADO.
+ *   • salary_defined: tem faixa salarial? (false = fora da base de custo de
+ *     pessoal na fase de indicadores.)
  */
+export type CargoPurpose = 'PREENCHIMENTO' | 'ESTRUTURAL' | 'SUCCESSAO' | 'PROMOCAO'
+export type CargoStatus = 'RASCUNHO' | 'EM_APROVACAO' | 'APROVADO' | 'REPROVADO'
+
+export const CARGO_PURPOSES: { value: CargoPurpose; label: string; hint: string }[] = [
+  {
+    value: 'PREENCHIMENTO',
+    label: 'Preenchimento imediato',
+    hint: 'Haverá recrutamento em seguida — o cargo gera vaga.',
+  },
+  {
+    value: 'ESTRUTURAL',
+    label: 'Estrutural / planejamento',
+    hint: 'O cargo existe na estrutura, sem vaga agora.',
+  },
+  {
+    value: 'SUCCESSAO',
+    label: 'Sucessão',
+    hint: 'Vinculado a um plano de sucessão.',
+  },
+  {
+    value: 'PROMOCAO',
+    label: 'Promoção interna',
+    hint: 'Vinculado a um colaborador existente.',
+  },
+]
+
+export const CARGO_STATUS_META: Record<CargoStatus, { label: string; className: string }> = {
+  RASCUNHO: { label: 'Rascunho', className: 'bg-slate-100 text-slate-700 border-slate-300' },
+  EM_APROVACAO: {
+    label: 'Em aprovação',
+    className: 'bg-amber-50 text-amber-800 border-amber-300',
+  },
+  APROVADO: { label: 'Aprovado', className: 'bg-emerald-50 text-emerald-800 border-emerald-300' },
+  REPROVADO: { label: 'Reprovado', className: 'bg-rose-50 text-rose-700 border-rose-300' },
+}
+
+export interface CargoApprovalEntry {
+  id: string
+  cargo_id?: string
+  cargo_title?: string
+  step: string
+  decision: string
+  from_status?: string
+  to_status?: string
+  from_value?: string
+  to_value?: string
+  comment?: string
+  user_name?: string
+  user_role?: string
+  user_id?: string
+  org_id?: string
+  created: string
+}
+
 export interface Cargo {
   id: string
   title: string
@@ -80,6 +142,21 @@ export interface Cargo {
   salary_max?: number | null
   cha: ChaData | null
   org_id?: string
+  // FASE 2 — posição do organograma + ciclo de aprovação
+  org_node_id?: string
+  purpose?: CargoPurpose | ''
+  status?: CargoStatus | ''
+  created_by?: string
+  created_by_role?: string
+  created_by_id?: string
+  submitted_at?: string
+  approved_by?: string
+  approved_by_role?: string
+  approved_at?: string
+  rejection_reason?: string
+  rejected_by?: string
+  rejected_by_role?: string
+  salary_defined?: boolean
   created: string
   updated: string
 }

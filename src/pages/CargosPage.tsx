@@ -10,13 +10,19 @@ import {
   Wrench,
   HeartHandshake,
   Building2,
-  GraduationCap,
   FileDown,
+  Send,
+  Check,
+  X,
+  ArrowRightLeft,
+  History,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -36,9 +42,11 @@ import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/hooks/use-auth'
 import { LoadingState } from '@/components/LoadingState'
 import { EmptyState } from '@/components/EmptyState'
-import { cargosService } from '@/services/cargos'
+import { cargosService, type CargoAction } from '@/services/cargos'
 import { exportCargoPdf } from '@/lib/chaExport'
-import type { Cargo } from '@/types/ats'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
+import type { Cargo, CargoApprovalEntry } from '@/types/ats'
+import { CARGO_PURPOSES } from '@/types/ats'
 import {
   CHA_BLOCK_KEYS,
   CHA_BLOCK_META,
@@ -55,10 +63,114 @@ const BLOCK_ICONS: Record<ChaBlockKey, React.ElementType> = {
   atitudes: HeartHandshake,
 }
 
+const CARGO_STATUS_META: Record<string, { label: string; badge: string }> = {
+  RASCUNHO: { label: 'Rascunho', badge: 'bg-slate-100 text-slate-700 border-slate-200' },
+  EM_APROVACAO: { label: 'Em aprovação', badge: 'bg-amber-50 text-amber-700 border-amber-200' },
+  APROVADO: { label: 'Aprovado', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  REPROVADO: { label: 'Reprovado', badge: 'bg-rose-50 text-rose-700 border-rose-200' },
+}
+
+const TRAIL_STEP_LABEL: Record<string, string> = {
+  CRIACAO: 'Criação',
+  ENVIO: 'Enviado para aprovação',
+  APROVACAO: 'Aprovação',
+  REJEICAO: 'Reprovação',
+  CONVERSAO: 'Conversão de finalidade',
+}
+
+const purposeLabel = (v?: string | null) =>
+  CARGO_PURPOSES.find((p) => p.value === v)?.label || v || '—'
+
+const fmtDate = (iso?: string) =>
+  iso
+    ? new Date(iso).toLocaleString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : '—'
+
+/** Modal de comentário único para aprovar/rejeitar/converter (comment = foco). */
+const CommentActionDialog: React.FC<{
+  open: boolean
+  mode: CargoAction
+  cargo: Cargo | null
+  busy: boolean
+  onClose: () => void
+  onConfirm: (comment: string) => void
+}> = ({ open, mode, cargo, busy, onClose, onConfirm }) => {
+  const [comment, setComment] = useState('')
+  useEffect(() => {
+    if (open) setComment('')
+  }, [open, mode, cargo?.id])
+
+  const title =
+    mode === 'approve'
+      ? 'Aprovar cargo'
+      : mode === 'reject'
+        ? 'Reprovar cargo'
+        : 'Converter finalidade para “Preenchimento imediato”'
+  const desc =
+    mode === 'approve'
+      ? 'Cargo aprovado pode gerar vaga. Registre o comentário de aprovação.'
+      : mode === 'reject'
+        ? 'Cargo volta a ficar disponível para ajustes. A justificativa fica registrada na trilha.'
+        : 'A conversão fica registrada como evento auditável (autor, data, finalidade anterior e nova) — não é edição silenciosa.'
+  const cta = mode === 'approve' ? 'Aprovar' : mode === 'reject' ? 'Reprovar' : 'Converter'
+  const destructive = mode === 'reject'
+  const needsReason = mode === 'reject'
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{desc}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-1.5">
+          <Label htmlFor="cargo-action-comment">
+            {needsReason ? 'Justificativa *' : 'Comentário *'}
+          </Label>
+          <Textarea
+            id="cargo-action-comment"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            rows={3}
+            placeholder={
+              needsReason
+                ? 'Por que o cargo está sendo reprovado?'
+                : mode === 'approve'
+                  ? 'Ex.: faixa salarial conferida com o orçamento do ano.'
+                  : 'Ex.: vaga aberta para este cargo, recrutamento começa em seguida.'
+            }
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={busy}>
+            Cancelar
+          </Button>
+          <Button
+            variant={destructive ? 'destructive' : 'default'}
+            className={destructive ? '' : 'bg-sky-600 hover:bg-sky-700 text-white'}
+            disabled={busy || !comment.trim()}
+            onClick={() => onConfirm(comment.trim())}
+          >
+            {busy ? 'Processando…' : cta}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export const CargosPage: React.FC = () => {
   const { toast } = useToast()
-  const { isAdmin, isRecruiter, isSuperadmin } = useAuth()
-  const canEdit = isAdmin || isSuperadmin || isRecruiter
+  const { user, isAdmin, isRecruiter, isSuperadmin } = useAuth()
+  // Regra FASE 2: admin/RH cria e edita cargo; recrutador puro só visualiza.
+  const canEdit = isAdmin || isSuperadmin
+  const canApprove = isAdmin || isSuperadmin
 
   const [cargos, setCargos] = useState<Cargo[]>([])
   const [loading, setLoading] = useState(true)
@@ -68,6 +180,13 @@ export const CargosPage: React.FC = () => {
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Cargo | null>(null)
   const [deleting, setDeleting] = useState<Cargo | null>(null)
+  // FASE 2 — ciclo de aprovação
+  const [action, setAction] = useState<CargoAction | null>(null)
+  const [actionCargo, setActionCargo] = useState<Cargo | null>(null)
+  const [actionBusy, setActionBusy] = useState(false)
+  const [trailCargo, setTrailCargo] = useState<Cargo | null>(null)
+  const [trail, setTrail] = useState<CargoApprovalEntry[]>([])
+  const [trailLoading, setTrailLoading] = useState(false)
 
   const load = React.useCallback(async () => {
     try {
@@ -84,6 +203,27 @@ export const CargosPage: React.FC = () => {
   useEffect(() => {
     load()
   }, [load])
+
+  // Trilha de auditoria do cargo em exibição
+  useEffect(() => {
+    if (!trailCargo) {
+      setTrail([])
+      return
+    }
+    let alive = true
+    setTrailLoading(true)
+    cargosService
+      .listApprovals(trailCargo.id)
+      .then((entries) => {
+        if (alive) setTrail(entries)
+      })
+      .finally(() => {
+        if (alive) setTrailLoading(false)
+      })
+    return () => {
+      alive = false
+    }
+  }, [trailCargo])
 
   const areas = useMemo(
     () => Array.from(new Set(cargos.map((c) => (c.area || '').trim()).filter(Boolean))).sort(),
@@ -105,6 +245,46 @@ export const CargosPage: React.FC = () => {
   }, [cargos, search, areaFilter, levelFilter])
 
   const countRequired = (cargo: Cargo, key: ChaBlockKey) => (cargo.cha?.[key]?.items || []).length
+
+  const openAction = (cargo: Cargo, act: CargoAction) => {
+    setActionCargo(cargo)
+    setAction(act)
+  }
+
+  const closeAction = () => {
+    setAction(null)
+    setActionCargo(null)
+  }
+
+  const handleAction = async (comment: string) => {
+    if (!actionCargo || !action) return
+    try {
+      setActionBusy(true)
+      await cargosService.runAction({
+        cargo_id: actionCargo.id,
+        action,
+        comment,
+      })
+      toast({
+        title:
+          action === 'submit'
+            ? 'Cargo enviado para aprovação'
+            : action === 'approve'
+              ? 'Cargo aprovado'
+              : action === 'reject'
+                ? 'Cargo reprovado'
+                : 'Finalidade convertida',
+        description: actionCargo.title,
+      })
+      closeAction()
+      load()
+    } catch (err) {
+      console.error('Erro na ação do cargo:', err)
+      toast({ title: 'Erro na ação', description: getErrorMessage(err), variant: 'destructive' })
+    } finally {
+      setActionBusy(false)
+    }
+  }
 
   // FASE 3 — PDF da descrição do cargo direto da lista.
   const handleExportPdf = (cargo: Cargo) => {
@@ -138,10 +318,14 @@ export const CargosPage: React.FC = () => {
       console.error('Erro ao excluir cargo:', err)
       toast({
         title: 'Erro ao excluir',
-        description: 'Verifique se não há vagas vinculadas a este cargo.',
+        description: getErrorMessage(err),
         variant: 'destructive',
       })
     }
+  }
+
+  const openTrail = (cargo: Cargo) => {
+    setTrailCargo(cargo)
   }
 
   return (
@@ -152,8 +336,8 @@ export const CargosPage: React.FC = () => {
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">Cargos</h1>
             <p className="text-xs text-slate-500">
-              Catálogo da organização com os requisitos CHA (Conhecimento, Habilidade e Atitude) de
-              cada função — a base usada pelas vagas.
+              Catálogo da organização com os requisitos CHA de cada função — criados a partir de
+              posições APROVADAS no organograma vigente.
             </p>
           </div>
         </div>
@@ -218,7 +402,7 @@ export const CargosPage: React.FC = () => {
           title={cargos.length === 0 ? 'Nenhum cargo cadastrado' : 'Nenhum cargo encontrado'}
           description={
             cargos.length === 0
-              ? 'Cadastre o primeiro cargo com os blocos CHA — as vagas vão herdar esses requisitos.'
+              ? 'Cadastre o primeiro cargo a partir de uma posição aprovada do organograma.'
               : 'Ajuste a busca ou os filtros para encontrar o cargo.'
           }
           actions={
@@ -237,90 +421,167 @@ export const CargosPage: React.FC = () => {
         />
       ) : (
         <div className="grid gap-3">
-          {filtered.map((cargo) => (
-            <Card key={cargo.id} className="bg-white">
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-semibold text-slate-900">{cargo.title}</h3>
-                      {cargo.level && (
-                        <Badge variant="outline" className="text-[10px]">
-                          {CHA_LEVEL_LABELS[cargo.level as ChaLevel] || cargo.level}
+          {filtered.map((cargo) => {
+            const status = cargo.status || 'RASCUNHO'
+            const statusMeta = CARGO_STATUS_META[status] || CARGO_STATUS_META.RASCUNHO
+            const isAuthor = cargo.created_by_id === user?.id
+            const canAct = canApprove && !isAuthor
+            return (
+              <Card key={cargo.id} className="bg-white">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-semibold text-slate-900">{cargo.title}</h3>
+                        <Badge className={`text-[10px] border ${statusMeta.badge}`}>
+                          {statusMeta.label}
                         </Badge>
-                      )}
-                      {cargo.area && (
-                        <Badge variant="secondary" className="text-[10px] gap-1">
-                          <Building2 className="w-3 h-3" />
-                          {cargo.area}
-                        </Badge>
-                      )}
-                    </div>
-                    {cargo.mission && (
-                      <p className="text-xs text-slate-500 mt-1 line-clamp-2">{cargo.mission}</p>
-                    )}
-                    <div className="flex items-center gap-2 mt-2 flex-wrap">
-                      {CHA_BLOCK_KEYS.map((key) => {
-                        const Icon = BLOCK_ICONS[key]
-                        const n = countRequired(cargo, key)
-                        return (
-                          <Badge
-                            key={key}
-                            variant="outline"
-                            className={`text-[10px] gap-1 ${n === 0 ? 'text-rose-600 border-rose-300' : 'text-slate-600'}`}
-                          >
-                            <Icon className="w-3 h-3" />
-                            {CHA_BLOCK_META[key].label}: {n}
+                        {cargo.level && (
+                          <Badge variant="outline" className="text-[10px]">
+                            {CHA_LEVEL_LABELS[cargo.level as ChaLevel] || cargo.level}
                           </Badge>
-                        )
-                      })}
+                        )}
+                        {cargo.area && (
+                          <Badge variant="secondary" className="text-[10px] gap-1">
+                            <Building2 className="w-3 h-3" />
+                            {cargo.area}
+                          </Badge>
+                        )}
+                        {cargo.purpose && (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] text-sky-700 border-sky-200"
+                          >
+                            {purposeLabel(cargo.purpose)}
+                          </Badge>
+                        )}
+                      </div>
+                      {cargo.mission && (
+                        <p className="text-xs text-slate-500 mt-1 line-clamp-2">{cargo.mission}</p>
+                      )}
+                      {status === 'REPROVADO' && cargo.rejection_reason && (
+                        <p className="text-xs text-rose-600 mt-1">
+                          Reprovado: {cargo.rejection_reason}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
+                        {CHA_BLOCK_KEYS.map((key) => {
+                          const Icon = BLOCK_ICONS[key]
+                          const n = countRequired(cargo, key)
+                          return (
+                            <Badge
+                              key={key}
+                              variant="outline"
+                              className={`text-[10px] gap-1 ${n === 0 ? 'text-rose-600 border-rose-300' : 'text-slate-600'}`}
+                            >
+                              <Icon className="w-3 h-3" />
+                              {CHA_BLOCK_META[key].label}: {n}
+                            </Badge>
+                          )
+                        })}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        title="Exportar descrição do cargo em PDF"
+                        onClick={() => handleExportPdf(cargo)}
+                      >
+                        <FileDown className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        title="Histórico de aprovação e auditoria"
+                        onClick={() => openTrail(cargo)}
+                      >
+                        <History className="w-4 h-4" />
+                      </Button>
+                      {canEdit && (
+                        <>
+                          {status === 'RASCUNHO' && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-amber-600"
+                              title="Enviar para aprovação"
+                              onClick={() => openAction(cargo, 'submit')}
+                            >
+                              <Send className="w-4 h-4" />
+                            </Button>
+                          )}
+                          {status === 'EM_APROVACAO' && canAct && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-emerald-600"
+                                title="Aprovar"
+                                onClick={() => openAction(cargo, 'approve')}
+                              >
+                                <Check className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-rose-600"
+                                title="Reprovar"
+                                onClick={() => openAction(cargo, 'reject')}
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </>
+                          )}
+                          {status === 'APROVADO' &&
+                            cargo.purpose !== 'PREENCHIMENTO' &&
+                            !isAuthor && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-sky-600"
+                                title="Converter finalidade para Preenchimento imediato"
+                                onClick={() => openAction(cargo, 'convert')}
+                              >
+                                <ArrowRightLeft className="w-4 h-4" />
+                              </Button>
+                            )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => {
+                              setEditing(cargo)
+                              setFormOpen(true)
+                            }}
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-rose-600 hover:text-rose-700"
+                            onClick={() => setDeleting(cargo)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      title="Exportar descrição do cargo em PDF"
-                      onClick={() => handleExportPdf(cargo)}
-                    >
-                      <FileDown className="w-4 h-4" />
-                    </Button>
-                    {canEdit && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => {
-                            setEditing(cargo)
-                            setFormOpen(true)
-                          }}
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-rose-600 hover:text-rose-700"
-                          onClick={() => setDeleting(cargo)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            )
+          })}
         </div>
       )}
 
       {!canEdit && cargos.length > 0 && (
         <p className="text-xs text-slate-500 text-center">
           Você tem acesso de leitura aos cargos da organização — apenas administradores podem
-          editá-los.
+          criá-los e editá-los.
         </p>
       )}
 
@@ -334,6 +595,55 @@ export const CargosPage: React.FC = () => {
           load()
         }}
       />
+
+      <CommentActionDialog
+        open={action !== null}
+        mode={action || 'approve'}
+        cargo={actionCargo}
+        busy={actionBusy}
+        onClose={closeAction}
+        onConfirm={handleAction}
+      />
+
+      {/* Trilha de auditoria do cargo */}
+      <Dialog open={Boolean(trailCargo)} onOpenChange={(o) => !o && setTrailCargo(null)}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Histórico do cargo</DialogTitle>
+            <DialogDescription>
+              Ciclo de aprovação e conversões de finalidade de “{trailCargo?.title}” — quem, quando
+              e o que mudou.
+            </DialogDescription>
+          </DialogHeader>
+          {trailLoading ? (
+            <LoadingState message="Carregando histórico…" />
+          ) : trail.length === 0 ? (
+            <p className="text-sm text-slate-500">Nenhum evento registrado ainda.</p>
+          ) : (
+            <ol className="space-y-2">
+              {trail.map((ev) => (
+                <li key={ev.id} className="border rounded-md px-3 py-2 text-xs space-y-0.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold text-slate-800">
+                      {TRAIL_STEP_LABEL[ev.step] || ev.step}
+                    </span>
+                    <span className="text-slate-400">{fmtDate(ev.created)}</span>
+                  </div>
+                  <p className="text-slate-600">
+                    {ev.user_name || '—'}
+                    {ev.user_role ? ` (${ev.user_role})` : ''}
+                    {ev.from_value
+                      ? ` · ${purposeLabel(ev.from_value)} → ${purposeLabel(ev.to_value)}`
+                      : ''}
+                    {ev.from_status ? ` · ${ev.from_status} → ${ev.to_status || ev.decision}` : ''}
+                  </p>
+                  {ev.comment && <p className="text-slate-500 italic">“{ev.comment}”</p>}
+                </li>
+              ))}
+            </ol>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={Boolean(deleting)} onOpenChange={(o) => !o && setDeleting(null)}>
         <DialogContent>
