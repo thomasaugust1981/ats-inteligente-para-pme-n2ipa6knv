@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-16T22:53:11.132Z",
+  "generatedAt": "2026-11-16T23:16:44.089Z",
   "collections": [
     {
       "name": "users",
@@ -400,12 +400,94 @@
           "type": "json",
           "required": false,
           "system": false
+        },
+        {
+          "name": "org_node_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "org_nodes"
+        },
+        {
+          "name": "organograma_version_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "org_versions"
+        },
+        {
+          "name": "manager_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cost_center",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "extra_requirements",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "opened_by",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "opened_by_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "headcount",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "deadline",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "urgent",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "opened_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cargo_snapshot",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "organograma_snapshot",
+          "type": "json",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
         "CREATE INDEX idx_jobs_status ON jobs (status)",
         "CREATE INDEX idx_jobs_manager ON jobs (manager_id)",
-        "CREATE INDEX `idx_jobs_external_id` ON `jobs` (external_id)"
+        "CREATE INDEX `idx_jobs_external_id` ON `jobs` (external_id)",
+        "CREATE INDEX `idx_jobs_cargo` ON `jobs` (cargo_id)",
+        "CREATE INDEX `idx_jobs_org_node` ON `jobs` (org_node_id)"
       ]
     },
     {
@@ -725,7 +807,9 @@
             "erp_job_rejected",
             "candidate_suggested",
             "integration_exported",
-            "interview_scheduled"
+            "interview_scheduled",
+            "job_opened",
+            "job_published"
           ]
         },
         {
