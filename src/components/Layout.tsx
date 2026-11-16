@@ -24,7 +24,7 @@ import { Badge } from '@/components/ui/badge'
 import { useState } from 'react'
 
 const Layout: React.FC = () => {
-  const { user, role, signOut, isManager, isAdmin, isRecruiter } = useAuth()
+  const { user, role, signOut, isManager, isAdmin, isRecruiter, isSuperadmin } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -69,6 +69,9 @@ const Layout: React.FC = () => {
 
   // Administradores podem retomar o onboarding pelo painel
   const showOnboardingLink = isAdmin
+
+  // Painel multi-tenant: item visível apenas para o superadmin
+  const showSuperadminLink = isSuperadmin
 
   const getRoleLabel = () => {
     if (isAdmin) return 'Administrador'
@@ -151,6 +154,19 @@ const Layout: React.FC = () => {
             >
               <Network className="w-4 h-4" />
               <span>Organograma</span>
+            </Link>
+          )}
+          {showSuperadminLink && (
+            <Link
+              to="/superadmin"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition ${
+                location.pathname.startsWith('/superadmin')
+                  ? 'bg-violet-600 text-white shadow-xs'
+                  : 'text-violet-300 hover:text-white hover:bg-slate-800/80'
+              }`}
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span>Superadmin</span>
             </Link>
           )}
           <Link
@@ -236,6 +252,15 @@ const Layout: React.FC = () => {
               className="block py-2 text-sm text-slate-300 hover:text-white"
             >
               Organograma
+            </Link>
+          )}
+          {showSuperadminLink && (
+            <Link
+              to="/superadmin"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block py-2 text-sm text-violet-300 hover:text-white"
+            >
+              Superadmin
             </Link>
           )}
           <Link

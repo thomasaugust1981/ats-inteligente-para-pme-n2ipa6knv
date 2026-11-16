@@ -27,6 +27,8 @@ import { CandidatesListPage } from './pages/CandidatesListPage'
 import { PipelinePage } from './pages/PipelinePage'
 import { CandidateProfilePage } from './pages/CandidateProfilePage'
 import OrganogramaPage from './pages/OrganogramaPage'
+import SuperAdminPage from './pages/SuperAdminPage'
+import { SuperAdminRouteGuard } from './components/SuperAdminRouteGuard'
 
 const App = () => (
   <BrowserRouter>
@@ -60,6 +62,9 @@ const App = () => (
               <Route path="/candidato/:id" element={<CandidateProfilePage />} />
               <Route path="/organograma" element={<OrganogramaPage />} />
               <Route path="/agente-score" element={<AiAgentSettingsPage />} />
+              <Route element={<SuperAdminRouteGuard />}>
+                <Route path="/superadmin" element={<SuperAdminPage />} />
+              </Route>
             </Route>
 
             <Route path="*" element={<NotFound />} />

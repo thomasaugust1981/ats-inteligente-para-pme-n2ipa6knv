@@ -22,6 +22,7 @@ interface AuthContextType {
   isAdmin: boolean
   isRecruiter: boolean
   isManager: boolean
+  isSuperadmin: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -132,6 +133,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isAdmin = role === 'admin'
   const isRecruiter = role === 'recruiter' || role === 'admin'
   const isManager = role === 'manager'
+  const isSuperadmin = role === 'superadmin'
 
   return (
     <AuthContext.Provider
@@ -149,6 +151,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAdmin,
         isRecruiter,
         isManager,
+        isSuperadmin,
       }}
     >
       {children}
