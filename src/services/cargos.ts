@@ -15,7 +15,11 @@ export type CargoAction = 'submit' | 'approve' | 'reject' | 'convert'
 
 export interface CargoActionPayload {
   cargo_id: string
+  action: CargoAction
+  /** Aprovar/enviar/converter — comentário registrado na trilha. */
   comment?: string
+  /** Reprovar — justificativa obrigatória (o servidor espera "reason"). */
+  reason?: string
   purpose?: string
 }
 
