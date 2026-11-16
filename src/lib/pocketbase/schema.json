@@ -1,14 +1,14 @@
 {
-  "generatedAt": "2026-11-14T11:38:53.814Z",
+  "generatedAt": "2026-11-16T13:21:46.044Z",
   "collections": [
     {
       "name": "users",
       "type": "auth",
       "apiRules": {
-        "list": "id = @request.auth.id",
-        "view": "id = @request.auth.id",
+        "list": "@request.auth.id != '' && (@request.auth.role = 'superadmin' || id = @request.auth.id)",
+        "view": "@request.auth.id != '' && (@request.auth.role = 'superadmin' || id = @request.auth.id)",
         "create": "",
-        "update": "id = @request.auth.id",
+        "update": "@request.auth.id != '' && (@request.auth.role = 'superadmin' || (id = @request.auth.id && @request.body.role:changed = false && @request.body.org_id:changed = false))",
         "delete": "id = @request.auth.id"
       },
       "fields": [
@@ -43,13 +43,20 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["admin", "recruiter", "manager"]
+          "selectValues": ["admin", "recruiter", "manager", "superadmin"]
         },
         {
           "name": "company_name",
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "org_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "organizations"
         }
       ],
       "indexes": [
@@ -63,9 +70,9 @@
       "apiRules": {
         "list": "",
         "view": "",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != '' && @request.auth.role = 'admin'"
+        "create": "@request.auth.id != '' && @request.auth.org_id != ''",
+        "update": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
+        "delete": "(@request.auth.id != '' && org_id = @request.auth.org_id && @request.auth.role = 'admin') || @request.auth.role = 'superadmin'"
       },
       "fields": [
         {
@@ -154,6 +161,13 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "org_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "organizations"
         }
       ],
       "indexes": []
@@ -162,11 +176,11 @@
       "name": "jobs",
       "type": "base",
       "apiRules": {
-        "list": "",
-        "view": "",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != '' && @request.auth.role = 'admin'"
+        "list": "(status = 'published' || (@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin')",
+        "view": "(status = 'published' || (@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin')",
+        "create": "@request.auth.id != '' && @request.auth.org_id != ''",
+        "update": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
+        "delete": "(@request.auth.id != '' && org_id = @request.auth.org_id && @request.auth.role = 'admin') || @request.auth.role = 'superadmin'"
       },
       "fields": [
         {
@@ -333,6 +347,20 @@
           "type": "number",
           "required": false,
           "system": false
+        },
+        {
+          "name": "org_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "organizations"
+        },
+        {
+          "name": "company_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "companies"
         }
       ],
       "indexes": [
@@ -345,11 +373,11 @@
       "name": "candidates",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "",
-        "update": "@request.auth.id != '' || @request.body.email = email",
-        "delete": "@request.auth.id != ''"
+        "list": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
+        "view": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
+        "create": "@request.auth.id = \"\"",
+        "update": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.body.email = email || @request.auth.role = 'superadmin'",
+        "delete": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'"
       },
       "fields": [
         {
@@ -464,6 +492,13 @@
           "required": false,
           "system": false,
           "selectValues": ["ai_extracted", "manual"]
+        },
+        {
+          "name": "org_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "organizations"
         }
       ],
       "indexes": [
@@ -475,11 +510,11 @@
       "name": "applications",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
+        "view": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
+        "create": "@request.auth.id = \"\"",
+        "update": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
+        "delete": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'"
       },
       "fields": [
         {
@@ -561,6 +596,13 @@
           "type": "date",
           "required": false,
           "system": false
+        },
+        {
+          "name": "org_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "organizations"
         }
       ],
       "indexes": [
@@ -573,8 +615,8 @@
       "name": "audit_logs",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
+        "list": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
+        "view": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
         "create": "@request.auth.id != ''",
         "update": null,
         "delete": null
@@ -669,6 +711,13 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "org_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "organizations"
         }
       ],
       "indexes": [
@@ -680,11 +729,11 @@
       "name": "team_invites",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
+        "list": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
+        "view": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
         "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != '' && @request.auth.role = 'admin'"
+        "update": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
+        "delete": "(@request.auth.id != '' && org_id = @request.auth.org_id && @request.auth.role = 'admin') || @request.auth.role = 'superadmin'"
       },
       "fields": [
         {
@@ -726,6 +775,13 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "org_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "organizations"
         }
       ],
       "indexes": ["CREATE INDEX idx_team_invites_email ON team_invites (email)"]
@@ -734,11 +790,11 @@
       "name": "stage_settings",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
+        "view": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
+        "create": "@request.auth.id != '' && @request.auth.org_id != ''",
+        "update": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
+        "delete": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'"
       },
       "fields": [
         {
@@ -790,6 +846,13 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "org_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "organizations"
         }
       ],
       "indexes": [
@@ -874,6 +937,13 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "org_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "organizations"
         }
       ],
       "indexes": [
@@ -986,6 +1056,13 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "org_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "organizations"
         }
       ],
       "indexes": [
@@ -1115,6 +1192,13 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "org_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "organizations"
         }
       ],
       "indexes": [
@@ -1209,6 +1293,13 @@
           "type": "number",
           "required": false,
           "system": false
+        },
+        {
+          "name": "org_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "organizations"
         }
       ],
       "indexes": [
@@ -1219,8 +1310,8 @@
       "name": "ai_scores",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
+        "list": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
+        "view": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
         "create": null,
         "update": null,
         "delete": null
@@ -1309,6 +1400,13 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "org_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "organizations"
         }
       ],
       "indexes": [
@@ -1320,11 +1418,11 @@
       "name": "ai_agent_settings",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.role = 'admin'",
-        "update": "@request.auth.role = 'admin'",
-        "delete": null
+        "list": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
+        "view": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
+        "create": "@request.auth.id != '' && @request.auth.org_id != ''",
+        "update": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
+        "delete": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'"
       },
       "fields": [
         {
@@ -1420,9 +1518,68 @@
           "type": "date",
           "required": false,
           "system": false
+        },
+        {
+          "name": "org_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "organizations"
         }
       ],
       "indexes": []
+    },
+    {
+      "name": "organizations",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (@request.auth.role = 'superadmin' || id = @request.auth.org_id)",
+        "view": "@request.auth.id != '' && (@request.auth.role = 'superadmin' || id = @request.auth.org_id)",
+        "create": "@request.auth.role = 'superadmin'",
+        "update": "@request.auth.role = 'superadmin'",
+        "delete": "@request.auth.role = 'superadmin'"
+      },
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "slug",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "is_active",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE UNIQUE INDEX idx_organizations_slug ON organizations (slug)"]
     }
   ]
 }
