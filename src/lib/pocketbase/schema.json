@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-16T21:39:47.824Z",
+  "generatedAt": "2026-11-16T22:19:46.845Z",
   "collections": [
     {
       "name": "users",
@@ -1117,6 +1117,25 @@
           "required": false,
           "system": false,
           "collectionRef": "organizations"
+        },
+        {
+          "name": "cost_center",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "position_type",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["efetivo", "temporario", "terceiro"]
+        },
+        {
+          "name": "is_new_position",
+          "type": "bool",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -1153,7 +1172,14 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["RASCUNHO", "EM_APROVACAO", "APROVADA", "SUBSTITUIDA", "REJEITADA"]
+          "selectValues": [
+            "RASCUNHO",
+            "EM_APROVACAO",
+            "APROVADA",
+            "SUBSTITUIDA",
+            "REJEITADA",
+            "ARQUIVADA"
+          ]
         },
         {
           "name": "nodes_json",
@@ -1253,6 +1279,18 @@
           "required": false,
           "system": false,
           "collectionRef": "organizations"
+        },
+        {
+          "name": "vigencia_inicio",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vigencia_fim",
+          "type": "date",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [

@@ -6,11 +6,11 @@
 // conseguem violar as regras:
 //
 //   submit   → RASCUNHO → EM_APROVACAO (instância 1: Gerente de RH)
-//   approve  → instância atual aprovada (não pode ser o autor);
-//              instância 2 aprovada → APROVADA: anterior vira SUBSTITUIDA,
-//              nós do snapshot viram os org_nodes da empresa (espelho vigente
-//              que alimenta o ATS) e os job_id criados pelo hook org_nodes_sync
-//              são preservados.
+//   approve  → instância atual aprovada (não pode ser o autor, exige
+//              comentário); instância 2 aprovada → APROVADA: anterior vira
+//              ARQUIVADA (histórico acessível), nós do snapshot viram os
+//              org_nodes da empresa (espelho vigente que alimenta o ATS) e os
+//              job_id criados pelo hook org_nodes_sync são preservados.
 //   reject   → EM_APROVACAO → RASCUNHO com motivo obrigatório + RETORNO na
 //              trilha; o próximo ciclo começa de novo na instância 1.
 //   clone    → cria um novo RASCUNHO a partir de uma versão existente.
@@ -108,7 +108,7 @@ onRecordCreateRequest((e) => {
       }
     }
 
-    function audit(details) {
+    function audit(details, fromStatus, toStatus) {
       try {
         app.runInTransaction(function () {
           app.recordCreate('audit_logs', {
@@ -116,6 +116,8 @@ onRecordCreateRequest((e) => {
             user_name: actorName,
             user_role: actorRole || 'system',
             action: 'erp_job_updated',
+            from_stage: fromStatus || '',
+            to_stage: toStatus || '',
             details: details,
           })
         })
@@ -151,10 +153,23 @@ onRecordCreateRequest((e) => {
       }
 
       // remove nós que saíram do snapshot (proteção de remoção remota não
-      // se aplica aqui: o snapshot aprovado é a fonte da verdade)
+      // se aplica aqui: o snapshot aprovado é a fonte da verdade). FASE 1:
+      // nó com vaga vinculada (job_id) NÃO é apagado — é arquivado, para não
+      // quebrar o vínculo histórico com cargos/vagas.
       for (const n of existing) {
         const key = n.get('node_key')
         if (!keep[key]) {
+          const linkedJob = n.get('job_id')
+          if (linkedJob) {
+            try {
+              n.set('status', 'inativo')
+              n.set('is_new_position', false)
+              app.save(n)
+            } catch (err) {
+              console.log('org_versions_server: falha ao arquivar nó com vaga: ' + err)
+            }
+            continue
+          }
           try {
             app.delete(n)
           } catch (err) {
@@ -176,6 +191,9 @@ onRecordCreateRequest((e) => {
           rec.set('location', n.localidade || n.location || '')
           rec.set('status', mapStatus(n.status))
           rec.set('photo_url', n.foto || n.photo_url || '')
+          rec.set('cost_center', n.costCenter || n.cost_center || '')
+          rec.set('position_type', mapPositionType(n.tipoPosicao || n.position_type))
+          rec.set('is_new_position', !!n.isNewPosition)
           app.save(rec)
         } else {
           app.recordCreate('org_nodes', {
@@ -189,6 +207,9 @@ onRecordCreateRequest((e) => {
             contract_type: mapContract(n.tipoContrato || n.contract_type),
             status: mapStatus(n.status),
             photo_url: n.foto || n.photo_url || '',
+            cost_center: n.costCenter || n.cost_center || '',
+            position_type: mapPositionType(n.tipoPosicao || n.position_type),
+            is_new_position: !!n.isNewPosition,
             company: company,
           })
         }
@@ -222,6 +243,21 @@ onRecordCreateRequest((e) => {
       }
     }
 
+    function mapPositionType(t) {
+      switch (t) {
+        case 'efetivo':
+        case 'temporario':
+        case 'terceiro':
+          return t
+        case 'Temporário':
+          return 'temporario'
+        case 'Terceiro':
+          return 'terceiro'
+        default:
+          return 'efetivo'
+      }
+    }
+
     // ------- clone: novo rascunho a partir de uma versão existente -------
     if (action === 'clone') {
       const src = findVersion(payload.version_number)
@@ -247,6 +283,15 @@ onRecordCreateRequest((e) => {
         '—',
         'Rascunho criado a partir da v' + src.get('version_number'),
       )
+      audit(
+        'Organograma v' +
+          rec.get('version_number') +
+          ' criado (clone da v' +
+          src.get('version_number') +
+          ')',
+        src.get('status') || '',
+        'RASCUNHO',
+      )
       e.json(200, { ok: true, version: serialize(rec) })
       return
     }
@@ -271,7 +316,11 @@ onRecordCreateRequest((e) => {
       v.set('next_approver_role', 'Gerente de RH')
       app.save(v)
       trail(v.get('version_number'), 'ENVIO', '—', payload.comment || '')
-      audit('Organograma v' + v.get('version_number') + ' enviado para aprovação')
+      audit(
+        'Organograma v' + v.get('version_number') + ' enviado para aprovação',
+        'RASCUNHO',
+        'EM_APROVACAO',
+      )
       e.json(200, { ok: true, version: serialize(v) })
       return
     }
@@ -304,7 +353,12 @@ onRecordCreateRequest((e) => {
 
       const step1 = v.get('next_approver_role') === 'Gerente Administrativo'
       const step = step1 ? 'APROVACAO_2' : 'APROVACAO_1'
-      const comment = payload.comment || ''
+      const comment = String(payload.comment || '').trim()
+      // FASE 1: aprovação exige comentário (registrado com autor e data na trilha)
+      if (!comment) {
+        e.json(400, { ok: false, error: 'Comentário obrigatório para aprovar' })
+        return
+      }
       trail(v.get('version_number'), step, 'APROVADO', comment, effRole)
 
       if (!step1) {
@@ -313,6 +367,8 @@ onRecordCreateRequest((e) => {
         app.save(v)
         audit(
           'Organograma v' + v.get('version_number') + ' aprovado na instância 1 (Gerente de RH)',
+          'EM_APROVACAO',
+          'EM_APROVACAO',
         )
         e.json(200, { ok: true, version: serialize(v) })
         return
@@ -338,11 +394,16 @@ onRecordCreateRequest((e) => {
         )
         for (const prev of prevList) {
           if (prev.get('version_number') === v.get('version_number')) continue
-          prev.set('status', 'SUBSTITUIDA')
+          // FASE 1: a versão aprovada anterior vira ARQUIVADA (não SUBSTITUIDA)
+          // — status do pedido do usuário; o histórico continua acessível.
+          prev.set('status', 'ARQUIVADA')
+          if (prev.get('vigencia_fim') === undefined || !prev.get('vigencia_fim')) {
+            prev.set('vigencia_fim', new Date().toISOString())
+          }
           app.save(prev)
         }
       } catch (err) {
-        console.log('org_versions_server: falha ao substituir versão anterior: ' + err)
+        console.log('org_versions_server: falha ao arquivar versão anterior: ' + err)
       }
 
       try {
@@ -351,7 +412,11 @@ onRecordCreateRequest((e) => {
         console.log('org_versions_server: falha ao publicar snapshot: ' + err)
       }
 
-      audit('Organograma v' + v.get('version_number') + ' APROVADO — nova versão vigente')
+      audit(
+        'Organograma v' + v.get('version_number') + ' APROVADO — nova versão vigente',
+        'EM_APROVACAO',
+        'APROVADA',
+      )
       e.json(200, { ok: true, version: serialize(v) })
       return
     }
@@ -396,7 +461,11 @@ onRecordCreateRequest((e) => {
       app.save(v)
       // trilha de retorno ao rascunho
       trail(v.get('version_number'), 'RETORNO', '—', 'Devolveu ao autor: ' + reason, effRole)
-      audit('Organograma v' + v.get('version_number') + ' rejeitado — voltou a RASCUNHO')
+      audit(
+        'Organograma v' + v.get('version_number') + ' rejeitado — voltou a RASCUNHO',
+        'EM_APROVACAO',
+        'RASCUNHO',
+      )
       e.json(200, { ok: true, version: serialize(v) })
       return
     }
