@@ -77,6 +77,64 @@ export const applicationsService = {
     })
   },
 
+  /**
+   * Candidatura pública (C1): UMA chamada multipart para a rota custom do
+   * backend (hook application_dedupe — POST /backend/v1/applications/apply).
+   * O servidor resolve o vínculo por e-mail dentro da org da vaga: cria o
+   * candidato com consentimento LGPD datado quando o e-mail é novo, ou apenas
+   * VINCULA a candidatura ao cadastro existente sem alterá-lo. O cliente
+   * anônimo nunca lê nem atualiza candidates diretamente.
+   * Campos enviados: job_id, stage_id, status, source (top-level), um JSON
+   * "dedupe" com todos os dados do formulário + consentimento, e o "resume".
+   */
+  async createWithDedupe(formData: FormData): Promise<{
+    ok: boolean
+    outcome: string
+    linked: boolean
+    candidate_id: string
+    application_id: string
+  }> {
+    // O hook lê job_id/stage_id/status/source do JSON "dedupe" — garante que
+    // estejam lá mesmo que a página os tenha anexado apenas no top-level.
+    const dedupeRaw = String(formData.get('dedupe') || '{}')
+    let dedupe: Record<string, unknown> = {}
+    try {
+      dedupe = JSON.parse(dedupeRaw)
+    } catch (_) {
+      dedupe = {}
+    }
+    for (const key of ['job_id', 'stage_id', 'status', 'source']) {
+      const top = formData.get(key)
+      if (top != null && String(top) && !(key in dedupe)) {
+        dedupe[key] = String(top)
+      }
+    }
+    formData.set('dedupe', JSON.stringify(dedupe))
+
+    const res = await fetch(`${pb.buildUrl('')}/backend/v1/applications/apply`, {
+      method: 'POST',
+      body: formData,
+    })
+    const payload = await res.json().catch(() => null)
+
+    if (!res.ok || !payload?.ok) {
+      const message =
+        payload?.message ||
+        (res.status === 404
+          ? 'Vaga não encontrada ou não está mais aceitando candidaturas.'
+          : 'Não foi possível registrar sua candidatura. Tente novamente.')
+      throw new Error(message)
+    }
+
+    return {
+      ok: !!payload.ok,
+      outcome: String(payload.outcome || 'linked_created'),
+      linked: !!payload.linked,
+      candidate_id: String(payload.candidate_id || ''),
+      application_id: String(payload.application_id || ''),
+    }
+  },
+
   async updateStage(
     applicationId: string,
     toStage: string,

@@ -81,6 +81,20 @@ routerAdd('POST /backend/v1/applications/apply', (e) => {
   let candidateId = ''
   let applicationId = ''
   let consentAt = String(form.lgpd_consent_date || '')
+  if (!consentAt) {
+    consentAt = new Date().toISOString()
+  }
+
+  // Arquivo enviado no multipart (mesmo padrão do hook resume_extract).
+  let uploadedResume = null
+  try {
+    const files = e.findUploadedFiles('resume')
+    if (files && files.length > 0) {
+      uploadedResume = files[0]
+    }
+  } catch (_) {
+    uploadedResume = null
+  }
 
   try {
     app.runInTransaction(function () {
@@ -109,9 +123,8 @@ routerAdd('POST /backend/v1/applications/apply', (e) => {
           resume_source: String(form.resume_source || '').trim(),
         }
 
-        const resume = req.body.resume
-        if (resume) {
-          candidateData.resume = resume
+        if (uploadedResume) {
+          candidateData.resume = uploadedResume
         }
 
         if (form.resume_structured) {
