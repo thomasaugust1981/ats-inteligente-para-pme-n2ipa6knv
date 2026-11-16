@@ -260,11 +260,15 @@ export const CargosPage: React.FC = () => {
     if (!actionCargo || !action) return
     try {
       setActionBusy(true)
-      await cargosService.runAction({
-        cargo_id: actionCargo.id,
-        action,
-        comment,
-      })
+      // Payload por ação — o hook cargo_server.js valida campos diferentes:
+      // reject exige reason; convert exige purpose='PREENCHIMENTO'.
+      const payload =
+        action === 'reject'
+          ? { cargo_id: actionCargo.id, action, reason: comment }
+          : action === 'convert'
+            ? { cargo_id: actionCargo.id, action, comment, purpose: 'PREENCHIMENTO' }
+            : { cargo_id: actionCargo.id, action, comment }
+      await cargosService.runAction(payload)
       toast({
         title:
           action === 'submit'

@@ -4303,13 +4303,14 @@
         return t ? { Authorization: t } : {}
       }
       function atsAuth() {
-        const out = { token: '', userId: '' }
+        const out = { token: '', userId: '', orgId: '' }
         try {
           const raw = parent.localStorage.getItem('pocketbase_auth')
           if (raw) {
             const data = JSON.parse(raw)
             out.token = (data && data.token) || ''
             out.userId = (data && data.record && data.record.id) || ''
+            out.orgId = (data && data.record && data.record.org_id) || ''
           }
         } catch (e) {
           /* sem acesso ao parent (fora do iframe) ou sem sessão */
@@ -5259,7 +5260,15 @@
         }
 
         /* ---------------- seed de exemplo (sem versões no banco) ------------ */
+        // O POST vai direto na records API e a regra de create (mig 0024)
+        // compara o org_id do payload com a org do usuário autenticado.
+        // Sem sessão/org resolvida, o seed é pulado silenciosamente.
+        function authOrgId() {
+          return String(atsAuth().orgId || '')
+        }
         async function seedDemoVersions() {
+          const orgId = authOrgId()
+          if (!orgId) return
           const snap = state.nodes
           const c = company()
           const me = actor()
@@ -5269,6 +5278,7 @@
             label: 'Estrutura inicial',
             status: 'APROVADA',
             nodes_json: JSON.stringify(snap),
+            org_id: orgId,
             company: c,
             created_by: currentUser(),
             created_by_role: 'Elaboração',
@@ -5307,7 +5317,7 @@
               await fetch(APR_URL, {
                 method: 'POST',
                 headers: Object.assign({ 'Content-Type': 'application/json' }, pbAuthHeaders()),
-                body: JSON.stringify({ version_number: 1, company: c, ...t }),
+                body: JSON.stringify({ version_number: 1, org_id: orgId, company: c, ...t }),
               })
             } catch (e) {}
           }
@@ -5336,6 +5346,7 @@
             label: 'Ajustes de estrutura',
             status: 'EM_APROVACAO',
             nodes_json: JSON.stringify(draftNodes),
+            org_id: orgId,
             company: c,
             created_by: me.name,
             created_by_role: 'Elaboração',
@@ -5350,6 +5361,7 @@
               headers: Object.assign({ 'Content-Type': 'application/json' }, pbAuthHeaders()),
               body: JSON.stringify({
                 version_number: 2,
+                org_id: orgId,
                 company: c,
                 step: 'ENVIO',
                 decision: '—',

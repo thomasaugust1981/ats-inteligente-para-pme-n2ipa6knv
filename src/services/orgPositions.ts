@@ -44,4 +44,5 @@ export const orgPositionsService = {
   },
 }
 
-export type { OrgPositionOption }
+// OrgPositionOption já é exportado na declaração do tipo (linha 9) — re-export
+// duplicado gerava TS2484.
