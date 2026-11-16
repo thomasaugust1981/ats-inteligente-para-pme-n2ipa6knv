@@ -167,6 +167,8 @@ export interface HiredApplication {
   job_id?: { [key: string]: unknown }
   stage_id?: string
   created?: string
+  /** Data da última mudança de etapa (usada como data de admissão no export Goldway). */
+  stage_updated_at?: string
   expand?: {
     candidate_id?: Candidate & Record<string, unknown>
     job_id?: Record<string, unknown>
