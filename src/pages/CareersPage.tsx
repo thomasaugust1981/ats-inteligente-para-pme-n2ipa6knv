@@ -53,12 +53,10 @@ export const CareersPage: React.FC = () => {
     async function loadData() {
       try {
         setLoading(true)
-        const [jobsList, comp] = await Promise.all([
-          jobsService.getPublishedJobs(),
-          companyService.getCompany(
-            (jobsList[0] as unknown as { company_id?: string })?.company_id,
-          ),
-        ])
+        const jobsList = await jobsService.getPublishedJobs()
+        const comp = await companyService.getCompany(
+          (jobsList[0] as unknown as { company_id?: string })?.company_id,
+        )
         setJobs(jobsList)
         setCompany(comp)
       } catch (err) {
