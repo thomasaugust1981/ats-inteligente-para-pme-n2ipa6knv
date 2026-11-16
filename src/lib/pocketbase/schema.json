@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-16T14:30:31.095Z",
+  "generatedAt": "2026-11-16T14:52:14.706Z",
   "collections": [
     {
       "name": "users",
@@ -704,7 +704,9 @@
             "erp_job_created",
             "erp_job_updated",
             "erp_job_rejected",
-            "candidate_suggested"
+            "candidate_suggested",
+            "integration_exported",
+            "interview_scheduled"
           ]
         },
         {
@@ -1613,6 +1615,80 @@
         }
       ],
       "indexes": ["CREATE UNIQUE INDEX idx_organizations_slug ON organizations (slug)"]
+    },
+    {
+      "name": "integration_settings",
+      "type": "base",
+      "apiRules": {
+        "list": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
+        "view": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
+        "create": "@request.auth.id != '' && @request.auth.org_id != ''",
+        "update": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
+        "delete": "(@request.auth.id != '' && org_id = @request.auth.org_id && @request.auth.role = 'admin') || @request.auth.role = 'superadmin'"
+      },
+      "fields": [
+        {
+          "name": "integration",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "org_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "organizations"
+        },
+        {
+          "name": "company_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "companies"
+        },
+        {
+          "name": "enabled",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "config",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "last_sync_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "last_sync_summary",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_integration_settings_company ON integration_settings (integration, company_id)"
+      ]
     }
   ]
 }

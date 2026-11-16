@@ -16,6 +16,7 @@ import {
   Rocket,
   Network,
   Bot,
+  Plug,
 } from 'lucide-react'
 import { useAiAgentSettings } from '@/hooks/use-ai-agent-settings'
 import { onboardingService } from '@/services/onboarding'
@@ -164,6 +165,19 @@ const Layout: React.FC = () => {
               <span>Organograma</span>
             </Link>
           )}
+          {isAdmin && (
+            <Link
+              to="/integracoes"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition ${
+                location.pathname.startsWith('/integracoes')
+                  ? 'bg-sky-600 text-white shadow-xs'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/80'
+              }`}
+            >
+              <Plug className="w-4 h-4" />
+              <span>Integrações</span>
+            </Link>
+          )}
           {showSuperadminLink && (
             <Link
               to="/superadmin"
@@ -269,6 +283,16 @@ const Layout: React.FC = () => {
               className="block py-2 text-sm text-violet-300 hover:text-white"
             >
               Superadmin
+            </Link>
+          )}
+          {isAdmin && (
+            <Link
+              to="/integracoes"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-2 py-2 text-sm text-slate-300 hover:text-white"
+            >
+              <Plug className="w-4 h-4" />
+              Integrações
             </Link>
           )}
           <Link
