@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-16T18:30:27.792Z",
+  "generatedAt": "2026-11-16T19:45:02.422Z",
   "collections": [
     {
       "name": "users",
@@ -904,11 +904,11 @@
       "name": "disc_results",
       "type": "base",
       "apiRules": {
-        "list": "",
-        "view": "",
+        "list": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "view": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
         "create": null,
         "update": "",
-        "delete": "@request.auth.id != ''"
+        "delete": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'"
       },
       "fields": [
         {
@@ -996,11 +996,11 @@
       "name": "org_nodes",
       "type": "base",
       "apiRules": {
-        "list": "",
-        "view": "",
-        "create": "",
-        "update": "",
-        "delete": ""
+        "list": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "view": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "create": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "update": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "delete": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'"
       },
       "fields": [
         {
@@ -1116,11 +1116,11 @@
       "name": "org_versions",
       "type": "base",
       "apiRules": {
-        "list": "",
-        "view": "",
-        "create": "",
-        "update": "",
-        "delete": ""
+        "list": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "view": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "create": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "update": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "delete": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'"
       },
       "fields": [
         {
@@ -1251,11 +1251,11 @@
       "name": "org_approvals",
       "type": "base",
       "apiRules": {
-        "list": "",
-        "view": "",
-        "create": "",
-        "update": "",
-        "delete": ""
+        "list": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "view": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "create": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "update": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "delete": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'"
       },
       "fields": [
         {
