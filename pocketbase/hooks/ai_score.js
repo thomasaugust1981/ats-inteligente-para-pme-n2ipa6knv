@@ -160,7 +160,9 @@ routerAdd('POST', '/backend/v1/candidates/score', (e) => {
   let responsePayload = null
 
   try {
-    const auth = e.auth
+    // /backend/v1/* não recebe e.auth do runtime — resolve pelo header (resolver
+    // definido em menu_order_server.js).
+    const auth = $app.resolveAuthUser(e)
     if (!auth) {
       responseStatus = 401
       responsePayload = { error: 'Autenticação necessária.' }

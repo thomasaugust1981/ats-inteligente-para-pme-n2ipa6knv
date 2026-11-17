@@ -246,7 +246,7 @@ $app.callNativeAgent = function (prompt) {
 
 routerAdd('POST', '/backend/v1/ai-provider/key', (e) => {
   function requireAdmin() {
-    const auth = e.auth
+    const auth = $app.resolveAuthUser(e)
     if (!auth) {
       e.json(401, { error: 'Autenticação necessária.' })
       return false
@@ -275,7 +275,7 @@ routerAdd('POST', '/backend/v1/ai-provider/key', (e) => {
 
     // Config POR ORGANIZAÇÃO (0029): grava na config da ORG do admin autenticado,
     // criando-a se ainda não existir (a org nunca herda nem sobrescreve a de outra).
-    const orgId = String(e.auth.get('org_' + 'id') || '')
+    const orgId = String((e.auth || $app.resolveAuthUser(e)).get('org_' + 'id') || '')
     let record = null
     if (orgId) {
       try {
@@ -375,7 +375,7 @@ routerAdd('POST', '/backend/v1/ai-provider/test', (e) => {
     // Sem chave no payload → usa a JÁ GRAVADA da org do admin (troca de modelo
     // sem redigitar a chave).
     if (!apiKey) {
-      const orgId = String(e.auth.get('org_' + 'id') || '')
+      const orgId = String((e.auth || $app.resolveAuthUser(e)).get('org_' + 'id') || '')
       try {
         const cfg = $app.getAiProvider(e.app, orgId)
         // getAiProvider faz fallback à global — só reaproveita se for da PRÓPRIA org.

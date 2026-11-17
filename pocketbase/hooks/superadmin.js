@@ -9,7 +9,9 @@
 //
 
 routerAdd('POST', '/backend/v1/superadmin/organizations', (e) => {
-  const auth = e.auth
+  // /backend/v1/* não recebe e.auth do runtime — resolve pelo header (resolver
+  // definido em menu_order_server.js).
+  const auth = $app.resolveAuthUser(e)
   if (!auth) {
     return e.json(401, { error: 'Autenticação necessária.' })
   }
@@ -144,7 +146,9 @@ routerAdd('POST', '/backend/v1/superadmin/organizations', (e) => {
 // no schema (organizations só tem name/slug/is_active/notes).
 //
 routerAdd('GET', '/backend/v1/superadmin/organizations/counts', (e) => {
-  const auth = e.auth
+  // /backend/v1/* não recebe e.auth do runtime — resolve pelo header (resolver
+  // definido em menu_order_server.js).
+  const auth = $app.resolveAuthUser(e)
   if (!auth) {
     return e.json(401, { error: 'Autenticação necessária.' })
   }

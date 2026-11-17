@@ -643,7 +643,7 @@ routerAdd('GET', '/backend/v1/indicators/first-response-time', (e) => {
   }
 
   try {
-    const auth = e.auth
+    const auth = $app.resolveAuthUser(e)
     if (!auth) return e.json(401, { error: 'Autenticação necessária.' })
 
     let info = {}
@@ -871,7 +871,7 @@ routerAdd('GET', '/backend/v1/indicators/rejection-reasons', (e) => {
   }
 
   try {
-    const auth = e.auth
+    const auth = $app.resolveAuthUser(e)
     if (!auth) return e.json(401, { error: 'Autenticação necessária.' })
 
     let info = {}
