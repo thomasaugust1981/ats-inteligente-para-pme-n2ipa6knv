@@ -1,95 +1,78 @@
-// Ordem do menu lateral POR USUÁRIO (users.menu_order — migração 0035).
-// Leitura/gravação pela rota dedicada /backend/v1/menu-order
-// (pocketbase/hooks/menu_order_server.js): o servidor grava no registro do
-// PRÓPRIO usuário autenticado — sem PATCH /api/collections/users/records/{id},
-// que em produção voltava 404 (PocketBase responde 404 quando a regra esconde
-// o registro ou o token do authStore está stale). Persistência otimista: a UI
-// reordena na hora e salva em segundo plano; se falhar, o aviso aparece
-// discreto e a ordem revertida na próxima navegação (recarregamento).
+// Ordem do menu lateral POR USUÁRIO (menu_order JSON no próprio usuário —
+// migração 0035). Persistência otimista: a UI reordena na hora e salva em
+// segundo plano; se falhar, o aviso aparece discreto e a ordem revertida na
+// próxima navegação (recarregamento).
+//
+// Gravação e leitura passam pelas rotas dedicadas do hook
+// pocketbase/hooks/menu_order_server.js (GET/POST /backend/v1/menu-order), que
+// escrevem no registro do PRÓPRIO usuário autenticado — evita o 404 de
+// PocketBase do PATCH direto em /api/collections/users/records/{id} (regra de
+// update do users negando aparece como 404, e token expirado no authStore idem).
 import pb from '@/lib/pocketbase/client'
-import { getErrorMessage } from '@/lib/pocketbase/errors'
 import type { NavId } from '@/lib/navModel'
 
 /** Ordem salva do menu (lista de ids de rota). null = nunca personalizou. */
 export type SavedMenuOrder = NavId[] | null
 
-const MENU_ORDER_ROUTE = '/backend/v1/menu-order'
+const isNavId = (v: unknown): v is NavId => typeof v === 'string' && v.length > 0 && v.length <= 64
 
-/** Token atual do authStore (header Authorization das rotas do hook). */
-function authHeader(): Record<string, string> {
-  return { Authorization: pb.authStore.token }
-}
-
-/**
- * Renova o token do authStore uma vez (404 de regra em PATCH/GET de record
- * costuma ser token stale) e devolve true se renovou.
- */
-async function refreshAuthOnce(): Promise<boolean> {
+/** Token expirado/stale → renova o authStore (authRefresh) e revalida. */
+async function withFreshToken<T>(fn: () => Promise<T>): Promise<T> {
   try {
-    await pb.collection('users').authRefresh()
-    return true
-  } catch (_) {
-    return false
+    return await fn()
+  } catch (err) {
+    const status =
+      (err as { status?: number; response?: { status?: number } })?.status ??
+      (err as { response?: { status?: number } })?.response?.status
+    if (status !== 0 && status !== 400 && status !== 401 && status !== 403 && status !== 404) {
+      throw err
+    }
+    if (!pb.authStore.isValid || !pb.authStore.record?.id) throw err
+    try {
+      await pb.collection('users').authRefresh()
+    } catch (_) {
+      throw err
+    }
+    return fn()
   }
 }
 
 /** Lê a preferência salva do usuário logado. Falha = volta para null (padrão). */
 export async function loadMenuOrder(): Promise<SavedMenuOrder> {
-  if (!pb.authStore.record?.id) return null
-  const read = async (): Promise<SavedMenuOrder> => {
-    const res = await fetch(pb.buildUrl(MENU_ORDER_ROUTE), { headers: authHeader() })
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    const data = (await res.json()) as { menu_order?: unknown }
-    if (!Array.isArray(data.menu_order)) return null
-    return data.menu_order.filter((x): x is NavId => typeof x === 'string')
-  }
   try {
-    return await read()
+    const res = await withFreshToken(() => pb.send('/backend/v1/menu-order', {}))
+    const raw = (res as { menu_order?: unknown } | undefined)?.menu_order
+    if (!Array.isArray(raw)) return null
+    return raw.filter(isNavId) as NavId[]
   } catch (_) {
-    // token stale → renova e tenta mais uma vez
-    if (await refreshAuthOnce()) {
-      try {
-        return await read()
-      } catch (_) {
-        return null
-      }
-    }
     return null
   }
 }
 
 /** Salva a nova ordem para o usuário logado. Idempotente (campo único JSON). */
 export async function saveMenuOrder(order: NavId[]): Promise<void> {
-  if (!pb.authStore.record?.id) throw new Error('Usuário não autenticado.')
-  const send = async (): Promise<void> => {
-    const res = await fetch(pb.buildUrl(MENU_ORDER_ROUTE), {
+  if (!pb.authStore.isValid || !pb.authStore.record?.id) {
+    throw new Error('Usuário não autenticado.')
+  }
+  await withFreshToken(() =>
+    pb.send('/backend/v1/menu-order', {
       method: 'POST',
-      headers: { ...authHeader(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ menu_order: order }),
-    })
-    if (!res.ok) {
-      let message = `HTTP ${res.status}`
-      try {
-        const data = (await res.json()) as { error?: string }
-        if (data?.error) message = data.error
-      } catch (_) {
-        /* corpo não-JSON: mantém o HTTP status */
-      }
-      throw new Error(message)
-    }
-  }
-  try {
-    await send()
-  } catch (err) {
-    // token stale → renova e tenta mais uma vez antes de desistir
-    if (await refreshAuthOnce()) await send()
-    else throw err
-  }
+      body: { menu_order: order },
+    }),
+  )
 }
 
 /** Restaura (apaga) a preferência — volta ao DEFAULT_NAV_IDS. */
 export async function resetMenuOrder(): Promise<void> {
-  await saveMenuOrder([])
+  if (!pb.authStore.isValid || !pb.authStore.record?.id) {
+    throw new Error('Usuário não autenticado.')
+  }
+  await withFreshToken(() =>
+    pb.send('/backend/v1/menu-order', {
+      method: 'POST',
+      body: { menu_order: null },
+    }),
+  )
 }
 
 /**
@@ -99,7 +82,7 @@ export async function resetMenuOrder(): Promise<void> {
 export async function fetchIndicatorsLicensed(): Promise<boolean> {
   try {
     const res = await fetch(`${pb.buildUrl('')}/backend/v1/indicators/status`, {
-      headers: authHeader(),
+      headers: { Authorization: pb.authStore.token },
     })
     if (!res.ok) return false
     const data = (await res.json()) as { licensed?: boolean }
@@ -110,5 +93,16 @@ export async function fetchIndicatorsLicensed(): Promise<boolean> {
 }
 
 export function menuOrderErrorMessage(err: unknown): string {
-  return getErrorMessage(err)
+  const status =
+    (err as { status?: number })?.status ??
+    (err as { response?: { status?: number } })?.response?.status
+  const label =
+    status === 401
+      ? 'Sessão expirada — faça login novamente.'
+      : status === 404
+        ? 'Serviço de ordem do menu indisponível (rota não encontrada).'
+        : status === 500
+          ? 'Erro do servidor ao gravar a ordem.'
+          : undefined
+  return label || (err instanceof Error ? err.message : String(err))
 }
