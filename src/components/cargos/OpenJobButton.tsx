@@ -50,12 +50,12 @@ export const OpenJobButton: React.FC<OpenJobButtonProps> = ({
               <li key={p.id} className="text-[11px] text-amber-800 flex items-center gap-1">
                 <X className="w-3 h-3 text-amber-600 shrink-0" />
                 <span>{p.label}</span>
-                {p.resolveLink && p.resolveLabel && (
+                {p.resolveTo && (
                   <Link
-                    to={p.resolveLink}
+                    to={p.resolveTo}
                     className="underline font-medium text-sky-700 hover:text-sky-900 ml-1 whitespace-nowrap"
                   >
-                    {p.resolveLabel}
+                    resolver
                   </Link>
                 )}
               </li>
