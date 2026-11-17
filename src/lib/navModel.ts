@@ -48,8 +48,13 @@ export interface NavVisibilityContext {
   isManager: boolean
   isSuperadmin: boolean
   agentEnabled: boolean
-  /** Módulo Indicadores licenciado para a org (resolvido via rota do hook). */
+  /**
+   * Estado da licença do módulo Indicadores (resolvedor próprio no ctx):
+   * undefined = ainda não consultado → o item aparece (fail-open) e some
+   * apenas se o resolvedor confirmar lic=false.
+   */
   indicatorsLicensed?: boolean
+  indicatorsLicensedResolved?: (ctx: NavVisibilityContext) => boolean
 }
 
 /**
@@ -118,9 +123,11 @@ export const NAV_ITEMS: NavItem[] = [
     label: 'Indicadores',
     path: '/indicadores',
     icon: BarChart3,
-    // Módulo licenciado à parte — o status é resolvido pelo chamador
-    // (fetchIndicatorsLicensed) e chega aqui via ctx.indicatorsLicensed.
-    visible: (c) => c.indicatorsLicensed === true,
+    // Módulo licenciado à parte — o status chega via ctx.indicatorsLicensed.
+    // FAIL-OPEN: undefined (ainda não consultado) mostra o item; o item só
+    // some quando o resolvedor confirma licença false. A licença real é
+    // sempre aplicada no backend, o menu é só conveniência.
+    visible: (c) => c.indicatorsLicensed !== false,
   },
   {
     id: 'organograma',

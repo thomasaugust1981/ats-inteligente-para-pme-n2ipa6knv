@@ -41,31 +41,45 @@ const navItemsById: Record<string, NavItem | undefined> = Object.fromEntries(
 export const SidebarNav: React.FC<SidebarNavProps> = ({ ctx, className, onNavigate }) => {
   const { toast } = useToast()
   const location = useLocation()
-  const [order, setOrder] = useState<NavId[]>(() => defaultNavIdsFor(ctx))
+  // FAIL-OPEN: licença indefinida (não consultada) mantém o item visível; só
+  // some quando o fetch confirmar false. Sem isso o item nunca aparece, pois o
+  // ctx recebido do Layout nunca carrega indicatorsLicensed.
+  const [licensed, setLicensed] = useState<boolean | undefined>(undefined)
+  const [order, setOrder] = useState<NavId[]>([])
   const [draggingId, setDraggingId] = useState<NavId | null>(null)
   const [overId, setOverId] = useState<NavId | null>(null)
   const [isCustomized, setIsCustomized] = useState(false)
   const [saveFailed, setSaveFailed] = useState(false)
   const dragIndexRef = useRef<number | null>(null)
-  const licensedRef = useRef(false)
+  const licensedRef = useRef<boolean | undefined>(undefined)
+
+  // ctx efetivo: papéis do Layout + licença resolvida (afeta ORDEM e RENDER).
+  const effectiveCtx = useMemo<CtxWithLicense>(
+    () => ({ ...ctx, indicatorsLicensed: licensed }),
+    [ctx, licensed],
+  )
+
+  // Ordem padrão aplicada enquanto a preferência/licença não chegam.
+  useEffect(() => {
+    setOrder((current) => (current.length > 0 ? current : defaultNavIdsFor(effectiveCtx)))
+  }, [effectiveCtx])
 
   // Itens que o usuário pode ver AGORA (licença de Indicadores entra no ctx).
   const items = useMemo<NavItem[]>(
     () =>
       order
         .map((id) => navItemsById[id])
-        .filter((n): n is NavItem => !!n && n.visible(ctx as CtxWithLicense)),
-    [order, ctx],
+        .filter((n): n is NavItem => !!n && n.visible(effectiveCtx)),
+    [order, effectiveCtx],
   )
 
   // Recarrega a preferência do backend e aplica por cima do padrão.
   const reload = async () => {
-    const [saved, licensed] = await Promise.all([loadMenuOrder(), fetchIndicatorsLicensed()])
-    licensedRef.current = licensed
-    const merged = applySavedOrder(saved, {
-      ...ctx,
-      indicatorsLicensed: licensed,
-    } as CtxWithLicense)
+    const [saved, licensedNow] = await Promise.all([loadMenuOrder(), fetchIndicatorsLicensed()])
+    licensedRef.current = licensedNow
+    const nextCtx = { ...ctx, indicatorsLicensed: licensedNow } as CtxWithLicense
+    setLicensed(licensedNow)
+    const merged = applySavedOrder(saved, nextCtx)
     setOrder(merged)
     setIsCustomized(!!saved && saved.length > 0)
     return merged
@@ -105,7 +119,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ ctx, className, onNaviga
         setOrder(
           applySavedOrder(saved, {
             ...ctx,
-            indicatorsLicensed: licensedRef.current,
+            indicatorsLicensed: licensedRef.current ?? true,
           } as CtxWithLicense),
         ),
       )
@@ -136,7 +150,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ ctx, className, onNaviga
   }
 
   const handleReset = () => {
-    const def = defaultNavIdsFor(ctx as CtxWithLicense)
+    const def = defaultNavIdsFor(effectiveCtx)
     setOrder(def)
     setIsCustomized(false)
     setSaveFailed(false)

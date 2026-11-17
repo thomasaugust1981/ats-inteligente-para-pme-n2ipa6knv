@@ -82,22 +82,35 @@ export async function resetMenuOrder(): Promise<void> {
   await withFreshToken(() => pb.collection('users').update(userId, { menu_order: null }))
 }
 
+/** Resolve a organização do usuário: campo do record ou a 1ª org do banco. */
+export async function resolveOrgId(): Promise<string | null> {
+  const recordOrgId = pb.authStore.record?.org_id
+  if (typeof recordOrgId === 'string' && recordOrgId) return recordOrgId
+  if (!pb.authStore.isValid) return null
+  try {
+    const orgs = await pb.collection('organizations').getList(1, 1)
+    return orgs.items[0]?.id || null
+  } catch (_) {
+    return null
+  }
+}
+
 /**
  * Módulo Indicadores é licenciado à parte — decide a visibilidade do item no
  * menu. Lê DIRETO da coleção org_modules (regra: leitura da própria org) via
  * API padrão do SDK — a rota custom /backend/v1/indicators/status está fora do
  * caminho crítico por causa do 401 de auth em rotas fora de /api/.
  *
- * Tratamento de erro: registro não encontrado (404) = não licenciado (false);
- * erro de permissão/auth = fail-open (true) — o item aparece no menu e a
- * própria página /indicadores mostra o estado de não licenciado se as rotas de
- * dados falharem; a licença real é sempre aplicada no backend, o menu é só
- * conveniência.
+ * Tratamento de erro (o menu é só conveniência — a licença real é sempre
+ * aplicada no backend): registro não encontrado (404) OU qualquer falha na
+ * consulta (auth/permissão/rede) = fail-open (true). Retorna false APENAS
+ * quando a consulta responde com um registro cujo licensed é false ou cujo
+ * licensed_until já venceu — aí o item sai do menu de verdade.
  */
 export async function fetchIndicatorsLicensed(): Promise<boolean> {
   if (!pb.authStore.isValid) return false
-  const orgId = pb.authStore.record?.org_id
-  if (typeof orgId !== 'string' || !orgId) return false
+  const orgId = await resolveOrgId()
+  if (!orgId) return true // sem org identificável → fail-open (não bloqueia o item)
   try {
     const rec = await pb.collection('org_modules').getFirstListItem<{
       licensed?: boolean
@@ -111,9 +124,11 @@ export async function fetchIndicatorsLicensed(): Promise<boolean> {
     const status =
       (err as { status?: number; response?: { status?: number } })?.status ??
       (err as { response?: { status?: number } })?.response?.status
-    // 404 do PocketBase = registro ausente → não licenciado.
+    // 404 do PocketBase = registro ausente → não licenciado (o superadmin
+    // ainda não criou a licença para esta org).
     if (status === 404) return false
-    // Permissão/auth ou outro erro → fail-open (a página aplica a licença real).
+    // Qualquer outro erro (auth, permissão, rede) → fail-open: o item aparece
+    // no menu e a própria página /indicadores aplica a licença real.
     return true
   }
 }

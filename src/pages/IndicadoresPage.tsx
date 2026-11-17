@@ -26,6 +26,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/EmptyState'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import pb from '@/lib/pocketbase/client'
+import { resolveOrgId } from '@/services/menuOrder'
 import { useActiveCompany } from '@/hooks/use-active-company'
 import { jobsService } from '@/services/jobs'
 import type { Job } from '@/types/ats'
@@ -129,8 +130,8 @@ export const IndicadoresPage: React.FC = () => {
         if (!cancelled) setStatus(s)
       } catch (_) {
         try {
-          const orgId = pb.authStore.record?.org_id
-          if (typeof orgId !== 'string' || !orgId) throw new Error('Organização não identificada.')
+          const orgId = await resolveOrgId()
+          if (!orgId) throw new Error('Organização não identificada.')
           const rec = await pb
             .collection('org_modules')
             .getFirstListItem<{ licensed?: boolean; expand?: { org_id?: { name?: string } } }>(
