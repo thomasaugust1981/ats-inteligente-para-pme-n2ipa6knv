@@ -22,6 +22,7 @@ type CtxWithLicense = NavVisibilityContext & { indicatorsLicensed?: boolean }
 import {
   fetchIndicatorsLicensed,
   loadMenuOrder,
+  logBundleVersion,
   menuOrderErrorMessage,
   saveMenuOrder,
 } from '@/services/menuOrder'
@@ -76,6 +77,11 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ ctx, className, onNaviga
   // Recarrega a preferência do backend e aplica por cima do padrão.
   const reload = async () => {
     const [saved, licensedNow] = await Promise.all([loadMenuOrder(), fetchIndicatorsLicensed()])
+    if (import.meta.env.DEV || licensedNow === false) {
+      // Visível no console do usuário APENAS quando a licença realmente esconde
+      // o item — o caso que estava invisível até agora. DEV sempre loga.
+      console.info('[SidebarNav] licença Indicadores =', licensedNow)
+    }
     licensedRef.current = licensedNow
     const nextCtx = { ...ctx, indicatorsLicensed: licensedNow } as CtxWithLicense
     setLicensed(licensedNow)
@@ -88,11 +94,13 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ ctx, className, onNaviga
   // Carrega uma vez por usuário (ctx muda só com login/logout/troca de papel).
   useEffect(() => {
     let cancelled = false
+    logBundleVersion()
     void (async () => {
       try {
         if (!cancelled) await reload()
-      } catch (_) {
+      } catch (err) {
         // silencioso: cai no padrão já setado no useState inicial
+        console.warn('[SidebarNav] reload falhou — menu fica na ordem padrão', err)
       }
     })()
     return () => {

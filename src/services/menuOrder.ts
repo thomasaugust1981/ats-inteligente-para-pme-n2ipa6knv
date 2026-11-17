@@ -102,20 +102,33 @@ export async function resolveOrgId(): Promise<string | null> {
  * caminho crítico por causa do 401 de auth em rotas fora de /api/.
  *
  * Tratamento de erro (o menu é só conveniência — a licença real é sempre
- * aplicada no backend): registro não encontrado (404) OU qualquer falha na
- * consulta (auth/permissão/rede) = fail-open (true). Retorna false APENAS
- * quando a consulta responde com um registro cujo licensed é false ou cujo
+ * aplicada no backend): registro não encontrado OU qualquer falha na consulta
+ * (auth/permissão/rede) = fail-open (true). Retorna false APENAS quando a
+ * consulta responde com um registro cujo licensed é false ou cujo
  * licensed_until já venceu — aí o item sai do menu de verdade.
+ *
+ * IMPORTANTE: a leitura passa por withFreshToken — o PocketBase responde 404
+ * (não 403/401) quando o TOKEN ESTÁ STALE e a regra da coleção esconde o
+ * registro (mesmo comportamento já visto no PATCH de users/{id}). Sem o
+ * refresh+retry, um token vencido fazia getFirstListItem devolver 404 e o
+ * código abaixo classificava como "org sem licença", escondendo o item
+ * Indicadores silenciosamente após F5 (sem nenhum erro no console).
  */
 export async function fetchIndicatorsLicensed(): Promise<boolean> {
-  if (!pb.authStore.isValid) return false
+  // FAIL-OPEN também sem token: quem chama isto (SidebarNav / página de
+  // indicadores) só renderiza para usuário logado; um authStore momentaneamente
+  // vazio (hidratação, logout em andamento) NÃO deve esconder o item em
+  // silêncio — era o único caminho que retornava false sem rede e sem erro.
+  if (!pb.authStore.isValid) return true
   const orgId = await resolveOrgId()
   if (!orgId) return true // sem org identificável → fail-open (não bloqueia o item)
   try {
-    const rec = await pb.collection('org_modules').getFirstListItem<{
-      licensed?: boolean
-      licensed_until?: string | null
-    }>(`org_id = "${orgId}" && module = "indicadores"`)
+    const rec = await withFreshToken(() =>
+      pb.collection('org_modules').getFirstListItem<{
+        licensed?: boolean
+        licensed_until?: string | null
+      }>(`org_id = "${orgId}" && module = "indicadores"`),
+    )
     if (rec?.licensed !== true) return false
     const until = rec.licensed_until
     if (until && new Date(until).getTime() < Date.now()) return false
@@ -124,12 +137,23 @@ export async function fetchIndicatorsLicensed(): Promise<boolean> {
     const status =
       (err as { status?: number; response?: { status?: number } })?.status ??
       (err as { response?: { status?: number } })?.response?.status
-    // 404 do PocketBase = registro ausente → não licenciado (o superadmin
-    // ainda não criou a licença para esta org).
+    // 404 aqui = licença realmente inexistente para a org (o withFreshToken já
+    // renovou um token stale e tentou de novo). O superadmin ainda não criou
+    // a licença para esta org → item fora do menu, como esperado.
     if (status === 404) return false
     // Qualquer outro erro (auth, permissão, rede) → fail-open: o item aparece
     // no menu e a própria página /indicadores aplica a licença real.
     return true
+  }
+}
+
+/** Marcador da versão do bundle (uma linha por carregamento da página). */
+export function logBundleVersion(): void {
+  try {
+    // eslint-disable-next-line no-console
+    console.info('[menuOrder] bundle v0.0.86 — fetchIndicatorsLicensed com fail-open total')
+  } catch (_) {
+    /* noop */
   }
 }
 
