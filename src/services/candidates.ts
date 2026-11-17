@@ -1,5 +1,39 @@
 import pb from '@/lib/pocketbase/client'
+import { withFreshToken } from '@/lib/pocketbase/freshToken'
 import type { Candidate, Application, AuditLog, AuditAction } from '@/types/ats'
+
+/**
+ * Anonimiza os logs de auditoria que casam com o filtro (decisão de produto do
+ * hook lgpd_delete: apagar destruiria a auditoria do processo; manter guardaria
+ * dados pessoais). Cada log perde o conteúdo pessoal (details/reason, vínculos
+ * com application/candidate, stages) e passa a dizer "candidato removido via
+ * LGPD", mantendo data e AUTOR (membro da equipe, não o titular).
+ * Falhas individuais não interrompem a exclusão.
+ */
+async function anonymizeAuditLogs(filter: string): Promise<void> {
+  try {
+    const logs = await pb.collection('audit_logs').getFullList<AuditLog>({ filter })
+    for (const log of logs) {
+      try {
+        await withFreshToken(() =>
+          pb.collection('audit_logs').update(log.id, {
+            action: 'candidate_deleted',
+            application_id: null,
+            candidate_id: null,
+            from_stage: '',
+            to_stage: '',
+            reason: 'candidato removido via LGPD',
+            details: 'candidato removido via LGPD',
+          }),
+        )
+      } catch (err) {
+        console.warn('[lgpd] falha ao anonimizar audit_log:', err)
+      }
+    }
+  } catch (_) {
+    // sem permissão de leitura/logs — segue a exclusão
+  }
+}
 
 export const candidatesService = {
   async listCandidates(filter?: string, sort = '-created'): Promise<Candidate[]> {
@@ -18,35 +52,107 @@ export const candidatesService = {
   },
 
   /**
-   * Exclusão real LGPD: rota server-side (hook lgpd_delete, Grupo 3 da
-   * auditoria) que apaga em cascata — candidaturas, scores de IA (com
-   * snapshot), resultados DISC, fichas CHA e o arquivo de currículo — e
-   * ANONIMIZA a trilha de auditoria do titular ("candidato removido via
-   * LGPD", mantendo ação/data/autor). Nada de dados pessoais sobrevive.
+   * Exclusão real LGPD: caminho crítico pela API PADRÃO do PocketBase, com
+   * withFreshToken (token stale → authRefresh + retry — o PocketBase responde
+   * 404 "resource wasn't found" quando o token venceu e a regra esconde o
+   * registro; padrão provado no fix do menu v0.0.84).
+   *
+   * Reproduz, no cliente, a cascata do hook lgpd_delete (Grupo 3 da auditoria):
+   * apaga candidaturas e, por dependência, scores de IA (com snapshot),
+   * fichas CHA e resultados DISC; ANONIMIZA a trilha de auditoria do titular
+   * (ação "candidate_deleted", detalhes "candidato removido via LGPD",
+   * mantendo data/autor); grava o registro de conformidade; e por fim apaga o
+   * candidato (o delete do registro remove o arquivo de currículo junto —
+   * candidates.resume é campo file). Mantém isolamento multi-empresa: só
+   * toca em registros da própria org (regras da API garantem o mesmo).
+   *
+   * O hook DELETE /backend/v1/candidates/{id}/lgpd continua no backend para
+   * chamadas externas, mas o frontend NÃO depende mais dele.
    */
   async deleteCandidateRealLGPD(
     candidateId: string,
   ): Promise<{ ok: boolean; deleted: Record<string, number> }> {
-    const res = await fetch(
-      `${pb.buildUrl('')}/backend/v1/candidates/${encodeURIComponent(candidateId)}/lgpd`,
-      {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: pb.authStore.token,
-        },
-      },
-    )
-    const payload = await res.json().catch(() => null)
-    if (!res.ok || !payload?.ok) {
-      const message =
-        payload?.message ||
-        (res.status === 403
-          ? 'Candidato fora da sua organização.'
-          : 'Não foi possível completar a exclusão LGPD.')
-      throw new Error(message)
+    const user = pb.authStore.record as (Record<string, unknown> & { org_id?: string }) | null
+    if (!pb.authStore.isValid || !user?.id) {
+      throw new Error('Autenticação necessária.')
     }
-    return { ok: true, deleted: payload.deleted || {} }
+    const deleted: Record<string, number> = {
+      applications: 0,
+      ai_scores: 0,
+      disc_results: 0,
+      cha_evaluations: 0,
+    }
+
+    // Carrega o candidato (404 aqui = token stale OU candidato de outra org —
+    // o retry de withFreshToken resolve o primeiro caso).
+    const candidate = await withFreshToken(() =>
+      pb.collection('candidates').getOne<Candidate>(candidateId),
+    )
+
+    // ---- 1. Candidaturas do titular --------------------------------------
+    const apps = await withFreshToken(() =>
+      pb.collection('applications').getFullList<Application>({
+        filter: `candidate_id = "${candidateId}"`,
+      }),
+    )
+
+    // ---- 2. Registros ligados a cada candidatura -------------------------
+    for (const app of apps) {
+      for (const [collection, filterField] of [
+        ['ai_scores', 'application_id'],
+        ['cha_evaluations', 'application_id'],
+        ['disc_results', 'application_id'],
+      ] as const) {
+        const rows = await pb
+          .collection(collection)
+          .getFullList({ filter: `${filterField} = "${app.id}"` })
+        for (const row of rows) {
+          await pb.collection(collection).delete(row.id)
+          deleted[collection] = (deleted[collection] || 0) + 1
+        }
+      }
+      // Logs de auditoria da candidatura — anonimizados (não apagados).
+      await anonymizeAuditLogs(`application_id = "${app.id}"`)
+    }
+
+    // ---- 3. Registros ligados direto ao candidato ------------------------
+    const directScores = await pb
+      .collection('ai_scores')
+      .getFullList({ filter: `candidate_id = "${candidateId}"` })
+    for (const row of directScores) {
+      await pb.collection('ai_scores').delete(row.id)
+      deleted.ai_scores += 1
+    }
+    await anonymizeAuditLogs(`candidate_id = "${candidateId}"`)
+
+    // ---- 4. Registro de conformidade na trilha ---------------------------
+    try {
+      await pb.collection('audit_logs').create({
+        org_id: (candidate as unknown as { org_id?: string }).org_id || user.org_id || '',
+        user_id: user.id,
+        user_name: String(user.name || user.email || 'Equipe'),
+        user_role: String(user.role || 'recruiter'),
+        action: 'candidate_deleted',
+        details:
+          'Registro de conformidade LGPD: exclusão executada em ' +
+          new Date().toISOString() +
+          '. Dados pessoais, currículo, scores de IA, DISC e fichas CHA removidos; trilha anterior anonimizada.',
+      })
+    } catch (_) {
+      // nunca bloqueia a exclusão por falha de log
+    }
+
+    // ---- 5. Candidaturas --------------------------------------------------
+    for (const app of apps) {
+      await pb.collection('applications').delete(app.id)
+      deleted.applications += 1
+    }
+
+    // ---- 6. O candidato: o delete do registro remove o arquivo físico de
+    //        currículo (candidates.resume, campo file) junto ---------------
+    await withFreshToken(() => pb.collection('candidates').delete(candidateId))
+
+    return { ok: true, deleted }
   },
 
   getResumeUrl(candidate: Candidate): string | null {

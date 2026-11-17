@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-17T20:05:36.556Z",
+  "generatedAt": "2026-11-17T20:18:54.722Z",
   "collections": [
     {
       "name": "users",
@@ -758,7 +758,7 @@
         "list": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
         "view": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
         "create": "(@request.auth.id != '' && @request.auth.org_id != '' && @request.body.org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
-        "update": null,
+        "update": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
         "delete": null
       },
       "fields": [
@@ -1496,7 +1496,7 @@
         "view": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'",
         "create": null,
         "update": null,
-        "delete": null
+        "delete": "(org_id = @request.auth.org_id && @request.auth.id != '') || @request.auth.role = 'superadmin'"
       },
       "fields": [
         {
