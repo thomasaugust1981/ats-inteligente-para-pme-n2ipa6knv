@@ -1,89 +1,213 @@
 import React, { useEffect, useState } from 'react'
-import { BarChart3, Lock, Building2, Loader2 } from 'lucide-react'
+import {
+  BarChart3,
+  Building2,
+  Lock,
+  RefreshCw,
+  AlertTriangle,
+  TrendingDown,
+  Clock,
+  FileText,
+  Target,
+  Route,
+} from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/EmptyState'
-import { LoadingState } from '@/components/LoadingState'
-import { getIndicatorsStatus, type IndicatorsStatus } from '@/services/modules'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
+import pb from '@/lib/pocketbase/client'
+import { useActiveCompany } from '@/hooks/use-active-company'
+import { jobsService } from '@/services/jobs'
+import type { Job } from '@/types/ats'
+import {
+  fetchFirstResponseTime,
+  fetchFunnelConversion,
+  fetchHiredSource,
+  fetchOfferAcceptance,
+  fetchRejectionReasons,
+  fetchTimeToHire,
+  fmtNum,
+  fmtPct,
+  NotLicensedError,
+  STAGE_LABELS,
+  type FirstResponseTimeResponse,
+  type FunnelConversionResponse,
+  type HiredSourceResponse,
+  type IndicatorsFilters,
+  type OfferAcceptanceResponse,
+  type RejectionReasonsResponse,
+  type TimeToHireResponse,
+} from '@/services/indicators'
+import {
+  DistributionBarList,
+  PeriodShortcuts,
+  SectionCard,
+  getAlertColor,
+} from './indicadores/IndicatorsShared'
 
-/** Os 6 indicadores que entram nos pacotes 2–4 — por enquanto, placeholders. */
-const INDICATOR_CARDS: { title: string; description: string }[] = [
-  {
-    title: 'Time to Hire por área',
-    description: 'Dias entre abertura e contratação, por área da estrutura.',
-  },
-  {
-    title: 'Conversão entre etapas do funil',
-    description: 'Percentual de avanço dos candidatos etapa a etapa do pipeline.',
-  },
-  {
-    title: 'Taxa de aceite de proposta',
-    description: 'Propostas aceitas sobre propostas enviadas.',
-  },
-  {
-    title: 'Origem do candidato contratado',
-    description: 'De onde vieram os candidatos efetivamente contratados.',
-  },
-  {
-    title: 'Tempo de primeira resposta',
-    description: 'Horas até o primeiro contato com o candidato.',
-  },
-  {
-    title: 'Motivo de reprovação',
-    description: 'Distribuição dos motivos de reprovação registrados no pipeline.',
-  },
+type PeriodPreset = 30 | 60 | 90
+
+type AllData = {
+  tth: TimeToHireResponse | null
+  funnel: FunnelConversionResponse | null
+  offer: OfferAcceptanceResponse | null
+  source: HiredSourceResponse | null
+  response: FirstResponseTimeResponse | null
+  rejection: RejectionReasonsResponse | null
+}
+
+const EMPTY: AllData = {
+  tth: null,
+  funnel: null,
+  offer: null,
+  source: null,
+  response: null,
+  rejection: null,
+}
+
+const PERIOD_PRESETS: { days: PeriodPreset; label: string }[] = [
+  { days: 30, label: '30 dias' },
+  { days: 60, label: '60 dias' },
+  { days: 90, label: '90 dias' },
 ]
 
+function isoDaysAgo(days: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() - days)
+  return d.toISOString().slice(0, 10)
+}
+
+function isoToday(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
 /**
- * /indicadores — módulo licenciado à parte. Este pacote entrega a fundação:
- * status de licença + esqueleto da página com 6 cards placeholder ("calculando…").
- * Os cálculos reais chegam nos pacotes 2–4.
+ * /indicadores — pacote 4: frontend completo, consumindo as 6 rotas do hook
+ * indicators_server.js atrás do guard de licença do módulo.
  */
 export const IndicadoresPage: React.FC = () => {
-  const [status, setStatus] = useState<IndicatorsStatus | null>(null)
+  const { activeCompanyId, companyVersion } = useActiveCompany()
+  const [status, setStatus] = useState<null | { licensed: boolean; org?: { name: string } | null }>(
+    null,
+  )
+  const [statusLoading, setStatusLoading] = useState(true)
+  const [statusError, setStatusError] = useState('')
+  const [notLicensed, setNotLicensed] = useState(false)
+  const [jobs, setJobs] = useState<Job[]>([])
+  const [periodDays, setPeriodDays] = useState<PeriodPreset | 'custom'>(90)
+  const [from, setFrom] = useState(isoDaysAgo(90))
+  const [to, setTo] = useState(isoToday())
+  const [jobId, setJobId] = useState('')
+  const [data, setData] = useState<AllData>(EMPTY)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [loadError, setLoadError] = useState('')
 
+  // ---------------------------------------------------------------- status de licença
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
-    getIndicatorsStatus()
-      .then((s) => {
+    setStatusLoading(true)
+    void (async () => {
+      try {
+        const res = await fetch(`${pb.buildUrl('')}/backend/v1/indicators/status`, {
+          headers: { Authorization: pb.authStore.token },
+        })
+        if (!res.ok) throw new Error('Falha ao consultar o status do módulo.')
+        const s = (await res.json()) as { licensed: boolean; org?: { name: string } | null }
         if (!cancelled) setStatus(s)
-      })
-      .catch((err) => {
-        if (!cancelled) setError(getErrorMessage(err))
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
+      } catch (err) {
+        if (!cancelled) setStatusError(getErrorMessage(err))
+      } finally {
+        if (!cancelled) setStatusLoading(false)
+      }
+    })()
     return () => {
       cancelled = true
     }
   }, [])
 
-  if (loading) {
-    return <LoadingState message="Consultando licença do módulo Indicadores..." />
+  // ---------------------------------------------------------------- vagas para o filtro
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const filter = activeCompanyId ? `company_id = "${activeCompanyId}"` : undefined
+        const list = await jobsService.listJobs(filter)
+        if (!cancelled) setJobs(list)
+      } catch (_) {
+        if (!cancelled) setJobs([])
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [activeCompanyId, companyVersion])
+
+  // ---------------------------------------------------------------- dados dos indicadores
+  const loadAll = React.useCallback(async () => {
+    const filters: IndicatorsFilters = { from, to, jobId: jobId || undefined }
+    setLoading(true)
+    setLoadError('')
+    try {
+      const [tth, funnel, offer, source, response, rejection] = await Promise.all([
+        fetchTimeToHire(filters),
+        fetchFunnelConversion(filters),
+        fetchOfferAcceptance(filters),
+        fetchHiredSource(filters),
+        fetchFirstResponseTime(filters),
+        fetchRejectionReasons(filters),
+      ])
+      setData({ tth, funnel, offer, source, response, rejection })
+      setNotLicensed(false)
+    } catch (err) {
+      if (err instanceof NotLicensedError) {
+        setNotLicensed(true)
+      } else {
+        setNotLicensed(false)
+        setLoadError(getErrorMessage(err))
+      }
+    } finally {
+      setLoading(false)
+    }
+  }, [from, to, jobId])
+
+  useEffect(() => {
+    if (!statusLoading && status?.licensed) void loadAll()
+  }, [statusLoading, status, loadAll])
+
+  const applyPeriod = (days: PeriodPreset) => {
+    setPeriodDays(days)
+    setFrom(isoDaysAgo(days))
+    setTo(isoToday())
   }
 
-  if (error || !status) {
+  if (statusLoading) {
+    return <Skeleton className="h-64 w-full" />
+  }
+
+  if (statusError || !status) {
     return (
       <div className="space-y-6 max-w-5xl mx-auto pb-12">
         <PageHeader status={null} />
         <EmptyState
           icon={Lock}
           title="Não foi possível verificar a licença"
-          description={
-            error ||
-            'Não conseguimos consultar o status do módulo agora. Tente novamente mais tarde.'
-          }
+          description={statusError || 'Tente novamente mais tarde.'}
         />
       </div>
     )
   }
 
-  if (!status.licensed) {
+  if (notLicensed || !status.licensed) {
     return (
       <div className="space-y-6 max-w-5xl mx-auto pb-12">
         <PageHeader status={status} />
@@ -99,28 +223,405 @@ export const IndicadoresPage: React.FC = () => {
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-12">
       <PageHeader status={status} />
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {INDICATOR_CARDS.map((card) => (
-          <Card key={card.title} className="opacity-90">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold text-slate-900">{card.title}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-slate-500 mb-3">{card.description}</p>
-              <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                Calculando…
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <FilterBar
+        periodDays={periodDays}
+        from={from}
+        to={to}
+        jobId={jobId}
+        jobs={jobs}
+        onPeriod={applyPeriod}
+        onFrom={(v) => {
+          setPeriodDays('custom')
+          setFrom(v)
+        }}
+        onTo={(v) => {
+          setPeriodDays('custom')
+          setTo(v)
+        }}
+        onJob={setJobId}
+        onRefresh={loadAll}
+        loading={loading}
+      />
+      {loadError && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="pt-4 flex items-center gap-2 text-sm text-red-700">
+            <AlertTriangle className="w-4 h-4" />
+            {loadError}
+          </CardContent>
+        </Card>
+      )}
+      {loading ? (
+        <LoadingSkeleton />
+      ) : (
+        <div className="space-y-6">
+          <TimeToHireSection data={data.tth} />
+          <FunnelSection data={data.funnel} />
+          <OfferAcceptanceSection data={data.offer} />
+          <HiredSourceSection data={data.source} />
+          <FirstResponseSection data={data.response} />
+          <RejectionReasonsSection data={data.rejection} />
+        </div>
+      )}
     </div>
   )
 }
 
+// ---------------------------------------------------------------- filtros
+
+const FilterBar: React.FC<{
+  periodDays: PeriodPreset | 'custom'
+  from: string
+  to: string
+  jobId: string
+  jobs: Job[]
+  onPeriod: (d: PeriodPreset) => void
+  onFrom: (v: string) => void
+  onTo: (v: string) => void
+  onJob: (v: string) => void
+  onRefresh: () => void
+  loading: boolean
+}> = ({ periodDays, from, to, jobId, jobs, onPeriod, onFrom, onTo, onJob, onRefresh, loading }) => (
+  <Card>
+    <CardContent className="pt-4 flex flex-wrap items-end gap-3">
+      <div className="space-y-1">
+        <p className="text-[11px] text-slate-500 font-medium">Período</p>
+        <PeriodShortcuts
+          presets={PERIOD_PRESETS.map((p) => p.days)}
+          value={periodDays === 'custom' ? null : periodDays}
+          onSelect={(d) => onPeriod(d as PeriodPreset)}
+          getLabel={(d) => PERIOD_PRESETS.find((p) => p.days === d)?.label || String(d)}
+        />
+      </div>
+      <div className="space-y-1">
+        <p className="text-[11px] text-slate-500 font-medium">De</p>
+        <Input
+          type="date"
+          value={from}
+          onChange={(e) => onFrom(e.target.value)}
+          className="h-9 text-sm"
+        />
+      </div>
+      <div className="space-y-1">
+        <p className="text-[11px] text-slate-500 font-medium">Até</p>
+        <Input
+          type="date"
+          value={to}
+          onChange={(e) => onTo(e.target.value)}
+          className="h-9 text-sm"
+        />
+      </div>
+      <div className="space-y-1 min-w-[220px]">
+        <p className="text-[11px] text-slate-500 font-medium">Vaga</p>
+        <Select value={jobId || 'all'} onValueChange={(v) => onJob(v === 'all' ? '' : v)}>
+          <SelectTrigger className="h-9 text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas as vagas</SelectItem>
+            {jobs.map((j) => (
+              <SelectItem key={j.id} value={j.id}>
+                {j.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <Button variant="outline" size="sm" onClick={onRefresh} disabled={loading}>
+        <RefreshCw className={`w-4 h-4 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
+        Atualizar
+      </Button>
+    </CardContent>
+  </Card>
+)
+
+const LoadingSkeleton: React.FC = () => (
+  <div className="space-y-4">
+    <Skeleton className="h-36 w-full" />
+    <Skeleton className="h-64 w-full" />
+    <Skeleton className="h-48 w-full" />
+  </div>
+)
+
+// ---------------------------------------------------------------- time to hire
+
+const TimeToHireSection: React.FC<{ data: TimeToHireResponse | null }> = ({ data }) => {
+  const empty = !data || data.hires_count === 0
+  return (
+    <SectionCard
+      title="Time to Hire"
+      subtitle="Por que essa vaga está aberta há dois meses: dias entre a abertura e a contratação."
+      icon={<Clock className="w-4 h-4" />}
+    >
+      {empty ? (
+        <EmptyHint />
+      ) : (
+        <>
+          <div className="flex items-baseline gap-2 mb-4">
+            <span className="text-3xl font-bold text-slate-900">
+              {fmtNum(data!.overall_avg_days)}
+            </span>
+            <span className="text-sm text-slate-500">
+              dias em média · {data!.hires_count} contratações
+            </span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <DistributionBarList
+              title="Por área"
+              items={(data!.by_area || []).map((g) => ({
+                label: g.area || 'Sem área',
+                value: g.avg_days ?? 0,
+                pct: null,
+                suffix: 'd',
+                hint: `${g.hires} contratações`,
+              }))}
+            />
+            <DistributionBarList
+              title="Por senioridade"
+              items={(data!.by_seniority || []).map((g) => ({
+                label: g.level || 'Não informado',
+                value: g.avg_days ?? 0,
+                pct: null,
+                suffix: 'd',
+                hint: `${g.hires} contratações`,
+              }))}
+            />
+          </div>
+        </>
+      )}
+    </SectionCard>
+  )
+}
+
+// ---------------------------------------------------------------- funil
+
+const FunnelSection: React.FC<{ data: FunnelConversionResponse | null }> = ({ data }) => {
+  const empty = !data || data.stages.every((s) => s.entered === 0)
+  const stages = data?.stages || []
+
+  // Sinal: transição com conversão claramente abaixo da média das outras.
+  let alert: { from: string; to: string; pct: number; gap: number } | null = null
+  const transitions = stages.slice(0, -1)
+  if (transitions.length >= 2) {
+    const avg = transitions.reduce((acc, t) => acc + t.conversion_pct, 0) / transitions.length
+    const worst = transitions.reduce((a, b) => (b.conversion_pct < a.conversion_pct ? b : a))
+    const gap = avg - worst.conversion_pct
+    if (gap >= 15) {
+      const fromIdx = stages.indexOf(worst)
+      alert = {
+        from: STAGE_LABELS[worst.stage] || worst.stage,
+        to: STAGE_LABELS[stages[fromIdx + 1]?.stage] || '',
+        pct: worst.conversion_pct,
+        gap,
+      }
+    }
+  }
+
+  return (
+    <SectionCard
+      title="Funil de conversão"
+      subtitle="Onde os candidatos param: percentual de avanço em cada etapa do pipeline."
+      icon={<Route className="w-4 h-4" />}
+    >
+      {empty ? (
+        <EmptyHint />
+      ) : (
+        <>
+          {alert && (
+            <div className="mb-4 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+              <TrendingDown className="w-4 h-4 mt-0.5 shrink-0 text-amber-600" />
+              <span>
+                <strong>
+                  Maior perda entre {alert.from} e {alert.to}
+                </strong>{' '}
+                — só {fmtPct(alert.pct)} avança ({fmtNum(alert.gap)} p.p. abaixo da média das demais
+                transições).
+              </span>
+            </div>
+          )}
+          <div className="flex flex-col gap-1.5">
+            {stages.map((s) => {
+              const isWorst =
+                alert !== null &&
+                transitions.some((t) => t.stage === s.stage && t.conversion_pct === alert!.pct)
+              return (
+                <div key={s.stage} className="flex items-center gap-3">
+                  <div className="w-36 text-xs text-slate-600 shrink-0">
+                    {STAGE_LABELS[s.stage] || s.stage}
+                  </div>
+                  <div className="flex-1 h-6 bg-slate-100 rounded relative overflow-hidden">
+                    <div
+                      className={`h-full rounded transition-all ${
+                        isWorst && s.conversion_pct > 0 ? getAlertColor() : 'bg-sky-500'
+                      }`}
+                      style={{ width: `${Math.min(100, s.conversion_pct)}%` }}
+                    />
+                  </div>
+                  <div className="w-32 text-right text-xs shrink-0">
+                    <span className="font-medium text-slate-800">{fmtPct(s.conversion_pct)}</span>
+                    <span className="text-slate-400">
+                      {' '}
+                      · {s.advanced}/{s.entered}
+                    </span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          <p className="mt-3 text-xs text-slate-400">
+            Conversão média das transições: {fmtPct(data!.overall)}.
+          </p>
+        </>
+      )}
+    </SectionCard>
+  )
+}
+
+// ---------------------------------------------------------------- aceite
+
+const OfferAcceptanceSection: React.FC<{ data: OfferAcceptanceResponse | null }> = ({ data }) => {
+  const empty = !data || data.offers_made === 0
+  return (
+    <SectionCard
+      title="Taxa de aceite de proposta"
+      subtitle="Das propostas enviadas, quantas viraram contratação — se o problema é negociação."
+      icon={<Target className="w-4 h-4" />}
+    >
+      {empty ? (
+        <EmptyHint />
+      ) : (
+        <>
+          <div className="flex items-baseline gap-2 mb-4">
+            <span className="text-3xl font-bold text-slate-900">
+              {fmtPct(data!.acceptance_rate_pct)}
+            </span>
+            <span className="text-sm text-slate-500">
+              {data!.offers_accepted} de {data!.offers_made} propostas aceitas
+            </span>
+          </div>
+          <DistributionBarList
+            title="Por área"
+            items={(data!.by_area || []).map((a) => ({
+              label: a.area,
+              value: a.rate_pct,
+              pct: a.rate_pct,
+              suffix: '%',
+              hint: `${a.accepted}/${a.made} aceitas`,
+            }))}
+          />
+        </>
+      )}
+    </SectionCard>
+  )
+}
+
+// ---------------------------------------------------------------- origem
+
+const HiredSourceSection: React.FC<{ data: HiredSourceResponse | null }> = ({ data }) => {
+  const empty = !data || data.hires_count === 0
+  return (
+    <SectionCard
+      title="Origem do contratado"
+      subtitle="Qual canal traz currículo e qual traz contratação — não são necessariamente o mesmo."
+      icon={<FileText className="w-4 h-4" />}
+    >
+      {empty ? (
+        <EmptyHint />
+      ) : (
+        <DistributionBarList
+          title="Canais"
+          items={(data!.distribution || []).map((d) => ({
+            label: d.source,
+            value: d.count,
+            pct: d.pct,
+            suffix: '',
+            hint: `${d.count} contratações`,
+          }))}
+        />
+      )}
+    </SectionCard>
+  )
+}
+
+// ---------------------------------------------------------------- primeira resposta
+
+const FirstResponseSection: React.FC<{ data: FirstResponseTimeResponse | null }> = ({ data }) => {
+  const empty = !data || data.applications_count === 0
+  const dist = data?.distribution
+  return (
+    <SectionCard
+      title="Tempo de primeira resposta"
+      subtitle="100% calculável dentro do ATS: horas entre a candidatura e o primeiro movimento de etapa."
+      icon={<Clock className="w-4 h-4" />}
+    >
+      {empty ? (
+        <EmptyHint />
+      ) : (
+        <>
+          <div className="flex items-baseline gap-2 mb-4">
+            <span className="text-3xl font-bold text-slate-900">
+              {fmtNum(data!.overall_avg_hours)}
+            </span>
+            <span className="text-sm text-slate-500">
+              horas em média · {data!.applications_count} candidaturas
+              {data!.unanswered_count > 0 && ` · ${data!.unanswered_count} sem movimento`}
+            </span>
+          </div>
+          <DistributionBarList
+            title="Distribuição"
+            items={[
+              { label: 'Menos de 24h', bucket: dist?.lt_24h },
+              { label: 'De 24h a 72h', bucket: dist?.h_24_72 },
+              { label: 'Mais de 72h', bucket: dist?.gt_72h },
+            ].map(({ label, bucket }) => ({
+              label,
+              value: bucket?.count ?? 0,
+              pct: bucket?.pct ?? 0,
+              suffix: '',
+              hint: `${bucket?.count ?? 0} candidaturas`,
+            }))}
+          />
+        </>
+      )}
+    </SectionCard>
+  )
+}
+
+// ---------------------------------------------------------------- motivos
+
+const RejectionReasonsSection: React.FC<{ data: RejectionReasonsResponse | null }> = ({ data }) => {
+  const empty = !data || data.rejections_count === 0
+  return (
+    <SectionCard
+      title="Motivos de reprovação"
+      subtitle="Mostra se o problema é atração, triagem ou negociação — distribuição das justificativas registradas."
+      icon={<AlertTriangle className="w-4 h-4" />}
+    >
+      {empty ? (
+        <EmptyHint />
+      ) : (
+        <DistributionBarList
+          title="Categorias"
+          items={(data!.distribution || []).map((d) => ({
+            label: d.label,
+            value: d.count,
+            pct: d.pct,
+            suffix: '',
+            hint: `${d.count} reprovações`,
+          }))}
+        />
+      )}
+    </SectionCard>
+  )
+}
+
+const EmptyHint: React.FC = () => (
+  <p className="text-sm text-slate-400 text-center py-6">sem dados no período selecionado</p>
+)
+
 /** Cabeçalho comum: título, subtítulo com a organização e selo de licença. */
-const PageHeader: React.FC<{ status: IndicatorsStatus | null }> = ({ status }) => (
+const PageHeader: React.FC<{
+  status: { licensed?: boolean; org?: { name: string } | null } | null
+}> = ({ status }) => (
   <div className="flex items-center justify-between pb-2 border-b">
     <div>
       <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
