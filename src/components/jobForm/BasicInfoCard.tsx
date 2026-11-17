@@ -1,6 +1,7 @@
 import React from 'react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Lock } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -12,11 +13,19 @@ import { Switch } from '@/components/ui/switch'
 import { FieldError } from './FieldError'
 import type { JobFormValues, JobFormErrors, SetJobFormField } from './types'
 
+interface InheritedJobFields {
+  salaryMin?: number | null
+  salaryMax?: number | null
+  managerName?: string
+}
+
 interface BasicInfoCardProps {
   values: JobFormValues
   managers: { id: string; name?: string; email?: string; role?: string }[]
   errors: JobFormErrors
   onField: SetJobFormField
+  /** FASE 3: quando a vaga vem de um cargo, faixa salarial e gestor são herdados (somente leitura). */
+  inherited?: InheritedJobFields | null
 }
 
 /** Bloco 1: Dados da Vaga — identificação, classificação, salário e status. */
@@ -25,6 +34,7 @@ export const BasicInfoCard: React.FC<BasicInfoCardProps> = ({
   managers,
   errors,
   onField,
+  inherited,
 }) => (
   <div className="space-y-4">
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -90,21 +100,31 @@ export const BasicInfoCard: React.FC<BasicInfoCardProps> = ({
       </div>
 
       <div>
-        <Label htmlFor="manager" className="text-xs font-semibold">
+        <Label htmlFor="manager" className="text-xs font-semibold flex items-center gap-1">
           Gestor Responsável
+          {inherited?.managerName && <Lock className="w-3 h-3 text-slate-400" />}
         </Label>
-        <Select value={values.managerId} onValueChange={(v) => onField('managerId', v)}>
-          <SelectTrigger id="manager" className="mt-1">
-            <SelectValue placeholder="Selecione o gestor" />
-          </SelectTrigger>
-          <SelectContent>
-            {managers.map((m) => (
-              <SelectItem key={m.id} value={m.id}>
-                {m.name || m.email} ({m.role || 'membro'})
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {inherited?.managerName ? (
+          <div
+            className="mt-1 flex h-9 items-center rounded-md border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500"
+            title="Herdado do cargo vinculado — somente leitura"
+          >
+            {inherited.managerName}
+          </div>
+        ) : (
+          <Select value={values.managerId} onValueChange={(v) => onField('managerId', v)}>
+            <SelectTrigger id="manager" className="mt-1">
+              <SelectValue placeholder="Selecione o gestor" />
+            </SelectTrigger>
+            <SelectContent>
+              {managers.map((m) => (
+                <SelectItem key={m.id} value={m.id}>
+                  {m.name || m.email} ({m.role || 'membro'})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
     </div>
 
@@ -184,8 +204,9 @@ export const BasicInfoCard: React.FC<BasicInfoCardProps> = ({
 
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div>
-        <Label htmlFor="sal-min" className="text-xs font-semibold">
+        <Label htmlFor="sal-min" className="text-xs font-semibold flex items-center gap-1">
           Salário Mínimo (R$)
+          {inherited?.salaryMin != null && <Lock className="w-3 h-3 text-slate-400" />}
         </Label>
         <Input
           id="sal-min"
@@ -194,12 +215,17 @@ export const BasicInfoCard: React.FC<BasicInfoCardProps> = ({
           value={values.salaryMin}
           onChange={(e) => onField('salaryMin', e.target.value)}
           className="mt-1"
+          disabled={inherited?.salaryMin != null}
         />
+        {inherited?.salaryMin != null && (
+          <span className="text-[11px] text-slate-400">Herdado do cargo vinculado.</span>
+        )}
       </div>
 
       <div>
-        <Label htmlFor="sal-max" className="text-xs font-semibold">
+        <Label htmlFor="sal-max" className="text-xs font-semibold flex items-center gap-1">
           Salário Máximo (R$)
+          {inherited?.salaryMax != null && <Lock className="w-3 h-3 text-slate-400" />}
         </Label>
         <Input
           id="sal-max"
@@ -209,6 +235,7 @@ export const BasicInfoCard: React.FC<BasicInfoCardProps> = ({
           onChange={(e) => onField('salaryMax', e.target.value)}
           className="mt-1"
           aria-invalid={Boolean(errors.salaryMax)}
+          disabled={inherited?.salaryMax != null}
         />
         <FieldError message={errors.salaryMax} />
       </div>

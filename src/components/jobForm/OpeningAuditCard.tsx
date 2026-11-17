@@ -1,7 +1,8 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ClipboardList, Lock } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { ClipboardList, ChevronDown, ChevronRight, FileJson, Lock } from 'lucide-react'
 import { parseOpeningAudit } from '@/services/jobOpening'
 import type { Job } from '@/types/ats'
 
@@ -138,8 +139,44 @@ export const OpeningAuditCard: React.FC<{ job: Job }> = ({ job }) => {
             </p>
           )}
         </div>
+
+        <JsonSnapshotSection data={audit.cargoSnapshot} label="JSON do snapshot do cargo" />
+        <JsonSnapshotSection
+          data={audit.organogramaSnapshot}
+          label="JSON do snapshot do organograma"
+        />
       </CardContent>
     </Card>
+  )
+}
+
+/** JSON colapsável do snapshot (para conferência fiel do que foi gravado pelo servidor). */
+const JsonSnapshotSection: React.FC<{ data: unknown; label: string }> = ({ data, label }) => {
+  const [expanded, setExpanded] = useState(false)
+  if (!data) return null
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-2.5">
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="h-7 px-2 text-[11px] font-semibold text-slate-600 hover:text-slate-900"
+        onClick={() => setExpanded((e) => !e)}
+      >
+        {expanded ? (
+          <ChevronDown className="w-3.5 h-3.5 mr-1" />
+        ) : (
+          <ChevronRight className="w-3.5 h-3.5 mr-1" />
+        )}
+        <FileJson className="w-3.5 h-3.5 mr-1 text-slate-400" />
+        {label}
+      </Button>
+      {expanded && (
+        <pre className="mt-1.5 max-h-64 overflow-auto rounded bg-slate-900 p-2.5 text-[10px] leading-relaxed text-slate-100">
+          {JSON.stringify(data, null, 2)}
+        </pre>
+      )}
+    </div>
   )
 }
 

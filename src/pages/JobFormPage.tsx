@@ -16,7 +16,9 @@ import { StagesCard } from '@/components/jobForm/StagesCard'
 import { ChaSection } from '@/components/jobForm/ChaSection'
 import { ScoreWeightsCard } from '@/components/jobForm/ScoreWeightsCard'
 import { ChaInheritCard } from '@/components/jobForm/ChaInheritCard'
+import { OpeningAuditCard } from '@/components/jobForm/OpeningAuditCard'
 import { useCargos } from '@/hooks/use-cargos'
+import { loadCargoInheritance } from '@/services/jobOpening'
 import {
   CHA_BLOCK_KEYS,
   emptyChaRequirements,
@@ -67,6 +69,8 @@ export const JobFormPage: React.FC = () => {
   const [optionalStages, setOptionalStages] = useState<string[]>([])
   // Vaga salva (criada/atualizada) — quando definida, exibe o painel de sugestões
   const [savedJob, setSavedJob] = useState<Job | null>(null)
+  // FASE 3: vaga em edição (para a seção de auditoria da abertura)
+  const [editingJob, setEditingJob] = useState<Job | null>(null)
   // Erros de validação, exibidos junto a cada campo
   const [errors, setErrors] = useState<JobFormErrors>({})
   // FASE 1 CHA: requisitos efetivos em edição (specific é editável; cargo vem do cargo_id)
@@ -74,7 +78,26 @@ export const JobFormPage: React.FC = () => {
     emptyChaRequirements(),
   )
   const { cargos, loading: cargosLoading } = useCargos()
-  // Import do tipo usado no estado acima (mantido no topo via lib/cha)
+  // FASE 3: herança do cargo vinculado — faixa salarial e gestor ficam somente leitura
+  const [inherited, setInherited] = useState<Awaited<
+    ReturnType<typeof loadCargoInheritance>
+  > | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    if (!values.cargoId) {
+      setInherited(null)
+      return
+    }
+    loadCargoInheritance(values.cargoId)
+      .then((inh) => {
+        if (!cancelled) setInherited(inh)
+      })
+      .catch((err) => console.error('Erro ao carregar herança do cargo:', err))
+    return () => {
+      cancelled = true
+    }
+  }, [values.cargoId])
 
   /** Setter único: mantém os tipos de cada campo e limpa o erro do campo ao digitar. */
   const setField: SetJobFormField = (field, value) => {
@@ -114,6 +137,7 @@ export const JobFormPage: React.FC = () => {
       try {
         setLoading(true)
         const job = await jobsService.getJobById(id)
+        setEditingJob(job)
         setValues({
           title: job.title,
           slug: job.slug,
@@ -333,7 +357,9 @@ export const JobFormPage: React.FC = () => {
       if (isEditing && id) {
         await jobsService.updateJob(id, payload)
         toast({ title: 'Vaga atualizada!', description: 'As alterações foram salvas com sucesso.' })
-        setSavedJob(await jobsService.getJobById(id))
+        const fresh = await jobsService.getJobById(id)
+        setEditingJob(fresh)
+        setSavedJob(fresh)
         window.scrollTo({ top: 0, behavior: 'smooth' })
       } else {
         const created = await jobsService.createJob(payload)
@@ -405,6 +431,9 @@ export const JobFormPage: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto pb-12">
+      {/* FASE 3: auditoria da abertura (somente quando a vaga foi aberta a partir de cargo) */}
+      {isEditing && editingJob && <OpeningAuditCard job={editingJob} />}
+
       {/* Header */}
       <div className="flex items-center justify-between pb-2 border-b">
         <div className="flex items-center gap-3">
@@ -435,7 +464,21 @@ export const JobFormPage: React.FC = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <BasicInfoCard values={values} managers={managers} errors={errors} onField={setField} />
+            <BasicInfoCard
+              values={values}
+              managers={managers}
+              errors={errors}
+              onField={setField}
+              inherited={
+                inherited
+                  ? {
+                      salaryMin: inherited.cargo.salary_min,
+                      salaryMax: inherited.cargo.salary_max,
+                      managerName: inherited.node?.manager || '',
+                    }
+                  : null
+              }
+            />
           </CardContent>
         </Card>
 

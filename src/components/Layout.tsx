@@ -165,6 +165,18 @@ const Layout: React.FC = () => {
             <Boxes className="w-4 h-4" />
             <span>Cargos</span>
           </Link>
+          {/* Estrutura: posições vagas / estruturais / recrutamentos em andamento */}
+          <Link
+            to="/estrutura"
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition ${
+              location.pathname.startsWith('/estrutura')
+                ? 'bg-sky-600 text-white shadow-xs'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/80'
+            }`}
+          >
+            <Building2 className="w-4 h-4" />
+            <span>Estrutura</span>
+          </Link>
           {showOrganograma && (
             <Link
               to="/organograma"

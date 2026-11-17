@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import {
   Plus,
   Search,
@@ -56,6 +56,16 @@ import {
   type ChaLevel,
 } from '@/lib/cha'
 import { CargoFormDialog } from '@/components/cargos/CargoFormDialog'
+import { OpenJobButton } from '@/components/cargos/OpenJobButton'
+import { OpenJobDialog } from '@/components/cargos/OpenJobDialog'
+import {
+  cargoNodeId,
+  checkOpeningPreconditions,
+  listOrgNodes,
+  loadCargoInheritance,
+  type CargoInheritance,
+  type InheritanceNode,
+} from '@/services/jobOpening'
 
 const BLOCK_ICONS: Record<ChaBlockKey, React.ElementType> = {
   conhecimentos: BookOpen,
@@ -187,6 +197,45 @@ export const CargosPage: React.FC = () => {
   const [trailCargo, setTrailCargo] = useState<Cargo | null>(null)
   const [trail, setTrail] = useState<CargoApprovalEntry[]>([])
   const [trailLoading, setTrailLoading] = useState(false)
+  // FASE 3 — abertura de vaga a partir do cargo
+  const [orgNodes, setOrgNodes] = useState<InheritanceNode[]>([])
+  const [openJobCargo, setOpenJobCargo] = useState<Cargo | null>(null)
+  const [openJobInheritance, setOpenJobInheritance] = useState<CargoInheritance | null>(null)
+  const [openJobLoading, setOpenJobLoading] = useState(false)
+
+  useEffect(() => {
+    listOrgNodes().then(setOrgNodes)
+  }, [])
+
+  // Pré-condições de abertura por cargo (posição do organograma pelo vínculo do cargo)
+  const openingPreconditions = useMemo(() => {
+    const map: Record<
+      string,
+      {
+        preconditions: ReturnType<typeof checkOpeningPreconditions>
+        canOpen: boolean
+      }
+    > = {}
+    for (const cargo of cargos) {
+      const nodeId = cargoNodeId(cargo)
+      const node = orgNodes.find((n) => n.id === nodeId) || null
+      const preconditions = checkOpeningPreconditions(cargo, node)
+      map[cargo.id] = { preconditions, canOpen: preconditions.every((p) => p.ok) }
+    }
+    return map
+  }, [cargos, orgNodes])
+
+  // Pré-condição de finalidade (resolveTo vazio) resolve aqui mesmo: converte finalidade
+  const handleOpenJob = async (cargo: Cargo) => {
+    setOpenJobLoading(true)
+    try {
+      const inheritance = await loadCargoInheritance(cargo.id)
+      setOpenJobInheritance(inheritance)
+      setOpenJobCargo(cargo)
+    } finally {
+      setOpenJobLoading(false)
+    }
+  }
 
   const load = React.useCallback(async () => {
     try {
@@ -486,6 +535,23 @@ export const CargosPage: React.FC = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
+                      {canEdit && (
+                        <OpenJobButton
+                          cargo={cargo}
+                          preconditions={openingPreconditions[cargo.id]?.preconditions || []}
+                          canOpen={openingPreconditions[cargo.id]?.canOpen || false}
+                          onOpen={() => {
+                            const failedFinalidade = (
+                              openingPreconditions[cargo.id]?.preconditions || []
+                            ).find((p) => !p.ok && !p.resolveTo)
+                            if (failedFinalidade) {
+                              openAction(cargo, 'convert')
+                              return
+                            }
+                            handleOpenJob(cargo)
+                          }}
+                        />
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
@@ -607,6 +673,18 @@ export const CargosPage: React.FC = () => {
         busy={actionBusy}
         onClose={closeAction}
         onConfirm={handleAction}
+      />
+
+      <OpenJobDialog
+        open={Boolean(openJobCargo)}
+        onOpenChange={(o) => {
+          if (!o) {
+            setOpenJobCargo(null)
+            setOpenJobInheritance(null)
+          }
+        }}
+        cargo={openJobCargo}
+        inheritance={openJobInheritance}
       />
 
       {/* Trilha de auditoria do cargo */}
