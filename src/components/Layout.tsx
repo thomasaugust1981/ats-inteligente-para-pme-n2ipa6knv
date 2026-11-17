@@ -1,50 +1,30 @@
 import React from 'react'
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
-import {
-  Briefcase,
-  Users,
-  LayoutDashboard,
-  Columns3,
-  LogOut,
-  ExternalLink,
-  Building2,
-  ShieldCheck,
-  Menu,
-  X,
-  UserCheck,
-  Rocket,
-  Network,
-  Boxes,
-  Bot,
-  Plug,
-  BarChart3,
-} from 'lucide-react'
-import { useAiAgentSettings } from '@/hooks/use-ai-agent-settings'
+import { LogOut, ExternalLink, Menu, X } from 'lucide-react'
 import { onboardingService } from '@/services/onboarding'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { SuperadminPasswordBanner } from '@/components/SuperadminPasswordBanner'
 import CompanySelector from '@/components/CompanySelector'
-import { useState } from 'react'
+import { SidebarNav } from '@/components/SidebarNav'
+import { useAiAgentSettings } from '@/hooks/use-ai-agent-settings'
+import { useState, useEffect } from 'react'
 
 const Layout: React.FC = () => {
-  const { user, role, signOut, isManager, isAdmin, isRecruiter, isSuperadmin } = useAuth()
+  const { user, signOut, isManager, isAdmin, isRecruiter, isSuperadmin } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-
-  // Agente de Score de IA: item dedicado, visível a todos os papéis autenticados
+  // Estado do Agente de Score (bolinha verde/cinza no item do menu)
   const { settings: agentSettings } = useAiAgentSettings()
-
-  // Rotas públicas que não usam o sidebar administrativo
   const isPublicRoute =
     location.pathname.startsWith('/carreiras') ||
     location.pathname.startsWith('/login') ||
     location.pathname.startsWith('/verificar-email') ||
     location.pathname.startsWith('/redefinir-senha')
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!isPublicRoute && !user) {
       navigate('/login')
     }
@@ -62,27 +42,20 @@ const Layout: React.FC = () => {
     navigate('/login')
   }
 
-  const navItems = [
-    { label: 'Painel Geral', path: '/', icon: LayoutDashboard },
-    { label: 'Vagas', path: '/vagas', icon: Briefcase },
-    { label: 'Pipeline', path: '/pipeline', icon: Columns3 },
-    { label: 'Banco de Candidatos', path: '/candidatos', icon: Users },
-  ]
-
-  // Organograma: módulo standalone para admin e recrutador
-  const showOrganograma = isAdmin || isRecruiter
-
-  // Administradores podem retomar o onboarding pelo painel
-  const showOnboardingLink = isAdmin
-
-  // Painel multi-tenant: item visível apenas para o superadmin
-  const showSuperadminLink = isSuperadmin
-
   const getRoleLabel = () => {
     if (isSuperadmin) return 'Super Admin'
     if (isAdmin) return 'Administrador'
     if (isManager) return 'Gestor Solicitante'
     return 'Recrutador'
+  }
+
+  // Contexto de visibilidade compartilhado com o SidebarNav (mesmos critérios).
+  const navCtx = {
+    isAdmin,
+    isRecruiter,
+    isManager,
+    isSuperadmin,
+    agentEnabled: agentSettings.enabled,
   }
 
   return (
@@ -119,133 +92,9 @@ const Layout: React.FC = () => {
           </div>
         </div>
 
-        {/* Links de navegação */}
+        {/* Links de navegação — drag-and-drop, ordem por usuário */}
         <nav className="flex-1 px-3 py-2 space-y-1">
-          {showOnboardingLink && (
-            <Link
-              to="/onboarding"
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition ${
-                location.pathname === '/onboarding'
-                  ? 'bg-sky-600 text-white shadow-xs'
-                  : 'text-amber-300 hover:text-white hover:bg-slate-800/80'
-              }`}
-            >
-              <Rocket className="w-4 h-4" />
-              <span>Onboarding da Empresa</span>
-            </Link>
-          )}
-          {navItems.map((item) => {
-            const Icon = item.icon
-            const isActive =
-              location.pathname === item.path ||
-              (item.path !== '/' && location.pathname.startsWith(item.path))
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition ${
-                  isActive
-                    ? 'bg-sky-600 text-white shadow-xs'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/80'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                <span>{item.label}</span>
-              </Link>
-            )
-          })}
-          {/* Cargos (modelo CHA): admin/RH editam, recrutador/gestor somente leitura */}
-          <Link
-            to="/cargos"
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition ${
-              location.pathname.startsWith('/cargos')
-                ? 'bg-sky-600 text-white shadow-xs'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/80'
-            }`}
-          >
-            <Boxes className="w-4 h-4" />
-            <span>Cargos</span>
-          </Link>
-          {/* Estrutura: posições vagas / estruturais / recrutamentos em andamento */}
-          <Link
-            to="/estrutura"
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition ${
-              location.pathname.startsWith('/estrutura')
-                ? 'bg-sky-600 text-white shadow-xs'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/80'
-            }`}
-          >
-            <Building2 className="w-4 h-4" />
-            <span>Estrutura</span>
-          </Link>
-          {/* Indicadores: módulo licenciado à parte (pacote 1 de 4) */}
-          <Link
-            to="/indicadores"
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition ${
-              location.pathname.startsWith('/indicadores')
-                ? 'bg-sky-600 text-white shadow-xs'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/80'
-            }`}
-          >
-            <BarChart3 className="w-4 h-4" />
-            <span>Indicadores</span>
-          </Link>
-          {showOrganograma && (
-            <Link
-              to="/organograma"
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition ${
-                location.pathname.startsWith('/organograma')
-                  ? 'bg-sky-600 text-white shadow-xs'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800/80'
-              }`}
-            >
-              <Network className="w-4 h-4" />
-              <span>Organograma</span>
-            </Link>
-          )}
-          {isAdmin && (
-            <Link
-              to="/integracoes"
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition ${
-                location.pathname.startsWith('/integracoes')
-                  ? 'bg-sky-600 text-white shadow-xs'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800/80'
-              }`}
-            >
-              <Plug className="w-4 h-4" />
-              <span>Integrações</span>
-            </Link>
-          )}
-          {showSuperadminLink && (
-            <Link
-              to="/superadmin"
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition ${
-                location.pathname.startsWith('/superadmin')
-                  ? 'bg-violet-600 text-white shadow-xs'
-                  : 'text-violet-300 hover:text-white hover:bg-slate-800/80'
-              }`}
-            >
-              <ShieldCheck className="w-4 h-4" />
-              <span>Superadmin</span>
-            </Link>
-          )}
-          <Link
-            to="/agente-score"
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition ${
-              location.pathname.startsWith('/agente-score')
-                ? 'bg-sky-600 text-white shadow-xs'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/80'
-            }`}
-          >
-            <Bot className="w-4 h-4" />
-            <span>Agente de Score</span>
-            <span
-              className={`ml-auto w-2 h-2 rounded-full ${
-                agentSettings.enabled ? 'bg-emerald-400' : 'bg-slate-600'
-              }`}
-              title={agentSettings.enabled ? 'Agente ativado' : 'Agente desativado'}
-            />
-          </Link>
+          <SidebarNav ctx={navCtx} />
         </nav>
 
         {/* Atalhos inferiores: Página de Carreiras & Logout */}
@@ -295,64 +144,7 @@ const Layout: React.FC = () => {
       {/* Menu Mobile Dropdown */}
       {mobileMenuOpen && (
         <div className="md:hidden bg-slate-900 text-white p-4 border-b border-slate-800 space-y-2">
-          {navItems.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              onClick={() => setMobileMenuOpen(false)}
-              className="block py-2 text-sm text-slate-300 hover:text-white"
-            >
-              {item.label}
-            </Link>
-          ))}
-          {showOrganograma && (
-            <Link
-              to="/organograma"
-              onClick={() => setMobileMenuOpen(false)}
-              className="block py-2 text-sm text-slate-300 hover:text-white"
-            >
-              Organograma
-            </Link>
-          )}
-          <Link
-            to="/indicadores"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block py-2 text-sm text-slate-300 hover:text-white"
-          >
-            Indicadores
-          </Link>
-          {showSuperadminLink && (
-            <Link
-              to="/superadmin"
-              onClick={() => setMobileMenuOpen(false)}
-              className="block py-2 text-sm text-violet-300 hover:text-white"
-            >
-              Superadmin
-            </Link>
-          )}
-          {isAdmin && (
-            <Link
-              to="/integracoes"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-2 py-2 text-sm text-slate-300 hover:text-white"
-            >
-              <Plug className="w-4 h-4" />
-              Integrações
-            </Link>
-          )}
-          <Link
-            to="/agente-score"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block py-2 text-sm text-slate-300 hover:text-white flex items-center gap-2"
-          >
-            <Bot className="w-4 h-4" />
-            Agente de Score
-            <span
-              className={`ml-auto w-2 h-2 rounded-full ${
-                agentSettings.enabled ? 'bg-emerald-400' : 'bg-slate-600'
-              }`}
-            />
-          </Link>
+          <SidebarNav ctx={navCtx} onNavigate={() => setMobileMenuOpen(false)} />
           <Link
             to="/carreiras"
             target="_blank"
