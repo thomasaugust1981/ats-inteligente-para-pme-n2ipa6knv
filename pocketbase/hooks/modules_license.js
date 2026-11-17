@@ -42,59 +42,56 @@ function indicatorsLicenseActive(app, orgId, moduleName) {
 // Guard reutilizável dentro de callbacks (JSVM: top-level não é visível lá).
 $paths.indicatorsLicenseActive = indicatorsLicenseActive
 
-routerAdd(
-  'GET',
-  '/backend/v1/indicators/status',
-  (e) => {
-    const auth = e.auth
-    if (!auth) {
-      return e.json(401, { error: 'Autenticação necessária.' })
-    }
+routerAdd('GET', '/backend/v1/indicators/status', (e) => {
+  // Fora de /api/ o runtime não popula e.auth — resolve pelo header
+  // ($app.resolveAuthUser, definido em menu_order_server.js).
+  const auth = $app.resolveAuthUser(e)
+  if (!auth) {
+    return e.json(401, { error: 'Autenticação necessária.' })
+  }
 
-    const orgId = String(auth.get('org_' + 'id') || '')
-    if (!orgId) {
-      return e.json(200, { licensed: false, module: 'indicadores', org: null })
-    }
+  const orgId = String(auth.get('org_' + 'id') || '')
+  if (!orgId) {
+    return e.json(200, { licensed: false, module: 'indicadores', org: null })
+  }
 
-    let orgName = ''
-    try {
-      const org = e.app.findRecordById('organizations', orgId)
-      orgName = String(org.get('name') || '')
-    } catch (_) {
-      orgName = ''
-    }
+  let orgName = ''
+  try {
+    const org = e.app.findRecordById('organizations', orgId)
+    orgName = String(org.get('name') || '')
+  } catch (_) {
+    orgName = ''
+  }
 
-    // Mesma lógica de indicatorsLicenseActive, inline (JSVM não vê top-level
-    // dentro do callback): licença existente + licensed=true + validade OK.
-    let licensed = false
-    let licensedUntil = ''
-    try {
-      const license = e.app.findFirstRecordByFilter(
-        'org_modules',
-        'org_' + 'id = {:o} && module = {:m}',
-        { o: orgId, m: 'indicadores' },
-      )
-      if (license && license.getBool('licensed')) {
-        licensed = true
-        licensedUntil = String(license.get('licensed_until') || '')
-        if (licensedUntil) {
-          const d = new Date(licensedUntil)
-          if (!isNaN(d.getTime())) {
-            d.setHours(23, 59, 59, 999)
-            if (d.getTime() < Date.now()) licensed = false
-          }
+  // Mesma lógica de indicatorsLicenseActive, inline (JSVM não vê top-level
+  // dentro do callback): licença existente + licensed=true + validade OK.
+  let licensed = false
+  let licensedUntil = ''
+  try {
+    const license = e.app.findFirstRecordByFilter(
+      'org_modules',
+      'org_' + 'id = {:o} && module = {:m}',
+      { o: orgId, m: 'indicadores' },
+    )
+    if (license && license.getBool('licensed')) {
+      licensed = true
+      licensedUntil = String(license.get('licensed_until') || '')
+      if (licensedUntil) {
+        const d = new Date(licensedUntil)
+        if (!isNaN(d.getTime())) {
+          d.setHours(23, 59, 59, 999)
+          if (d.getTime() < Date.now()) licensed = false
         }
       }
-    } catch (_) {
-      licensed = false
     }
+  } catch (_) {
+    licensed = false
+  }
 
-    return e.json(200, {
-      licensed: licensed,
-      module: 'indicadores',
-      org: { id: orgId, name: orgName },
-      licensed_until: licensedUntil,
-    })
-  },
-  /*middlewares=*/ null,
-)
+  return e.json(200, {
+    licensed: licensed,
+    module: 'indicadores',
+    org: { id: orgId, name: orgName },
+    licensed_until: licensedUntil,
+  })
+})
