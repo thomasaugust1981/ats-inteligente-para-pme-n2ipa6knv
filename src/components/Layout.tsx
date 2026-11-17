@@ -18,6 +18,7 @@ import {
   Boxes,
   Bot,
   Plug,
+  BarChart3,
 } from 'lucide-react'
 import { useAiAgentSettings } from '@/hooks/use-ai-agent-settings'
 import { onboardingService } from '@/services/onboarding'
@@ -177,6 +178,18 @@ const Layout: React.FC = () => {
             <Building2 className="w-4 h-4" />
             <span>Estrutura</span>
           </Link>
+          {/* Indicadores: módulo licenciado à parte (pacote 1 de 4) */}
+          <Link
+            to="/indicadores"
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition ${
+              location.pathname.startsWith('/indicadores')
+                ? 'bg-sky-600 text-white shadow-xs'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/80'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" />
+            <span>Indicadores</span>
+          </Link>
           {showOrganograma && (
             <Link
               to="/organograma"
@@ -301,6 +314,13 @@ const Layout: React.FC = () => {
               Organograma
             </Link>
           )}
+          <Link
+            to="/indicadores"
+            onClick={() => setMobileMenuOpen(false)}
+            className="block py-2 text-sm text-slate-300 hover:text-white"
+          >
+            Indicadores
+          </Link>
           {showSuperadminLink && (
             <Link
               to="/superadmin"

@@ -30,6 +30,7 @@ import {
 } from '@/services/superadmin'
 import { useAuth } from '@/hooks/use-auth'
 import ChangeOwnPasswordDialog from '@/components/ChangeOwnPasswordDialog'
+import { LicensedModulesSection } from '@/components/superadmin/LicensedModulesSection'
 
 const SuperAdminPage: React.FC = () => {
   const { user } = useAuth()
@@ -436,6 +437,9 @@ const SuperAdminPage: React.FC = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Módulos licenciados à parte (módulo Indicadores) */}
+      <LicensedModulesSection />
 
       <ChangeOwnPasswordDialog
         open={passwordDialogOpen}

@@ -35,6 +35,7 @@ import EmpresasPage from './pages/EmpresasPage'
 import IntegrationsPage from './pages/IntegrationsPage'
 import { CargosPage } from './pages/CargosPage'
 import EstruturaPage from './pages/EstruturaPage'
+import { IndicadoresPage } from './pages/IndicadoresPage'
 
 const App = () => (
   <BrowserRouter>
@@ -71,6 +72,7 @@ const App = () => (
                 <Route path="/empresas" element={<EmpresasPage />} />
                 <Route path="/cargos" element={<CargosPage />} />
                 <Route path="/estrutura" element={<EstruturaPage />} />
+                <Route path="/indicadores" element={<IndicadoresPage />} />
                 <Route path="/agente-score" element={<AiAgentSettingsPage />} />
                 <Route element={<AdminRouteGuard />}>
                   <Route path="/integracoes" element={<IntegrationsPage />} />
