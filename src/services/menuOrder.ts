@@ -14,33 +14,13 @@
 // authStore (o SDK padrão responde 200 com o mesmo token). Se o 401 das rotas
 // custom for corrigido no backend, elas podem voltar a ser usadas aqui.
 import pb from '@/lib/pocketbase/client'
+import { withFreshToken } from '@/lib/pocketbase/freshToken'
 import type { NavId } from '@/lib/navModel'
 
 /** Ordem salva do menu (lista de ids de rota). null = nunca personalizou. */
 export type SavedMenuOrder = NavId[] | null
 
 const isNavId = (v: unknown): v is NavId => typeof v === 'string' && v.length > 0 && v.length <= 64
-
-/** Token expirado/stale → renova o authStore (authRefresh) e revalida. */
-async function withFreshToken<T>(fn: () => Promise<T>): Promise<T> {
-  try {
-    return await fn()
-  } catch (err) {
-    const status =
-      (err as { status?: number; response?: { status?: number } })?.status ??
-      (err as { response?: { status?: number } })?.response?.status
-    if (status !== 0 && status !== 400 && status !== 401 && status !== 403 && status !== 404) {
-      throw err
-    }
-    if (!pb.authStore.isValid || !pb.authStore.record?.id) throw err
-    try {
-      await pb.collection('users').authRefresh()
-    } catch (_) {
-      throw err
-    }
-    return fn()
-  }
-}
 
 /** Extrai e valida a ordem salva do campo menu_order do usuário. */
 function parseMenuOrder(raw: unknown): SavedMenuOrder {

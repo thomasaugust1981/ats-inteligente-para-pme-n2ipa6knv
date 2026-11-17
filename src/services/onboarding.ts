@@ -1,4 +1,5 @@
 import pb from '@/lib/pocketbase/client'
+import { withFreshToken } from '@/lib/pocketbase/freshToken'
 import type { Company, OnboardingStatus, TeamInvite, UserRole } from '@/types/ats'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 
@@ -46,14 +47,17 @@ export const onboardingService = {
     id: string,
     data: Partial<Company> & { onboarding_status?: OnboardingStatus },
   ): Promise<Company> {
-    return await pb.collection('companies').update<Company>(id, data)
+    // withFreshToken: token stale → authRefresh + retry (o PocketBase responde
+    // 404 "resource wasn't found" quando o token venceu e a regra da coleção
+    // esconde o registro — era a causa do "Erro ao salvar" no onboarding).
+    return await withFreshToken(() => pb.collection('companies').update<Company>(id, data))
   },
 
   /** Envia o logo via FormData (upload de arquivo). */
   async updateLogo(id: string, file: File): Promise<Company> {
     const formData = new FormData()
     formData.append('logo', file)
-    return await pb.collection('companies').update<Company>(id, formData)
+    return await withFreshToken(() => pb.collection('companies').update<Company>(id, formData))
   },
 
   async getOnboardingStatus(): Promise<OnboardingStatus> {
@@ -75,13 +79,15 @@ export const onboardingService = {
 
   async createInvite(email: string, role: UserRole): Promise<TeamInvite> {
     const user = pb.authStore.record as (Record<string, unknown> & { org_id?: string }) | null
-    return await pb.collection('team_invites').create<TeamInvite>({
-      email: email.trim().toLowerCase(),
-      role,
-      status: 'pending',
-      invited_by: user?.name || user?.email || 'Administrador',
-      org_id: user?.org_id || '',
-    })
+    return await withFreshToken(() =>
+      pb.collection('team_invites').create<TeamInvite>({
+        email: email.trim().toLowerCase(),
+        role,
+        status: 'pending',
+        invited_by: user?.name || user?.email || 'Administrador',
+        org_id: user?.org_id || '',
+      }),
+    )
   },
 
   async cancelInvite(id: string): Promise<void> {

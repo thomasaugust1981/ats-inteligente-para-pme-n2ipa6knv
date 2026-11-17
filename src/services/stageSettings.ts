@@ -1,4 +1,5 @@
 import pb from '@/lib/pocketbase/client'
+import { withFreshToken } from '@/lib/pocketbase/freshToken'
 import type { StageSetting, JobStage } from '@/types/ats'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 
@@ -73,9 +74,11 @@ export const stageSettingsService = {
     }
     const existing = await this.getByJobAndStage(jobId, draft.stage_id)
     if (existing) {
-      return await pb.collection('stage_settings').update<StageSetting>(existing.id, payload)
+      return await withFreshToken(() =>
+        pb.collection('stage_settings').update<StageSetting>(existing.id, payload),
+      )
     }
-    return await pb.collection('stage_settings').create<StageSetting>(payload)
+    return await withFreshToken(() => pb.collection('stage_settings').create<StageSetting>(payload))
   },
 
   /** Salva todos os drafts de uma vaga, reportando erros por etapa. */
