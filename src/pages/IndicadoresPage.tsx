@@ -113,6 +113,9 @@ export const IndicadoresPage: React.FC = () => {
   const [loadError, setLoadError] = useState('')
 
   // ---------------------------------------------------------------- status de licença
+  // Consulta a rota custom do hook modules_license.js; se ela falhar (401 de
+  // auth em rotas fora de /api/, por exemplo), cai para a leitura DIRETA da
+  // coleção org_modules via API padrão do SDK antes de mostrar bloqueio.
   useEffect(() => {
     let cancelled = false
     setStatusLoading(true)
@@ -124,8 +127,27 @@ export const IndicadoresPage: React.FC = () => {
         if (!res.ok) throw new Error('Falha ao consultar o status do módulo.')
         const s = (await res.json()) as { licensed: boolean; org?: { name: string } | null }
         if (!cancelled) setStatus(s)
-      } catch (err) {
-        if (!cancelled) setStatusError(getErrorMessage(err))
+      } catch (_) {
+        try {
+          const orgId = pb.authStore.record?.org_id
+          if (typeof orgId !== 'string' || !orgId) throw new Error('Organização não identificada.')
+          const rec = await pb
+            .collection('org_modules')
+            .getFirstListItem<{ licensed?: boolean; expand?: { org_id?: { name?: string } } }>(
+              `org_id = "${orgId}" && module = "indicadores"`,
+              { expand: 'org_id' },
+            )
+          if (!cancelled) {
+            const name = rec?.expand?.org_id?.name
+            setStatus({
+              licensed: rec?.licensed === true,
+              org: name ? { name } : null,
+            })
+            setStatusError('')
+          }
+        } catch (fallbackErr) {
+          if (!cancelled) setStatusError(getErrorMessage(fallbackErr))
+        }
       } finally {
         if (!cancelled) setStatusLoading(false)
       }
