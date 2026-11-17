@@ -200,6 +200,20 @@ export interface Job {
   // FASE 1 CHA: cargo vinculado + requisitos efetivos (JSON no PB)
   cargo_id?: string
   cha_requirements?: string | JobChaRequirements | null
+  // FASE 3: vínculo direto cargo → vaga (herança de posição do organograma)
+  org_node_id?: string
+  organograma_version_id?: string
+  manager_name?: string
+  cost_center?: string
+  extra_requirements?: string
+  headcount?: number | null
+  deadline?: string
+  urgent?: boolean
+  opened_at?: string
+  opened_by?: string
+  opened_by_id?: string
+  cargo_snapshot?: string | Record<string, unknown> | null
+  organograma_snapshot?: string | Record<string, unknown> | null
   manager_id?: string
   created_by?: string
   company_id?: string
