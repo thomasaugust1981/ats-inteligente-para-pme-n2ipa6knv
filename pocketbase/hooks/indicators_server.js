@@ -1,7 +1,10 @@
 //
 // Indicadores — pacote 2 de 4: rotas de cálculo atrás do guard de licença do
-// módulo 'indicadores' ($paths.indicatorsLicenseActive, exposto por
-// pocketbase/hooks/modules_license.js — pacote 1).
+// módulo 'indicadores' (lógica inline de modules_license.js — pacote 1).
+//
+// JSVM: callbacks rodam em VM própria e atribuição em $app.*/$paths.* NÃO é
+// vista pela VM do callback — o resolver de auth (token do header) e o guard
+// de licença vivem DENTRO de cada callback, duplicados de propósito.
 //
 //   GET /backend/v1/indicators/time-to-hire       ?from=&to=&org_id=(superadmin)
 //   GET /backend/v1/indicators/funnel-conversion  ?from=&to=&job_id=&org_id=(superadmin)
@@ -76,8 +79,57 @@ routerAdd('GET', '/backend/v1/indicators/time-to-hire', (e) => {
     return Math.round((bucket.sum / bucket.count) * 10) / 10
   }
 
+  // FORA DE /api/ o runtime não popula e.auth — resolve pelo header. Helpers
+  // DENTRO do callback: a JSVM não vê declarações top-level nem em $app/$paths.
+  function readAuthToken(ev) {
+    let token = ''
+    try {
+      token = String(ev.request.getHeader('Authorization') || '')
+    } catch (_) {
+      token = ''
+    }
+    if (!token) {
+      try {
+        token = String(ev.request.Header.Get('Authorization') || '')
+      } catch (_) {
+        token = ''
+      }
+    }
+    if (!token) {
+      let hinfo = {}
+      try {
+        hinfo = ev.requestInfo() || {}
+      } catch (_) {
+        hinfo = {}
+      }
+      const hh = (hinfo && hinfo.headers) || {}
+      let hv = hh['authorization'] || hh['Authorization'] || ''
+      if (Array.isArray(hv)) hv = hv.length > 0 ? hv[0] : ''
+      token = String(hv || '')
+    }
+    token = String(token).trim()
+    if (token.toLowerCase().lastIndexOf('bearer ', 0) === 0) {
+      token = token.slice(7).trim()
+    }
+    return token
+  }
+  function resolveUser(ev) {
+    if (ev.auth) return ev.auth
+    const token = readAuthToken(ev)
+    if (!token) return null
+    try {
+      return ev.app.findAuthRecordByToken(token, 'auth')
+    } catch (_) {
+      try {
+        return ev.app.findAuthRecordByToken(token)
+      } catch (__) {
+        return null
+      }
+    }
+  }
+
   try {
-    const auth = $app.resolveAuthUser(e)
+    const auth = resolveUser(e)
     if (!auth) return e.json(401, { error: 'Autenticação necessária.' })
 
     let info = {}
@@ -215,8 +267,57 @@ routerAdd('GET', '/backend/v1/indicators/funnel-conversion', (e) => {
     return d + 86399999 >= Date.now()
   }
 
+  // FORA DE /api/ o runtime não popula e.auth — resolve pelo header. Helpers
+  // DENTRO do callback: a JSVM não vê declarações top-level nem em $app/$paths.
+  function readAuthToken(ev) {
+    let token = ''
+    try {
+      token = String(ev.request.getHeader('Authorization') || '')
+    } catch (_) {
+      token = ''
+    }
+    if (!token) {
+      try {
+        token = String(ev.request.Header.Get('Authorization') || '')
+      } catch (_) {
+        token = ''
+      }
+    }
+    if (!token) {
+      let hinfo = {}
+      try {
+        hinfo = ev.requestInfo() || {}
+      } catch (_) {
+        hinfo = {}
+      }
+      const hh = (hinfo && hinfo.headers) || {}
+      let hv = hh['authorization'] || hh['Authorization'] || ''
+      if (Array.isArray(hv)) hv = hv.length > 0 ? hv[0] : ''
+      token = String(hv || '')
+    }
+    token = String(token).trim()
+    if (token.toLowerCase().lastIndexOf('bearer ', 0) === 0) {
+      token = token.slice(7).trim()
+    }
+    return token
+  }
+  function resolveUser(ev) {
+    if (ev.auth) return ev.auth
+    const token = readAuthToken(ev)
+    if (!token) return null
+    try {
+      return ev.app.findAuthRecordByToken(token, 'auth')
+    } catch (_) {
+      try {
+        return ev.app.findAuthRecordByToken(token)
+      } catch (__) {
+        return null
+      }
+    }
+  }
+
   try {
-    const auth = $app.resolveAuthUser(e)
+    const auth = resolveUser(e)
     if (!auth) return e.json(401, { error: 'Autenticação necessária.' })
 
     let info = {}
@@ -352,8 +453,57 @@ routerAdd('GET', '/backend/v1/indicators/offer-acceptance', (e) => {
     return d + 86399999 >= Date.now()
   }
 
+  // FORA DE /api/ o runtime não popula e.auth — resolve pelo header. Helpers
+  // DENTRO do callback: a JSVM não vê declarações top-level nem em $app/$paths.
+  function readAuthToken(ev) {
+    let token = ''
+    try {
+      token = String(ev.request.getHeader('Authorization') || '')
+    } catch (_) {
+      token = ''
+    }
+    if (!token) {
+      try {
+        token = String(ev.request.Header.Get('Authorization') || '')
+      } catch (_) {
+        token = ''
+      }
+    }
+    if (!token) {
+      let hinfo = {}
+      try {
+        hinfo = ev.requestInfo() || {}
+      } catch (_) {
+        hinfo = {}
+      }
+      const hh = (hinfo && hinfo.headers) || {}
+      let hv = hh['authorization'] || hh['Authorization'] || ''
+      if (Array.isArray(hv)) hv = hv.length > 0 ? hv[0] : ''
+      token = String(hv || '')
+    }
+    token = String(token).trim()
+    if (token.toLowerCase().lastIndexOf('bearer ', 0) === 0) {
+      token = token.slice(7).trim()
+    }
+    return token
+  }
+  function resolveUser(ev) {
+    if (ev.auth) return ev.auth
+    const token = readAuthToken(ev)
+    if (!token) return null
+    try {
+      return ev.app.findAuthRecordByToken(token, 'auth')
+    } catch (_) {
+      try {
+        return ev.app.findAuthRecordByToken(token)
+      } catch (__) {
+        return null
+      }
+    }
+  }
+
   try {
-    const auth = $app.resolveAuthUser(e)
+    const auth = resolveUser(e)
     if (!auth) return e.json(401, { error: 'Autenticação necessária.' })
 
     let info = {}
@@ -520,8 +670,57 @@ routerAdd('GET', '/backend/v1/indicators/hired-source', (e) => {
     return m[String(raw || '')] || 'Não informado'
   }
 
+  // FORA DE /api/ o runtime não popula e.auth — resolve pelo header. Helpers
+  // DENTRO do callback: a JSVM não vê declarações top-level nem em $app/$paths.
+  function readAuthToken(ev) {
+    let token = ''
+    try {
+      token = String(ev.request.getHeader('Authorization') || '')
+    } catch (_) {
+      token = ''
+    }
+    if (!token) {
+      try {
+        token = String(ev.request.Header.Get('Authorization') || '')
+      } catch (_) {
+        token = ''
+      }
+    }
+    if (!token) {
+      let hinfo = {}
+      try {
+        hinfo = ev.requestInfo() || {}
+      } catch (_) {
+        hinfo = {}
+      }
+      const hh = (hinfo && hinfo.headers) || {}
+      let hv = hh['authorization'] || hh['Authorization'] || ''
+      if (Array.isArray(hv)) hv = hv.length > 0 ? hv[0] : ''
+      token = String(hv || '')
+    }
+    token = String(token).trim()
+    if (token.toLowerCase().lastIndexOf('bearer ', 0) === 0) {
+      token = token.slice(7).trim()
+    }
+    return token
+  }
+  function resolveUser(ev) {
+    if (ev.auth) return ev.auth
+    const token = readAuthToken(ev)
+    if (!token) return null
+    try {
+      return ev.app.findAuthRecordByToken(token, 'auth')
+    } catch (_) {
+      try {
+        return ev.app.findAuthRecordByToken(token)
+      } catch (__) {
+        return null
+      }
+    }
+  }
+
   try {
-    const auth = $app.resolveAuthUser(e)
+    const auth = resolveUser(e)
     if (!auth) return e.json(401, { error: 'Autenticação necessária.' })
 
     let info = {}
@@ -642,8 +841,57 @@ routerAdd('GET', '/backend/v1/indicators/first-response-time', (e) => {
     return Math.round((bucket.sum / bucket.count) * 10) / 10
   }
 
+  // FORA DE /api/ o runtime não popula e.auth — resolve pelo header. Helpers
+  // DENTRO do callback: a JSVM não vê declarações top-level nem em $app/$paths.
+  function readAuthToken(ev) {
+    let token = ''
+    try {
+      token = String(ev.request.getHeader('Authorization') || '')
+    } catch (_) {
+      token = ''
+    }
+    if (!token) {
+      try {
+        token = String(ev.request.Header.Get('Authorization') || '')
+      } catch (_) {
+        token = ''
+      }
+    }
+    if (!token) {
+      let hinfo = {}
+      try {
+        hinfo = ev.requestInfo() || {}
+      } catch (_) {
+        hinfo = {}
+      }
+      const hh = (hinfo && hinfo.headers) || {}
+      let hv = hh['authorization'] || hh['Authorization'] || ''
+      if (Array.isArray(hv)) hv = hv.length > 0 ? hv[0] : ''
+      token = String(hv || '')
+    }
+    token = String(token).trim()
+    if (token.toLowerCase().lastIndexOf('bearer ', 0) === 0) {
+      token = token.slice(7).trim()
+    }
+    return token
+  }
+  function resolveUser(ev) {
+    if (ev.auth) return ev.auth
+    const token = readAuthToken(ev)
+    if (!token) return null
+    try {
+      return ev.app.findAuthRecordByToken(token, 'auth')
+    } catch (_) {
+      try {
+        return ev.app.findAuthRecordByToken(token)
+      } catch (__) {
+        return null
+      }
+    }
+  }
+
   try {
-    const auth = $app.resolveAuthUser(e)
+    const auth = resolveUser(e)
     if (!auth) return e.json(401, { error: 'Autenticação necessária.' })
 
     let info = {}
@@ -870,8 +1118,57 @@ routerAdd('GET', '/backend/v1/indicators/rejection-reasons', (e) => {
     return 'outros'
   }
 
+  // FORA DE /api/ o runtime não popula e.auth — resolve pelo header. Helpers
+  // DENTRO do callback: a JSVM não vê declarações top-level nem em $app/$paths.
+  function readAuthToken(ev) {
+    let token = ''
+    try {
+      token = String(ev.request.getHeader('Authorization') || '')
+    } catch (_) {
+      token = ''
+    }
+    if (!token) {
+      try {
+        token = String(ev.request.Header.Get('Authorization') || '')
+      } catch (_) {
+        token = ''
+      }
+    }
+    if (!token) {
+      let hinfo = {}
+      try {
+        hinfo = ev.requestInfo() || {}
+      } catch (_) {
+        hinfo = {}
+      }
+      const hh = (hinfo && hinfo.headers) || {}
+      let hv = hh['authorization'] || hh['Authorization'] || ''
+      if (Array.isArray(hv)) hv = hv.length > 0 ? hv[0] : ''
+      token = String(hv || '')
+    }
+    token = String(token).trim()
+    if (token.toLowerCase().lastIndexOf('bearer ', 0) === 0) {
+      token = token.slice(7).trim()
+    }
+    return token
+  }
+  function resolveUser(ev) {
+    if (ev.auth) return ev.auth
+    const token = readAuthToken(ev)
+    if (!token) return null
+    try {
+      return ev.app.findAuthRecordByToken(token, 'auth')
+    } catch (_) {
+      try {
+        return ev.app.findAuthRecordByToken(token)
+      } catch (__) {
+        return null
+      }
+    }
+  }
+
   try {
-    const auth = $app.resolveAuthUser(e)
+    const auth = resolveUser(e)
     if (!auth) return e.json(401, { error: 'Autenticação necessária.' })
 
     let info = {}
