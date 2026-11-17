@@ -343,7 +343,9 @@ const TimeToHireSection: React.FC<{ data: IndicatorsData['tth'] }> = ({ data }) 
       ) : (
         <>
           <div className="flex items-baseline gap-2 mb-4">
-            <span className="text-3xl font-bold text-slate-900">{fmtNum(data.overall_avg_days)}</span>
+            <span className="text-3xl font-bold text-slate-900">
+              {fmtNum(data.overall_avg_days)}
+            </span>
             <span className="text-sm text-slate-500">
               dias em média · {data.hires_count} contratações
             </span>

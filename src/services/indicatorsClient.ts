@@ -183,7 +183,12 @@ export function categorizeRejection(text: string): string {
   ) {
     return 'pretensao_salarial'
   }
-  if (t.includes('fit') || t.includes('cultur') || t.includes('comportament') || t.includes('valores')) {
+  if (
+    t.includes('fit') ||
+    t.includes('cultur') ||
+    t.includes('comportament') ||
+    t.includes('valores')
+  ) {
     return 'fit_cultura'
   }
   if (
@@ -317,7 +322,11 @@ export async function fetchIndicatorsData(filters: IndicatorsFilters): Promise<I
     hires_count: hireDays.length,
     overall_avg_days: Math.round(avg(hireDays) * 10) / 10,
     by_area: [...tthByArea.entries()]
-      .map(([area, list]) => ({ area, hires: list.length, avg_days: Math.round(avg(list) * 10) / 10 }))
+      .map(([area, list]) => ({
+        area,
+        hires: list.length,
+        avg_days: Math.round(avg(list) * 10) / 10,
+      }))
       .sort((a, b) => b.hires - a.hires),
     by_seniority: [...tthBySeniority.entries()]
       .map(([level, list]) => ({
@@ -388,7 +397,12 @@ export async function fetchIndicatorsData(filters: IndicatorsFilters): Promise<I
     offers_accepted: offersAccepted,
     acceptance_rate_pct: pctOf(offersAccepted, offersMade),
     by_area: [...offerByArea.entries()]
-      .map(([area, v]) => ({ area, made: v.made, accepted: v.accepted, rate_pct: pctOf(v.accepted, v.made) }))
+      .map(([area, v]) => ({
+        area,
+        made: v.made,
+        accepted: v.accepted,
+        rate_pct: pctOf(v.accepted, v.made),
+      }))
       .sort((a, b) => b.made - a.made),
   }
 
