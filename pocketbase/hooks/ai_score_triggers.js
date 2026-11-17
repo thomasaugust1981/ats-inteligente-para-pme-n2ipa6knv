@@ -45,9 +45,6 @@ onRecordAfterUpdateSuccess((e) => {
 
     // Módulo configurável: agente desativado → nenhum gatilho dispara cálculo.
     // Config POR ORGANIZAÇÃO (0029): usa a org da vaga; vaga sem org cai na global.
-    const agentSettings = $app.getAgentSettings(app, String(job.get('org_' + 'id') || ''))
-    if (!agentSettings.enabled) return
-
     const candidate = (() => {
       try {
         return app.findRecordById('candidates', record.get('candidate_id'))
@@ -63,6 +60,9 @@ onRecordAfterUpdateSuccess((e) => {
       }
     })()
     if (!candidate || !job) return
+
+    const agentSettings = $app.getAgentSettings(app, String(job.get('org_' + 'id') || ''))
+    if (!agentSettings.enabled) return
 
     // ---- snapshot das informações usadas ----
     function tryFindFirst(collection, filter, params) {
@@ -164,6 +164,10 @@ onRecordAfterUpdateSuccess((e) => {
         location: job.get('location') || '',
       },
       disc: disc,
+      // Ficha CHA preenchida para esta candidatura — evidência objetiva da
+      // dimensão técnica (fonte 'cha'); sem ficha, a fonte fica 'resume'.
+      cha_evaluation: null,
+      technical_source: 'resume',
       cultural_fit: {
         manual_score: fitScore,
         manual_note: fitNote,
@@ -172,15 +176,21 @@ onRecordAfterUpdateSuccess((e) => {
       },
       pipeline_comments: comments,
     }
+    // Ficha CHA da candidatura, quando existe — alimenta a dimensão técnica
+    // com dados objetivos. Candidato sem ficha: snapshot fica como era.
+    const chaApplied = $app.applyChaToSnapshot(app, snapshot, record.id)
+
     // Pesos EFETIVOS: régua própria da vaga quando preenchida, senão a global.
     const resolved = $app.resolveScoreWeights(job, agentSettings)
     snapshot.weights_used = resolved.weights
     snapshot.weights_source = resolved.source
 
+    // Ficha CHA preenchida também é dado suficiente (sem currículo estruturado).
     const hasResumeData =
       (snapshot.candidate.resume_structured &&
         JSON.stringify(snapshot.candidate.resume_structured).length > 10) ||
-      (snapshot.candidate.skills && String(snapshot.candidate.skills).trim().length > 0)
+      (snapshot.candidate.skills && String(snapshot.candidate.skills).trim().length > 0) ||
+      chaApplied
 
     // Placeholder/registro de auditoria (sempre grava; vira "insufficient" quando faltam dados).
     try {
@@ -304,6 +314,10 @@ onRecordAfterCreateSuccess((e) => {
         location: job.get('location') || '',
       },
       disc: null,
+      // Ficha CHA preenchida para esta candidatura — evidência objetiva da
+      // dimensão técnica (fonte 'cha'); sem ficha, a fonte fica 'resume'.
+      cha_evaluation: null,
+      technical_source: 'resume',
       cultural_fit: {
         manual_score: null,
         manual_note: '',
@@ -312,15 +326,21 @@ onRecordAfterCreateSuccess((e) => {
       },
       pipeline_comments: [],
     }
+    // Ficha CHA da candidatura, quando existe — alimenta a dimensão técnica
+    // com dados objetivos. Candidato sem ficha: snapshot fica como era.
+    const chaApplied = $app.applyChaToSnapshot(app, snapshot, record.id)
+
     // Pesos EFETIVOS: régua própria da vaga quando preenchida, senão a global.
     const resolved = $app.resolveScoreWeights(job, agentSettings)
     snapshot.weights_used = resolved.weights
     snapshot.weights_source = resolved.source
 
+    // Ficha CHA preenchida também é dado suficiente (sem currículo estruturado).
     const hasResumeData =
       (snapshot.candidate.resume_structured &&
         JSON.stringify(snapshot.candidate.resume_structured).length > 10) ||
-      (snapshot.candidate.skills && String(snapshot.candidate.skills).trim().length > 0)
+      (snapshot.candidate.skills && String(snapshot.candidate.skills).trim().length > 0) ||
+      chaApplied
 
     try {
       app.runBatch(function (batch) {
@@ -459,6 +479,10 @@ onRecordAfterUpdateSuccess((e) => {
         s: record.get('score_s'),
         c: record.get('score_c'),
       },
+      // Ficha CHA preenchida para esta candidatura — evidência objetiva da
+      // dimensão técnica (fonte 'cha'); sem ficha, a fonte fica 'resume'.
+      cha_evaluation: null,
+      technical_source: 'resume',
       cultural_fit: {
         manual_score: record.get('fit_score'),
         manual_note: record.get('fit_note') || '',
@@ -467,15 +491,21 @@ onRecordAfterUpdateSuccess((e) => {
       },
       pipeline_comments: [],
     }
+    // Ficha CHA da candidatura, quando existe — alimenta a dimensão técnica
+    // com dados objetivos. Candidato sem ficha: snapshot fica como era.
+    const chaApplied = $app.applyChaToSnapshot(app, snapshot, appRecord.id)
+
     // Pesos EFETIVOS: régua própria da vaga quando preenchida, senão a global.
     const resolved = $app.resolveScoreWeights(job, agentSettings)
     snapshot.weights_used = resolved.weights
     snapshot.weights_source = resolved.source
 
+    // Ficha CHA preenchida também é dado suficiente (sem currículo estruturado).
     const hasResumeData =
       (snapshot.candidate.resume_structured &&
         JSON.stringify(snapshot.candidate.resume_structured).length > 10) ||
-      (snapshot.candidate.skills && String(snapshot.candidate.skills).trim().length > 0)
+      (snapshot.candidate.skills && String(snapshot.candidate.skills).trim().length > 0) ||
+      chaApplied
 
     try {
       app.runBatch(function (batch) {

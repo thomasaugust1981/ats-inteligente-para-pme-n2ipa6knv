@@ -5,10 +5,14 @@ import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { useAiScore, formatScoreDate } from '@/hooks/use-ai-score'
 import { useAiAgentSettings } from '@/hooks/use-ai-agent-settings'
+import { chaFromSnapshot } from '@/lib/aiScoreCha'
+import { AiScoreChaDetail } from '@/components/aiScore/AiScoreChaDetail'
 
 // Painel de score de IA do perfil do candidato: score geral + detalhamento por
 // dimensão (técnica, comportamental/DISC, cultural) + justificativa + HISTÓRICO
 // de cálculos anteriores. Consultivo — nunca aprova/reprova automaticamente.
+// Quando a dimensão técnica veio da ficha CHA (snapshot.technical_source =
+// 'cha'), mostra o bloco de contribuição CHA com % por bloco K/H/A.
 
 const TRIGGER_LABELS: Record<string, string> = {
   manual: 'Recálculo manual',
@@ -158,20 +162,26 @@ export function AiScorePanel({
             <div className="space-y-2">
               {DIMENSIONS.map((dim) => {
                 const value = latest[dim.key]
+                const isChaTechnical =
+                  dim.key === 'score_technical' && chaFromSnapshot(latest.snapshot) !== null
                 return (
                   <div key={dim.key} className="space-y-1">
+                    {/* selo CHA no rótulo da dimensão técnica quando aplicável */}
                     <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-slate-600">{dim.label}</span>
+                      <span className="text-slate-600">
+                        {isChaTechnical ? 'Técnica (ficha CHA)' : dim.label}
+                      </span>
                       <span className="font-medium tabular-nums text-slate-700">
                         {value == null ? '—' : `${value}/100`}
                       </span>
                     </div>
                     <div className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
                       <div
-                        className={`h-full rounded-full ${dim.color}`}
+                        className={`h-full rounded-full ${isChaTechnical ? 'bg-sky-400' : dim.color}`}
                         style={{ width: `${value == null ? 0 : Math.min(100, value)}%` }}
                       />
                     </div>
+                    {isChaTechnical && <AiScoreChaDetail snapshot={latest.snapshot} />}
                   </div>
                 )
               })}

@@ -21,9 +21,9 @@ import {
 } from '@/components/ui/select'
 import { Lock, AlertTriangle, Save } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import { formatBRL } from '@/services/jobOpening'
 import type { CargoRaw } from '@/services/cargos'
 import type { CargoInheritance } from '@/services/jobOpening'
+import { formatBRL } from '@/services/jobOpening'
 
 interface OpenJobDialogProps {
   open: boolean
@@ -77,20 +77,23 @@ export const OpenJobDialog: React.FC<OpenJobDialogProps> = ({
 
   const inherited: InheritedItem[] = useMemo(() => {
     if (!inheritance) return []
-    const node = inheritance.node
     const items: InheritedItem[] = []
+    const node = inheritance.node
     if (node?.name) items.push({ label: 'Posição (organograma)', value: node.name })
-    items.push({ label: 'Cargo', value: inheritance.cargo.title || '—' })
-    if (inheritance.cargo.salary_min != null || inheritance.cargo.salary_max != null) {
-      items.push({
-        label: 'Faixa salarial',
-        value: `${formatBRL(inheritance.cargo.salary_min)} — ${formatBRL(inheritance.cargo.salary_max)}`,
-      })
-    }
+    items.push({ label: 'Cargo', value: inheritance.cargo?.title || '—' })
+    items.push({
+      label: 'Faixa salarial',
+      value:
+        inheritance.cargo?.salary_min != null || inheritance.cargo?.salary_max != null
+          ? `${formatBRL(inheritance.cargo?.salary_min ?? null)} — ${formatBRL(
+              inheritance.cargo?.salary_max ?? null,
+            )}`
+          : '—',
+    })
     if (node?.manager) items.push({ label: 'Gestor', value: node.manager })
     if (node?.cost_center) items.push({ label: 'Centro de custo', value: node.cost_center })
     return items
-  }, [inheritance])
+  }, [inheritance, cargo])
 
   const quantityNum = parseInt(quantity, 10)
   const quantityValid = Number.isFinite(quantityNum) && quantityNum >= 1
@@ -111,19 +114,19 @@ export const OpenJobDialog: React.FC<OpenJobDialogProps> = ({
       // Campos herdados são gravados a partir do cargo de origem (servidor também
       // valida no hook de create — o cliente envia apenas os vínculos e os próprios).
       await jobsService.createJob({
-        title: `${inheritance.cargo.title}${quantityNum > 1 ? ` (${quantityNum} posições)` : ''}`,
-        slug: `${inheritance.cargo.id}-${Date.now()}`,
-        description: inheritance.cargo.mission || '',
+        title: `${cargo.title}${quantityNum > 1 ? ` (${quantityNum} posições)` : ''}`,
+        slug: `${cargo.id}-${Date.now()}`,
+        description: cargo.mission || '',
         status: 'draft',
-        cargo_id: inheritance.cargo.id,
+        cargo_id: cargo.id,
         org_node_id: inheritance.node?.id || undefined,
         headcount: quantityNum,
         employment_type: contractType,
         workplace_type: workModel,
         deadline: deadline || undefined,
         urgent: urgency !== 'normal',
-        salary_min: inheritance.cargo.salary_min ?? undefined,
-        salary_max: inheritance.cargo.salary_max ?? undefined,
+        salary_min: inheritance.cargo?.salary_min ?? undefined,
+        salary_max: inheritance.cargo?.salary_max ?? undefined,
         manager_id: inheritance.node?.manager_id || undefined,
       } as never)
       toast({ title: 'Vaga aberta!', description: 'A vaga foi criada a partir do cargo.' })
@@ -148,7 +151,7 @@ export const OpenJobDialog: React.FC<OpenJobDialogProps> = ({
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            Abrir vaga — {inheritance?.cargo.title || cargo.title}
+            Abrir vaga — {cargo.title}
             <Badge variant="outline" className="text-[10px] border-sky-300 text-sky-700">
               herança do cargo
             </Badge>

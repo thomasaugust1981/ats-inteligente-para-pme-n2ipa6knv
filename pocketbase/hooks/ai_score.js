@@ -4,9 +4,13 @@
 // agente NATIVO 'candidate-scorer' ou, se o admin configurou, provedor próprio
 // do cliente (OpenAI/Gemini com a chave dele, com fallback ao nativo). Consultivo
 // apenas — NUNCA altera o status da candidatura. Grava em ai_scores (auditoria).
+// Quando o candidato tem ficha CHA preenchida (cha_evaluations), a dimensão
+// técnica é alimentada com essa evidência objetiva ($app.applyChaToSnapshot,
+// pocketbase/hooks/cha_score.js) e o snapshot registra a fonte ('cha' | 'resume').
 //
 // A JSVM executa callbacks em pool separado: helpers ficam DENTRO do callback
-// e TODOS os caminhos de saída chamam e.next().
+// e TODOS os caminhos de saída chamam e.next(). Helpers GLOBAIS de CHA ficam em
+// pocketbase/hooks/cha_score.js ($app.applyChaToSnapshot).
 //
 
 routerAdd('POST', '/backend/v1/candidates/score', (e) => {
@@ -138,6 +142,10 @@ routerAdd('POST', '/backend/v1/candidates/score', (e) => {
         location: job.get('location') || '',
       },
       disc: disc,
+      // Ficha CHA preenchida para esta candidatura — evidência objetiva da
+      // dimensão técnica (fonte 'cha'); sem ficha, a fonte fica 'resume'.
+      cha_evaluation: null,
+      technical_source: 'resume',
       cultural_fit: {
         manual_score: fitScore,
         manual_note: fitNote,
@@ -187,15 +195,28 @@ routerAdd('POST', '/backend/v1/candidates/score', (e) => {
               }
             } else {
               const snapshot = buildSnapshot(e.app, appRecord, candidate, job, trigger)
+              // Ficha CHA da candidatura, quando existe — alimenta a dimensão
+              // técnica com dados objetivos (score ponderado, % por bloco,
+              // notas baixas + evidências). Candidato sem ficha: sem mudança.
+              const chaApplied = $app.applyChaToSnapshot(e.app, snapshot, appRecord.id)
+              if (chaApplied) {
+                console.log(
+                  '[ai-score] ficha CHA aplicada à dimensão técnica | aplicação:',
+                  appRecord.id,
+                )
+              }
               // Pesos EFETIVOS: régua própria da vaga quando preenchida (soma 100),
               // senão a régua global — com a origem registrada no snapshot.
               const resolved = $app.resolveScoreWeights(job, agentSettings)
               snapshot.weights_used = resolved.weights
               snapshot.weights_source = resolved.source
+              // Ficha CHA preenchida também é dado suficiente para calcular
+              // (candidato interno/indicação sem currículo estruturado).
               const hasResumeData =
                 (snapshot.candidate.resume_structured &&
                   JSON.stringify(snapshot.candidate.resume_structured).length > 10) ||
-                (snapshot.candidate.skills && snapshot.candidate.skills.trim().length > 0)
+                (snapshot.candidate.skills && snapshot.candidate.skills.trim().length > 0) ||
+                chaApplied
 
               if (!hasResumeData) {
                 responseStatus = 200

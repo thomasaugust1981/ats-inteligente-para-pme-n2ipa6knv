@@ -86,6 +86,11 @@ export function useAiScore(applicationId?: string | null) {
             message: result.message || 'Score ainda não calculado — dados insuficientes.',
           })
         } else {
+          // O snapshot vem no resultado do recálculo: preserva os dados de
+          // auditoria (incl. a ficha CHA) sem depender de uma nova busca.
+          let snapshot: unknown = undefined
+          const saved = history.find((h) => h.id === result.id)
+          if (saved) snapshot = saved.snapshot
           const latest: AiScoreRecord = {
             id: result.id || '',
             application_id: applicationId,
@@ -95,6 +100,7 @@ export function useAiScore(applicationId?: string | null) {
             score_technical: result.score_technical,
             score_behavioral: result.score_behavioral,
             score_cultural: result.score_cultural,
+            snapshot,
             trigger,
             created: result.created,
           }

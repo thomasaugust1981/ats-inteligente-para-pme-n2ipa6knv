@@ -167,6 +167,10 @@ $app.computeScore = function (app, snapshot, agentSettings) {
     '%; a soma é 100; ' +
     'redistribua proporcionalmente entre as dimensões disponíveis quando alguma for null). ' +
     'Justificativa OBRIGATÓRIA em português, citando evidências de cada dimensão avaliada. ' +
+    'Quando snapshot.technical_source = "cha", a dimensão TÉCNICA deve se basear na ficha CHA ' +
+    '(snapshot.cha_evaluation): score ponderado e % por bloco (conhecimentos/habilidades/atitudes) ' +
+    'são a evidência objetiva — use-os como referência principal do score técnico e cite na ' +
+    'justificativa os requisitos com nota baixa e suas evidências. ' +
     'Sem dados de uma dimensão, use null nela. ' +
     'Se faltar quase tudo (nem currículo/skills, nem requisitos da vaga), devolva insufficient_data=true. ' +
     'Score é consultivo — NUNCA aprova ou reprova ninguém, apenas orienta a equipe de recrutamento.' +

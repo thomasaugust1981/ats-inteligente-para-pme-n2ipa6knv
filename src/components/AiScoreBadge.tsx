@@ -5,6 +5,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAiScore, formatScoreDate } from '@/hooks/use-ai-score'
 import { useAiAgentSettings } from '@/hooks/use-ai-agent-settings'
+import { chaFromSnapshot } from '@/lib/aiScoreCha'
+import { AiScoreChaDetail } from '@/components/aiScore/AiScoreChaDetail'
 
 // Badge de score de IA do card do pipeline. Consultivo: mostra número +
 // justificativa num popover, data do último cálculo e botão de recalcular.
@@ -110,6 +112,7 @@ export function AiScoreBadge({
                 </p>
               )
             })()}
+            <AiScoreChaDetail snapshot={latest.snapshot} />
             <p className="text-[10px] text-slate-400">
               Último cálculo: {formatScoreDate(latest.created)} · Consultivo — não reprova nem
               aprova automaticamente.
