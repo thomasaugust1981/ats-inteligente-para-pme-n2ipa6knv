@@ -452,17 +452,21 @@ export const CargosPage: React.FC = () => {
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={BriefcaseBusiness}
-          title={cargos.length === 0 ? 'Nenhum cargo cadastrado' : 'Nenhum cargo encontrado'}
+          title={
+            cargos.length === 0
+              ? 'Monte o catálogo de cargos da sua empresa'
+              : 'Nenhum cargo encontrado'
+          }
           description={
             cargos.length === 0
-              ? 'Cadastre o primeiro cargo a partir de uma posição aprovada do organograma.'
+              ? 'Cadastre o primeiro cargo a partir de uma posição aprovada do organograma — ou comece com um modelo pronto no formulário.'
               : 'Ajuste a busca ou os filtros para encontrar o cargo.'
           }
           actions={
             canEdit && cargos.length === 0
               ? [
                   {
-                    label: 'Cadastrar cargo',
+                    label: 'Criar primeiro cargo',
                     onClick: () => {
                       setEditing(null)
                       setFormOpen(true)

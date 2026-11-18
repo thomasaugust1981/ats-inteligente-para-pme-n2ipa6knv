@@ -20,6 +20,7 @@ import {
   Filter,
   AlertCircle,
   Link2,
+  ExternalLink,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -406,9 +407,12 @@ export const PipelinePage: React.FC = () => {
         applications.length === 0 && allJobs.length === 0 ? (
           <EmptyState
             icon={Users}
-            title="Nenhum pipeline para exibir ainda"
-            description="Cadastre e publique uma vaga para acompanhar os candidatos em um quadro por etapas."
-            actions={[{ label: 'Cadastrar Vaga', to: '/vagas/nova', icon: Plus }]}
+            title="Nenhum candidato no funil"
+            description="Publique uma vaga e compartilhe o link da página de carreiras — assim que as pessoas se candidatarem, elas aparecem neste quadro por etapas."
+            actions={[
+              { label: 'Publicar vaga', to: '/vagas/nova', icon: Plus },
+              { label: 'Compartilhar link de carreiras', to: '/carreiras', icon: ExternalLink },
+            ]}
           />
         ) : (
           <div className="space-y-4">

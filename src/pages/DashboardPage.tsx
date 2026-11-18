@@ -25,6 +25,7 @@ import { Button } from '@/components/ui/button'
 import { LoadingState } from '@/components/LoadingState'
 import { EmptyState } from '@/components/EmptyState'
 import { DashboardRoadmapCard } from '@/components/dashboard/DashboardRoadmapCard'
+import { ActivationChecklistCard } from '@/components/dashboard/ActivationChecklistCard'
 import { useToast } from '@/hooks/use-toast'
 
 export const DashboardPage: React.FC = () => {
@@ -227,6 +228,9 @@ export const DashboardPage: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Checklist de ativação — some do Painel quando 100% concluído (por dados) */}
+      <ActivationChecklistCard />
 
       {/* Roadmap do Talent — apenas admin (o componente renderiza null para os demais) */}
       <DashboardRoadmapCard />

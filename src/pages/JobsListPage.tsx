@@ -227,10 +227,10 @@ export const JobsListPage: React.FC = () => {
         jobs.length === 0 ? (
           <EmptyState
             icon={Briefcase}
-            title="Nenhuma vaga cadastrada ainda"
+            title="Nenhuma vaga ainda — publique sua primeira vaga em minutos"
             description="Crie sua primeira oportunidade com requisitos, faixa salarial e etapas do processo seletivo. Leva menos de 5 minutos."
             actions={[
-              { label: 'Criar Nova Vaga', to: '/vagas/nova', icon: Plus },
+              { label: 'Criar primeira vaga', to: '/vagas/nova', icon: Plus },
               { label: 'Ver página de carreiras', to: '/carreiras', icon: ExternalLink },
             ]}
           />

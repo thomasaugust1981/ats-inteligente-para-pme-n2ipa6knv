@@ -4,8 +4,8 @@
  * { description, required, weight 1-5 }. É SUGESTÃO editável: o formulário
  * sempre deixa revisar antes de gravar.
  */
-import type { ChaBlockKey, ChaData } from '@/lib/cha'
-import { CHA_BLOCK_KEYS } from '@/lib/cha'
+import type { ChaBlockKey, ChaData, ChaItem } from '@/lib/cha'
+import { CHA_BLOCK_KEYS, chaItem } from '@/lib/cha'
 
 export interface CargoTemplate {
   id: string
@@ -20,6 +20,9 @@ export interface CargoTemplate {
 }
 
 type Block = { description: string; required: boolean; weight: number }
+
+/** Converte um item de template (sem id) em ChaItem com id. */
+const item = (b: Block): ChaItem => ({ ...b, id: chaItem().id })
 
 const t = (
   id: string,
@@ -41,9 +44,9 @@ const t = (
   salaryMed: salary[1],
   salaryMax: salary[2],
   cha: {
-    conhecimentos: { items: conhecimentos },
-    habilidades: { items: habilidades },
-    atitudes: { items: atitudes },
+    conhecimentos: { items: conhecimentos.map(item) },
+    habilidades: { items: habilidades.map(item) },
+    atitudes: { items: atitudes.map(item) },
   },
 })
 
@@ -65,7 +68,11 @@ export const CARGO_TEMPLATES: CargoTemplate[] = [
       { description: 'Abordagem e demonstração de produto', required: true, weight: 5 },
       { description: 'Contorna objeções e fecha a venda', required: true, weight: 5 },
       { description: 'Organização de vitrine e estoque de loja', required: false, weight: 2 },
-      { description: 'Comunicação clara com diferentes perfis de cliente', required: true, weight: 4 },
+      {
+        description: 'Comunicação clara com diferentes perfis de cliente',
+        required: true,
+        weight: 4,
+      },
     ],
     [
       { description: 'Simpatia e vontade de atender bem', required: true, weight: 5 },
@@ -158,7 +165,11 @@ export const CARGO_TEMPLATES: CargoTemplate[] = [
     'Dirigir veículo da empresa nas entregas/rotas, conferindo cargas e cumprindo o cronograma.',
     [1600, 1900, 2400],
     [
-      { description: 'Legislação de trânsito (CNH na categoria exigida)', required: true, weight: 5 },
+      {
+        description: 'Legislação de trânsito (CNH na categoria exigida)',
+        required: true,
+        weight: 5,
+      },
       { description: 'Rotas e malha viária da região', required: true, weight: 4 },
       { description: 'Noções de carga/descarga e conferência', required: false, weight: 3 },
       { description: 'Manutenção preventiva básica do veículo', required: false, weight: 2 },

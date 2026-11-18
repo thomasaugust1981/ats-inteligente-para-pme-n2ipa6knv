@@ -54,12 +54,14 @@ routerAdd('POST', '/backend/v1/cha/suggest', (e) => {
       'Você é um especialista em Recrutamento e Seleção no Brasil, com foco em PME. ' +
       'Monte a ficha CHA do cargo abaixo. CHA = Conhecimentos (saber), Habilidades (saber fazer) e Atitudes (saber ser). ' +
       'Responda APENAS com um JSON válido, sem texto extra, no formato: ' +
-      '{"conhecimentos":[{"description":"...","weight":1-5,"required":true|false}],'+
+      '{"conhecimentos":[{"description":"...","weight":1-5,"required":true|false}],' +
       '"habilidades":[...],"atitudes":[...]} — com 3 a 5 itens por bloco. ' +
       'Itens curtos e objetivos (até 90 caracteres), realistas para uma PME brasileira. ' +
       'weight é a importância do item dentro do bloco, de 1 (menor) a 5 (maior); ' +
       'required=true para os essenciais à função.\n\n' +
-      'Cargo: ' + title + '\n' +
+      'Cargo: ' +
+      title +
+      '\n' +
       (area ? 'Área: ' + area + '\n' : '') +
       (level ? 'Nível hierárquico: ' + level + '\n' : '') +
       (mission ? 'Missão do cargo: ' + mission + '\n' : '')
@@ -75,7 +77,10 @@ routerAdd('POST', '/backend/v1/cha/suggest', (e) => {
         providerUsed = providerCfg.provider
       } catch (err) {
         // Fallback obrigatório ao agente nativo (mesma regra do score).
-        console.error('[cha-suggest] falha no provedor próprio (' + providerCfg.provider + '):', err)
+        console.error(
+          '[cha-suggest] falha no provedor próprio (' + providerCfg.provider + '):',
+          err,
+        )
         result = null
       }
     }

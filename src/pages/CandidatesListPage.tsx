@@ -305,11 +305,11 @@ export const CandidatesListPage: React.FC = () => {
         candidates.length === 0 ? (
           <EmptyState
             icon={Users}
-            title="Nenhum candidato no banco de talentos ainda"
+            title="Nenhum candidato ainda — compartilhe suas vagas abertas"
             description="À medida que as pessoas se candidatarem nas suas vagas publicadas, elas aparecerão aqui com currículo, competências e consentimento LGPD."
             actions={[
-              { label: 'Publicar uma vaga', to: '/vagas', icon: Briefcase },
-              { label: 'Ver página de carreiras', to: '/carreiras', icon: ExternalLink },
+              { label: 'Ver vagas abertas', to: '/vagas', icon: Briefcase },
+              { label: 'Compartilhar página de carreiras', to: '/carreiras', icon: ExternalLink },
             ]}
           />
         ) : (

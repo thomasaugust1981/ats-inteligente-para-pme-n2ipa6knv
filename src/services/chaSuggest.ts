@@ -3,7 +3,7 @@
  * cha_suggest.js) com o token de sessão atual (withFreshToken). A resposta é
  * uma SUGESTÃO editável — quem grava é o formulário, depois da revisão.
  */
-import { pb } from '@/lib/pocketbase/client'
+import pb from '@/lib/pocketbase/client'
 import { withFreshToken } from '@/lib/pocketbase/freshToken'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import type { ChaData } from '@/lib/cha'
@@ -44,7 +44,7 @@ export const fetchChaSuggestion = async (params: {
   level?: string
   mission?: string
 }): Promise<ChaSuggestionResult> => {
-  return withFreshToken(async (token) => {
+  return withFreshToken(async () => {
     try {
       const res = await pb.send<Record<string, unknown>>('/api/backend/v1/cha/suggest', {
         method: 'POST',
@@ -59,7 +59,9 @@ export const fetchChaSuggestion = async (params: {
       const raw = (res.suggestion || {}) as Record<string, unknown>
       const suggestion = {} as ChaData
       for (const key of CHA_BLOCK_KEYS) {
-        suggestion[key] = normalizeBlock(raw[key])
+        suggestion[key] = {
+          items: normalizeBlock(raw[key]).items.map((it) => ({ ...it, id: crypto.randomUUID() })),
+        }
       }
       return { provider_used: String(res.provider_used || 'native'), suggestion }
     } catch (err) {
