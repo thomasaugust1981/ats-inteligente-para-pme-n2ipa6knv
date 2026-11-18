@@ -13,6 +13,7 @@ import {
   Bot,
   ShieldCheck,
   Rocket,
+  Presentation,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -23,6 +24,7 @@ export type NavId =
   | 'candidatos'
   | 'cargos'
   | 'indicadores'
+  | 'solucao'
   | 'organograma'
   | 'integracoes'
   | 'agente-score'
@@ -67,6 +69,7 @@ export const DEFAULT_NAV_IDS: NavId[] = [
   'candidatos',
   'cargos',
   'indicadores',
+  'solucao',
   'organograma',
   'integracoes',
   'superadmin',
@@ -118,6 +121,14 @@ export const NAV_ITEMS: NavItem[] = [
     // some quando o resolvedor confirma licença false. A licença real é
     // sempre aplicada no backend, o menu é só conveniência.
     visible: (c) => c.indicatorsLicensed !== false,
+  },
+  {
+    id: 'solucao',
+    label: 'Solução',
+    path: '/solucao',
+    icon: Presentation,
+    // Página de demonstração comercial — conteúdo estático, visível a todos.
+    visible: () => true,
   },
   {
     id: 'organograma',

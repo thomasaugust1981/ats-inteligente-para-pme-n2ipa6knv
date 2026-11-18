@@ -35,6 +35,7 @@ import EmpresasPage from './pages/EmpresasPage'
 import IntegrationsPage from './pages/IntegrationsPage'
 import { CargosPage } from './pages/CargosPage'
 import { IndicadoresPage } from './pages/IndicadoresPage'
+import { SolucaoPage } from './pages/SolucaoPage'
 
 const App = () => (
   <BrowserRouter>
@@ -74,6 +75,7 @@ const App = () => (
                     /estrutura redireciona para não quebrar links antigos. */}
                 <Route path="/estrutura" element={<Navigate to="/organograma" replace />} />
                 <Route path="/indicadores" element={<IndicadoresPage />} />
+                <Route path="/solucao" element={<SolucaoPage />} />
                 <Route path="/agente-score" element={<AiAgentSettingsPage />} />
                 <Route element={<AdminRouteGuard />}>
                   <Route path="/integracoes" element={<IntegrationsPage />} />
