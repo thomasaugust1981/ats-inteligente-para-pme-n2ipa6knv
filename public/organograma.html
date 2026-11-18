@@ -1431,6 +1431,10 @@
           aberta</span
         >
         <span
+          ><i class="dot" style="background: #fff; border: 2px dashed #f59e0b"></i> Vaga (sem cargo
+          e sem recrutamento)</span
+        >
+        <span
           ><i class="dot" style="background: #f5f3ff; border: 1.5px solid #7c3aed"></i>
           Temporária</span
         >
@@ -2888,6 +2892,27 @@
           subs +
           (subs === 1 ? ' subordinado' : ' subordinados')
         g.appendChild(foot)
+
+        // Posição vaga: sem cargo vinculado (role_title) e sem recrutamento
+        // ativo (job_id, status !== 'vaga_aberta') — destaque + badge "vaga",
+        // no mesmo espírito da legenda de "vaga aberta".
+        const isVaga = !String(n.cargo || '').trim() && !n.jobId && st !== 'vaga_aberta'
+        if (isVaga) {
+          card.setAttribute('stroke', '#f59e0b')
+          card.setAttribute('stroke-width', '2')
+          card.setAttribute('stroke-dasharray', '2 3')
+          const badge = el('text', {
+            x: size.w - 8,
+            y: 14,
+            'text-anchor': 'end',
+            'font-size': 8.5,
+            'font-weight': 700,
+            fill: '#b45309',
+            'font-family': 'inherit',
+          })
+          badge.textContent = 'VAGA'
+          g.appendChild(badge)
+        }
         return g
       }
 
@@ -2968,7 +2993,8 @@
         }
         const parent = n.parentId ? nodeIndex.get(n.parentId) : null
         const subs = childrenOf(n.id).length
-        const showAts = n.status === 'vaga_aberta' && !n.jobId
+        const isVaga = !String(n.cargo || '').trim() && !n.jobId && n.status !== 'vaga_aberta'
+        const showAts = (n.status === 'vaga_aberta' && !n.jobId) || isVaga
         box.innerHTML = `
     <b>${esc(n.nome || 'Sem nome')}</b>
     <div>${esc(n.cargo || '—')} · ${esc(n.area || '—')}</div>
@@ -4336,7 +4362,10 @@
       let atsNodeId = null
       function startAtsJob(nodeId) {
         const n = nodeIndex.get(nodeId)
-        if (!n || n.status !== 'vaga_aberta' || n.jobId) return
+        // Aceita "vaga aberta" (status dedicado) e "posição vaga": sem cargo
+        // vinculado e sem recrutamento ativo — mesmo fluxo, mesmo modal.
+        const isVaga = !String(n.cargo || '').trim() && !n.jobId && n.status !== 'vaga_aberta'
+        if (!n || (!(n.status === 'vaga_aberta' && !n.jobId) && !isVaga)) return
         if (!atsAuth().token) {
           toast(
             'Sessão do ATS não encontrada — abra o organograma pelo menu do ATS (logado).',

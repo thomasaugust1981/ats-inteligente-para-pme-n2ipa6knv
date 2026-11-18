@@ -7,7 +7,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Building2, Rocket, Search, Users } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
@@ -37,6 +36,14 @@ const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   ativo: { label: 'Ativa', className: 'border-emerald-300 text-emerald-700 bg-emerald-50' },
   inativo: { label: 'Inativa', className: 'border-slate-300 text-slate-500 bg-slate-50' },
   vaga: { label: 'Vaga', className: 'border-amber-300 text-amber-700 bg-amber-50' },
+  vaga_aberta: {
+    label: 'Vaga aberta',
+    className: 'border-amber-300 text-amber-700 bg-amber-50',
+  },
+  temporaria: {
+    label: 'Temporária',
+    className: 'border-violet-300 text-violet-700 bg-violet-50',
+  },
 }
 
 /** Aba "Resumo" do Organograma: as três listas da ex-/estrutura. */
@@ -189,7 +196,7 @@ export const OrganogramaResumo: React.FC = () => {
         )}
 
         {!cargo && nodeJobs.length === 0 && String(node.status || 'ativo') !== 'inativo' && (
-          <p className="text-[11px] text-slate-400">
+          <p className="text-[11px] text-amber-700">
             Posição vaga — nenhum cargo vinculado nem recrutamento em andamento. Abra um cargo em
             "/cargos" para preencher esta posição.
           </p>
