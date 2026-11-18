@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-18T14:09:12.729Z",
+  "generatedAt": "2026-11-18T14:49:08.426Z",
   "collections": [
     {
       "name": "users",
@@ -1226,6 +1226,25 @@
           "type": "bool",
           "required": false,
           "system": false
+        },
+        {
+          "name": "person_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "people"
+        },
+        {
+          "name": "weekly_hours",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "assignment_type",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -2396,6 +2415,71 @@
       "indexes": [
         "CREATE INDEX idx_roadmap_items_org_done_created ON roadmap_items (org_id, done, created)"
       ]
+    },
+    {
+      "name": "people",
+      "type": "base",
+      "apiRules": {
+        "list": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "view": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "create": "(@request.auth.id != '' && @request.auth.org_id != '' && @request.body.org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "update": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "delete": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'"
+      },
+      "fields": [
+        {
+          "name": "org_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "organizations"
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "email",
+          "type": "email",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "phone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "photo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_people_org_name ON people (org_id, name)"]
     }
   ]
 }

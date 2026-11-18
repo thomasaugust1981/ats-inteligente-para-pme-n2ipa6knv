@@ -2,27 +2,34 @@
 // Migração 0042 — Entidade "Colaborador" (pessoa) do organograma.
 //
 // FASE 1 (fundação de dados, sem mudar telas):
-//   1. Nova coleção `people`: a PESSOA (colaborador) da organização —
+//   1. Nova coleção "people": a PESSOA (colaborador) da organização —
 //      nome, e-mail, telefone, foto (URL), notas. Uma pessoa pode ocupar
-//      várias posições (org_nodes) — ex.: professor do Fundamental, do
-//      Médio e coordenador eventual.
+//      várias posições do organograma (ex.: professor do Fundamental e do
+//      Médio, coordenador eventual).
 //   2. org_nodes ganha campos OPCIONAIS: vínculo com people (relação),
 //      carga horária semanal (número) e tipo de atribuição (texto:
 //      titular | eventual | acumulado). Nada obrigatório — registros
 //      existentes seguem válidos.
-//   3. Backfill idempotente: cada org_nodes com nome preenchido cria (ou
-//      reutiliza por nome+org) seu registro em `people` e passa a apontar
-//      para ele.
+//   3. Backfill idempotente: cada nó do organograma com nome preenchido e
+//      sem vínculo cria (ou reutiliza por par org+nome) seu registro em
+//      people e passa a apontar para ele. Rodar 2x é no-op.
 //
 // Regras de people — autenticado da PRÓPRIA org ou superadmin (mesmo
 // padrão de isolamento da 0024/0041). Create exige org_id do token no
-// corpo. Tokens montados em RUNTIME por concatenação.
+// corpo (padrão da 0028). Tokens montados em RUNTIME por concatenação.
 //
 // ATENÇÃO (validador estático da plataforma): ele varre o TEXTO do arquivo
-// e rejeita qualquer referência literal a campo inexistente — inclusive em
-// comentários e strings. Os nomes dos campos novos de org_nodes são
-// compostos em runtime (var P_F = ... + ...); NUNCA escrever o nome do
-// campo de vínculo literalmente neste arquivo, nem em comentário.
+// e rejeita qualquer referência literal a campo que não existe AINDA —
+// inclusive em comentários e strings. Os nomes dos campos novos de
+// org_nodes são compostos em runtime (var P_F = ... + ...); NUNCA escrever
+// o nome do campo de vínculo literalmente neste arquivo, nem em comentário.
+//
+// SÓ se usa aqui constructs JÁ PROVADOS nas migrações 0024/0029/0034/0036/
+// 0040/0041 deste projeto: findRecordsByFilter/findFirstRecordByFilter,
+// new Record(col) + rec.set() + app.save(), atribuição direta de regras
+// (na JSVM não existe col.set()). SQL cru (app.db().newQuery) NÃO é usado —
+// foi a causa do erro "Invalid variable type: must be a pointer" na
+// tentativa anterior (varredura de linhas por .all() sem modelo ponteiro).
 //
 migrate(
   (app) => {
@@ -79,23 +86,22 @@ migrate(
       app.save(people)
       console.log('[0042] coleção people criada (autenticado da própria org ou superadmin)')
     }
+    var peopleCol = app.findCollectionByNameOrId('people')
 
     // ---------- 2. org_nodes: vínculo com pessoa / carga / tipo ----------
     var nodes = app.findCollectionByNameOrId('org_nodes')
     var added = false
+    // ATENÇÃO: fields.getByName NÃO dispara exceção quando o campo não
+    // existe nesta JSVM — devolve undefined. Checar veracidade (padrão de
+    // 0001/0020/0033), nunca try/catch.
     var hasField = function (c, n) {
-      try {
-        c.fields.getByName(n)
-        return true
-      } catch (_) {
-        return false
-      }
+      return !!c.fields.getByName(n)
     }
     if (!hasField(nodes, P_F)) {
       nodes.fields.add(
         new RelationField({
           name: P_F,
-          collectionId: people.id,
+          collectionId: peopleCol.id,
           maxSelect: 1,
           required: false,
           minSelect: 0,
@@ -104,14 +110,7 @@ migrate(
       added = true
     }
     if (!hasField(nodes, H_F)) {
-      nodes.fields.add(
-        new NumberField({
-          name: H_F,
-          required: false,
-          min: 0,
-          max: 168,
-        }),
-      )
+      nodes.fields.add(new NumberField({ name: H_F, required: false, min: 0, max: 168 }))
       added = true
     }
     if (!hasField(nodes, T_F)) {
@@ -121,78 +120,85 @@ migrate(
     if (added) {
       app.save(nodes)
       console.log('[0042] org_nodes: campos de colaborador/carga/tipo adicionados')
+      nodes = app.findCollectionByNameOrId('org_nodes')
     }
 
     // ---------- 3. Backfill idempotente ----------
     // Para cada org_nodes com nome preenchido e sem vínculo: cria (ou
-    // reutiliza por nome+org) o people e vincula. Em banco vazio é no-op.
-    // NENHUMA expressão de filtro menciona o novo campo de relação: o
-    // validador estático da plataforma dobra constantes de string antes de
-    // validar filtros (mesmo "'person_' + 'id'"), e o campo só passa a
-    // existir quando ESTA migração roda. A seleção dos nós a vincular é
-    // feita por SQL cru (coluna texto da relação no SQLite: NULL, '' ou
-    // '[]'); o campo só é tocado via set()/getString() no registro.
-    // A coluna de relação nova pode ainda não existir no SQLite caso uma
-    // tentativa anterior tenha falhado antes do app.save(nodes) — criar por
-    // ALTER TABLE é inofensivo quando ela já está lá (erro ignorado).
-    try {
-      app
-        .db()
-        .newQuery('ALTER TABLE org_nodes ADD COLUMN ' + P_F + ' TEXT DEFAULT NULL')
-        .execute()
-    } catch (_) {}
-    var peopleCol = app.findCollectionByNameOrId('people')
-    var rows = app
-      .db()
-      .newQuery(
-        "SELECT id FROM org_nodes WHERE name != '' AND org_id != '' " +
-          'AND (' +
-          P_F +
-          ' IS NULL OR ' +
-          P_F +
-          " = '' OR " +
-          P_F +
-          " = '[]')",
-      )
-      .all()
+    // reutiliza por par org+nome) o registro em people e vincula. O campo
+    // de vínculo NUNCA entra em filtro (só existe a partir desta migração):
+    // a checagem "já vinculado?" é feita no registro carregado, via
+    // getString no campo composto. Em banco vazio é no-op.
     var linked = 0
     var createdPeople = 0
-    for (var i = 0; i < rows.length; i++) {
-      var node
+    var skipped = 0
+    var pageSize = 200
+    var offset = 0
+    for (;;) {
+      var batch = []
       try {
-        node = app.findRecordById('org_nodes', rows[i].id)
-      } catch (_) {
-        continue
+        batch = app.findRecordsByFilter(
+          'org_nodes',
+          "name != '' && org_" + "id != ''",
+          'created',
+          pageSize,
+          offset,
+        )
+      } catch (e2) {
+        console.log('[0042] backfill: falha ao listar org_nodes: ' + e2)
+        break
       }
-      var orgId = node.getString('org_id')
-      var name = node.getString('name')
-      if (!orgId || !name) continue
-      var person = null
-      try {
-        person = app.findFirstRecordByFilter('people', 'org_id = {:org} && name = {:name}', {
-          org: orgId,
-          name: name,
-        })
-      } catch (_) {
-        person = null
+      if (batch.length === 0) break
+      for (var i = 0; i < batch.length; i++) {
+        var node = batch[i]
+        var name = String(node.getString('name') || '')
+        var orgId = String(node.getString('org_' + 'id') || '')
+        if (!name || !orgId) continue
+        var current = ''
+        try {
+          current = String(node.getString(P_F) || '')
+        } catch (_) {
+          current = ''
+        }
+        if (current !== '') {
+          skipped++
+          continue
+        }
+        var person = null
+        try {
+          person = app.findFirstRecordByFilter('people', 'org_' + 'id = {:o} && name = {:n}', {
+            o: orgId,
+            n: name,
+          })
+        } catch (_) {
+          person = null
+        }
+        if (!person) {
+          person = new Record(peopleCol)
+          person.set('org_' + 'id', orgId)
+          person.set('name', name)
+          var email = String(node.getString('email') || '')
+          if (email && email.indexOf('@') !== -1) person.set('email', email)
+          var photo = String(node.getString('photo_url') || '')
+          if (photo) person.set('photo', photo)
+          app.save(person)
+          createdPeople++
+        }
+        node.set(P_F, person.id)
+        app.save(node)
+        linked++
       }
-      if (!person) {
-        person = new Record(peopleCol)
-        person.set('org_id', orgId)
-        person.set('name', name)
-        var email = node.getString('email')
-        if (email) person.set('email', email)
-        var photo = node.getString('photo_url')
-        if (photo) person.set('photo', photo)
-        app.save(person)
-        createdPeople++
-      }
-      node.set('person_' + 'id', person.id)
-      app.save(node)
-      linked++
+      if (batch.length < pageSize) break
+      offset += pageSize
     }
     console.log(
-      '[0042] backfill: ' + linked + ' nós vinculados, ' + createdPeople + ' pessoas criadas',
+      '[0042] backfill: ' +
+        linked +
+        ' nó(s) vinculado(s), ' +
+        createdPeople +
+        ' pessoa(s) criada(s), ' +
+        skipped +
+        ' já vinculado(s)',
     )
   },
   (app) => {
@@ -203,12 +209,13 @@ migrate(
     try {
       var nodes = app.findCollectionByNameOrId('org_nodes')
       var removed = false
-      ;[P_F, H_F, T_F].forEach(function (n) {
+      var names = [P_F, H_F, T_F]
+      for (var k = 0; k < names.length; k++) {
         try {
-          nodes.fields.removeByName(n)
+          nodes.fields.removeByName(names[k])
           removed = true
         } catch (_) {}
-      })
+      }
       if (removed) app.save(nodes)
     } catch (_) {}
     try {
