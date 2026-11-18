@@ -151,7 +151,7 @@ export const DashboardPage: React.FC = () => {
           <p className="text-sm text-slate-500">
             {isManager
               ? `Visão do Gestor — vagas sob sua responsabilidade`
-              : `Visão Corporativa — empresa ${user?.company_name || 'Vanguard Soluções'}`}
+              : `Visão Corporativa — empresa ${user?.company_name || 'Ausland'}`}
           </p>
         </div>
 

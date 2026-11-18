@@ -44,7 +44,7 @@ export const LoginPage: React.FC = () => {
   const [regEmail, setRegEmail] = useState('')
   const [regPassword, setRegPassword] = useState('')
   const [regRole, setRegRole] = useState<UserRole>('recruiter')
-  const [regCompany, setRegCompany] = useState('Vanguard Soluções PME')
+  const [regCompany, setRegCompany] = useState('Ausland')
 
   // Forgot password
   const [forgotEmail, setForgotEmail] = useState('')
@@ -250,10 +250,10 @@ export const LoginPage: React.FC = () => {
                       • Admin: <code>thomas.august1981@gmail.com</code> (Skip@Pass)
                     </span>
                     <span>
-                      • Recrutadora: <code>recrutamento@vanguard.com.br</code> (Skip@Pass)
+                      • Recrutadora: <code>recrutamento@ausland.com.br</code> (Skip@Pass)
                     </span>
                     <span>
-                      • Gestor TI: <code>gestor.ti@vanguard.com.br</code> (Skip@Pass)
+                      • Gestor TI: <code>gestor.ti@ausland.com.br</code> (Skip@Pass)
                     </span>
                   </div>
                 </div>
