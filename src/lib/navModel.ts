@@ -62,8 +62,8 @@ export interface NavVisibilityContext {
  * Qualquer usuário restaura para esta lista com "Restaurar ordem padrão".
  */
 export const DEFAULT_NAV_IDS: NavId[] = [
-  'onboarding',
   'dashboard',
+  'onboarding',
   'vagas',
   'pipeline',
   'candidatos',
@@ -89,7 +89,7 @@ export const NAV_ITEMS: NavItem[] = [
   },
   {
     id: 'dashboard',
-    label: 'Painel Geral',
+    label: 'Painel',
     path: '/',
     icon: LayoutDashboard,
     visible: () => true,

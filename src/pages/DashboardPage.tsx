@@ -147,9 +147,7 @@ export const DashboardPage: React.FC = () => {
       {/* Top Banner */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Painel Geral de Recrutamento
-          </h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Painel</h1>
           <p className="text-sm text-slate-500">
             {isManager
               ? `Visão do Gestor — vagas sob sua responsabilidade`
