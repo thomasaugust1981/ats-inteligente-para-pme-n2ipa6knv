@@ -7,6 +7,7 @@ import {
   HeartHandshake,
   AlertTriangle,
   FileDown,
+  Lightbulb,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -51,6 +52,9 @@ import { salaryCoherenceAlerts, type SalaryAlert } from '@/lib/salaryCoherence'
 import { exportCargoPdf } from '@/lib/chaExport'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { SalaryHistorySection } from '@/components/cargos/SalaryHistorySection'
+import { CargoTemplatePicker } from '@/components/cargos/CargoTemplatePicker'
+import { applyTemplateCha, type CargoTemplate } from '@/lib/cargoTemplates'
+import { fetchChaSuggestion } from '@/services/chaSuggest'
 
 interface Props {
   open: boolean
@@ -93,6 +97,10 @@ export const CargoFormDialog: React.FC<Props> = ({
   const [positions, setPositions] = useState<OrgPositionOption[]>([])
   const [loadingPositions, setLoadingPositions] = useState(false)
   const selectedPosition = positions.find((p) => p.id === orgNodeId) || null
+  // FASE 2 — sugestão de CHA por IA (rota /backend/v1/cha/suggest)
+  const [aiLoading, setAiLoading] = useState(false)
+  // FASE 2 — faixa salarial veio de um modelo pronto (rótulo de sugestão editável)
+  const [salaryFromTemplate, setSalaryFromTemplate] = useState(false)
 
   useEffect(() => {
     if (!open) return
@@ -117,6 +125,7 @@ export const CargoFormDialog: React.FC<Props> = ({
       setCha(emptyCha())
       setOrgNodeId('')
       setPurpose('')
+      setSalaryFromTemplate(false)
     }
   }, [open, cargo])
 
@@ -166,6 +175,61 @@ export const CargoFormDialog: React.FC<Props> = ({
       ...prev,
       [key]: { items: (prev[key]?.items || []).filter((_, i) => i !== idx) },
     }))
+  }
+
+  // FASE 2 — aplica um modelo pronto: preenche o formulário como ponto de partida.
+  const isBlankForm = !cargo && !title.trim() && !mission.trim() && !area.trim()
+
+  const handleApplyTemplate = (tpl: CargoTemplate) => {
+    setTitle(tpl.title)
+    setArea(tpl.area)
+    if (CHA_LEVELS.includes(tpl.level as ChaLevel)) setLevel(tpl.level as ChaLevel)
+    setMission(tpl.mission)
+    setSalaryMin(tpl.salaryMin != null ? String(tpl.salaryMin) : '')
+    setSalaryMed(tpl.salaryMed != null ? String(tpl.salaryMed) : '')
+    setSalaryMax(tpl.salaryMax != null ? String(tpl.salaryMax) : '')
+    setSalaryFromTemplate(tpl.salaryMin != null || tpl.salaryMax != null)
+    setCha(applyTemplateCha(tpl))
+    toast({
+      title: 'Modelo aplicado',
+      description: `"${tpl.title}" preencheu o formulário — revise e ajuste o que quiser.`,
+    })
+  }
+
+  // FASE 2 — sugere os três blocos CHA com a IA (falha com toast, não trava).
+  const handleSuggestAi = async () => {
+    if (!title.trim()) {
+      toast({
+        title: 'Informe o título do cargo',
+        description: 'A IA usa o título (e a missão, se preenchida) para sugerir o CHA.',
+      })
+      return
+    }
+    setAiLoading(true)
+    try {
+      const { suggestion, provider_used } = await fetchChaSuggestion({
+        title: title.trim(),
+        area: area.trim(),
+        level,
+        mission: mission.trim(),
+      })
+      const total = CHA_BLOCK_KEYS.reduce((n, k) => n + (suggestion[k]?.items.length || 0), 0)
+      if (total === 0) throw new Error('A IA não retornou requisitos utilizáveis.')
+      setCha(suggestion)
+      toast({
+        title: 'CHA sugerido!',
+        description: `${total} requisitos gerados (${provider_used}). Revise os pesos e marque obrigatório/desejável.`,
+      })
+    } catch (err) {
+      console.error('Erro na sugestão de CHA por IA:', err)
+      toast({
+        title: 'Sugestão de IA indisponível',
+        description: getErrorMessage(err),
+        variant: 'destructive',
+      })
+    } finally {
+      setAiLoading(false)
+    }
   }
 
   // FASE 3 — alerta de coerência cargo/nível × faixa (aviso, não bloqueia).
@@ -306,6 +370,14 @@ export const CargoFormDialog: React.FC<Props> = ({
         </DialogHeader>
 
         <div className="space-y-5">
+          {/* FASE 2 — modelos prontos + sugestão IA: só na criação de um cargo limpo */}
+          <CargoTemplatePicker
+            isBlank={isBlankForm}
+            suggestionLoading={aiLoading}
+            onApplyTemplate={handleApplyTemplate}
+            onSuggestAi={handleSuggestAi}
+          />
+
           {/* Identificação */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="sm:col-span-2 space-y-1.5">
@@ -465,6 +537,13 @@ export const CargoFormDialog: React.FC<Props> = ({
               />
             </div>
           </div>
+          {salaryFromTemplate && (
+            <p className="text-[11px] text-amber-700 flex items-center gap-1">
+              <Lightbulb className="w-3 h-3 inline" />
+              Faixa salarial sugerida pelo modelo — edite livremente para a realidade da sua
+              empresa.
+            </p>
+          )}
 
           {/* FASE 3 — alerta de coerência faixa × nível (aviso, não bloqueia) */}
           {salaryAlerts.length > 0 && (

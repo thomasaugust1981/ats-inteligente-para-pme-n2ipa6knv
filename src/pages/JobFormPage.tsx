@@ -17,6 +17,7 @@ import { ChaSection } from '@/components/jobForm/ChaSection'
 import { ScoreWeightsCard } from '@/components/jobForm/ScoreWeightsCard'
 import { ChaInheritCard } from '@/components/jobForm/ChaInheritCard'
 import { OpeningAuditCard } from '@/components/jobForm/OpeningAuditCard'
+import { PipelineTemplatePicker } from '@/components/jobForm/PipelineTemplatePicker'
 import { useCargos } from '@/hooks/use-cargos'
 import { loadCargoInheritance } from '@/services/jobOpening'
 import {
@@ -73,6 +74,8 @@ export const JobFormPage: React.FC = () => {
   const [editingJob, setEditingJob] = useState<Job | null>(null)
   // Erros de validação, exibidos junto a cada campo
   const [errors, setErrors] = useState<JobFormErrors>({})
+  // FASE 2: guarda se o usuário já mexeu nas etapas (esconde modelos de funil)
+  const [stagesTouched, setStagesTouched] = useState(false)
   // FASE 1 CHA: requisitos efetivos em edição (specific é editável; cargo vem do cargo_id)
   const [chaRequirements, setChaRequirements] = useState<JobChaRequirements>(() =>
     emptyChaRequirements(),
@@ -195,6 +198,7 @@ export const JobFormPage: React.FC = () => {
   }, [id, navigate, toast])
 
   const handleAddStage = () => {
+    setStagesTouched(true)
     setStages((prev) => [
       ...prev,
       { id: `stage_${Date.now()}`, label: 'Nova Etapa', color: '#6366f1' },
@@ -202,6 +206,7 @@ export const JobFormPage: React.FC = () => {
   }
 
   const handleUpdateStage = (index: number, label: string) => {
+    setStagesTouched(true)
     setStages((prev) => prev.map((s, i) => (i === index ? { ...s, label } : s)))
   }
 
@@ -214,7 +219,18 @@ export const JobFormPage: React.FC = () => {
       })
       return
     }
+    setStagesTouched(true)
     setStages((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  // FASE 2 — aplica um modelo de funil: substitui as etapas pelas do modelo.
+  const handleApplyPipelineTemplate = (tplStages: JobStage[]) => {
+    setStagesTouched(true)
+    setStages(tplStages)
+    toast({
+      title: 'Modelo de processo aplicado',
+      description: 'As etapas foram criadas — ajuste livremente antes de salvar a vaga.',
+    })
   }
 
   // O flag de alto impacto controla a Validação Executiva: ao desligá-lo,
@@ -543,7 +559,13 @@ export const JobFormPage: React.FC = () => {
               Adicionar Etapa
             </Button>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            {/* FASE 2 — modelos de funil: só na criação, com etapas ainda intactas */}
+            <PipelineTemplatePicker
+              isBlank={!isEditing && !stagesTouched}
+              stages={stages}
+              onApplyStages={handleApplyPipelineTemplate}
+            />
             <StagesCard
               stages={stages}
               highImpact={highImpact}

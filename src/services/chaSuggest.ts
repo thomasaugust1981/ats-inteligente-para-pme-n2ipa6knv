@@ -9,6 +9,9 @@ import { getErrorMessage } from '@/lib/pocketbase/errors'
 import type { ChaData } from '@/lib/cha'
 import { CHA_BLOCK_KEYS, emptyBlock } from '@/lib/cha'
 
+// FASE 2: atitudes que a IA devolve como adjetivo ("proativo") não quebram a
+// validação do editor — mas a curadoria da redação fica no formulário, não aqui.
+
 export interface ChaSuggestionResult {
   provider_used: string
   suggestion: ChaData
