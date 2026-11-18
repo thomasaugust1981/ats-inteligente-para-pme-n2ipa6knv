@@ -12,6 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Map, Plus, Trash2, Loader2, CheckCircle2 } from 'lucide-react'
 import { roadmapService, sortRoadmapItems, type RoadmapItem } from '@/services/roadmap'
+import { isDemoUserEmail } from '@/lib/demoCredentials'
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form'
 
 const roadmapSchema = z.object({
@@ -25,9 +26,13 @@ type RoadmapFormValues = z.infer<typeof roadmapSchema>
  * Card "Roadmap do Talent" — Painel.
  *
  * Visível SOMENTE para usuários com papel 'admin' (guard de render abaixo):
- * recrutador, gestor e o usuário demo nunca montam o componente, e os dados
- * em si ficam atrás da regra de coleção (admins da própria org — migração
- * 0041), então nem via URL direta a API devolve algo a não-admins.
+ * recrutador e gestor nunca montam o componente, e os dados em si ficam atrás
+ * da regra de coleção (admins da própria org — migração 0041), então nem via
+ * URL direta a API devolve algo a não-admins.
+ *
+ * O usuário de DEMONSTRAÇÃO comercial (demo@ausland.com.br, papel admin) TAMBÉM
+ * não vê o card: visitantes externos durante uma demo não devem enxergar as
+ * tasks internas do roadmap — nem o card, nem qualquer chamada à API.
  *
  * Degrada em silêncio: qualquer falha de carregamento/escrita apenas loga no
  * console — o Painel nunca quebra por causa deste card.
@@ -35,6 +40,7 @@ type RoadmapFormValues = z.infer<typeof roadmapSchema>
 export const DashboardRoadmapCard: React.FC = () => {
   const { user, isAdmin } = useAuth()
   const { activeCompanyId, companyVersion } = useActiveCompany()
+  const isDemoUser = isDemoUserEmail(user?.email)
   const [items, setItems] = useState<RoadmapItem[]>([])
   const [loading, setLoading] = useState(true)
   const [loaded, setLoaded] = useState(false)
@@ -47,7 +53,7 @@ export const DashboardRoadmapCard: React.FC = () => {
   })
 
   const loadItems = useCallback(async () => {
-    if (!pb.authStore.isValid || !isAdmin || !activeCompanyId) {
+    if (!pb.authStore.isValid || !isAdmin || !activeCompanyId || isDemoUser) {
       setLoading(false)
       setLoaded(true)
       return
@@ -63,13 +69,13 @@ export const DashboardRoadmapCard: React.FC = () => {
       setLoading(false)
       setLoaded(true)
     }
-  }, [isAdmin, activeCompanyId])
+  }, [isAdmin, activeCompanyId, isDemoUser])
 
   useEffect(() => {
     loadItems()
   }, [loadItems, companyVersion])
 
-  if (!isAdmin) return null
+  if (!isAdmin || isDemoUser) return null
 
   const addItem = form.handleSubmit(async (values) => {
     if (!activeCompanyId) return

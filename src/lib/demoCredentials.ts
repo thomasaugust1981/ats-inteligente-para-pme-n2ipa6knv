@@ -14,3 +14,12 @@ export const DEMO_PASSWORD = 'demo1234'
 
 export const DEMO_CREDENTIALS: { email: string; password: string } | null =
   DEMO_EMAIL && DEMO_PASSWORD ? { email: DEMO_EMAIL, password: DEMO_PASSWORD } : null
+
+/**
+ * Indica se um e-mail pertence à conta de demonstração comercial.
+ * Comparação case-insensitive — usada para esconder recursos internos
+ * (ex.: card de Roadmap do Painel) que o visitante da demo não deve ver.
+ */
+export function isDemoUserEmail(email?: string | null): boolean {
+  return !!email && email.trim().toLowerCase() === DEMO_EMAIL.toLowerCase()
+}
