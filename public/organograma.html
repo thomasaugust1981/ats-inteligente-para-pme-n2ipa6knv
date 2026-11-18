@@ -2969,8 +2969,9 @@
 
         // Selo "mesma pessoa em N posições": mesmo person_id em 2+ nós
         // visíveis da versão corrente — cor fixa por pessoa agrupa os nós.
+        // Sobreposto ao rodapé do card, na cor da pessoa; some no modo compacto.
         const sameCount = multiRoleCountsMap.get(n.personId) || 0
-        if (sameCount >= 2) {
+        if (sameCount >= 2 && view !== 'compact') {
           const color = personBadgeColor(n.personId)
           const label = '👤 ' + sameCount
           const badgeG = el('g', { class: 'same-person-badge' })
@@ -2978,6 +2979,17 @@
           const bw = label.length * 5.6 + pad * 2
           const bx = size.w - bw - 8
           const by = size.h - 20
+          const brect = el('rect', {
+            x: bx,
+            y: by,
+            width: bw,
+            height: 16,
+            rx: 8,
+            fill: color + '1a',
+            stroke: color,
+            'stroke-width': 1,
+          })
+          badgeG.appendChild(brect)
           const btxt = el('text', {
             x: bx + bw / 2,
             y: by + 11,
@@ -2990,17 +3002,6 @@
           })
           btxt.textContent = label
           badgeG.appendChild(btxt)
-          const brect = el('rect', {
-            x: bx,
-            y: by,
-            width: bw,
-            height: 16,
-            rx: 8,
-            fill: color + '1a',
-            stroke: color,
-            'stroke-width': 1,
-          })
-          badgeG.insertBefore(brect, btxt)
           const bt = el('title')
           bt.textContent = 'Mesma pessoa em ' + sameCount + ' posições'
           badgeG.appendChild(bt)
