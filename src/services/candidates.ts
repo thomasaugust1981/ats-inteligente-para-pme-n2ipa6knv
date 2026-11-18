@@ -162,8 +162,14 @@ export const candidatesService = {
 }
 
 export const applicationsService = {
-  async listApplications(jobId?: string): Promise<Application[]> {
-    const filter = jobId ? `job_id = "${jobId}"` : undefined
+  /**
+   * Recebe um FILTRO PocketBase pronto (não um id de vaga): os chamadores montam
+   * a condição — ex. `job_id = "..."` (vaga específica no pipeline) ou
+   * `job_id.company_id = "..."` (empresa ativa no painel). Passar o filtro cru
+   * evita interpolação dupla, que gerava `job_id = "job_id.company_id = ..."`
+   * e um 400 do servidor (bug corrigido em v0.0.107).
+   */
+  async listApplications(filter?: string): Promise<Application[]> {
     return await pb.collection('applications').getFullList<Application>({
       filter,
       sort: '-created',

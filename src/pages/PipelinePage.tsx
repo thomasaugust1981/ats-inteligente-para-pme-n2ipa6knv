@@ -155,7 +155,7 @@ export const PipelinePage: React.FC = () => {
       } else {
         const [currentJob, appsList] = await Promise.all([
           jobsService.getJobById(targetFilter),
-          applicationsService.listApplications(targetFilter),
+          applicationsService.listApplications(`job_id = "${targetFilter}"`),
         ])
         if (seq !== loadSeqRef.current) return
         setAllJobs(jobsList)
