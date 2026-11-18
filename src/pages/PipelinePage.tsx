@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
+import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
-import { jobsService } from '@/services/jobs'
+import { jobsService, DEFAULT_STAGES } from '@/services/jobs'
 import { applicationsService, auditService } from '@/services/candidates'
 import { calculateScore } from '@/services/aiScore'
 import type { Job, Application, JobStage, User, Candidate } from '@/types/ats'
@@ -43,7 +44,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useToast } from '@/hooks/use-toast'
 import { LoadingState } from '@/components/LoadingState'
 import { EmptyState } from '@/components/EmptyState'
 import { useCopyLink } from '@/hooks/use-copy-link'
@@ -56,10 +56,14 @@ import ChaEvaluationDialog from '@/components/candidates/ChaEvaluationDialog'
 import ChaComparisonCard from '@/components/candidates/ChaComparisonCard'
 import { ERP_STAGE_ID, getMissingEssentialFields } from '@/lib/erpIntegration'
 import { parseJobCha, type JobChaRequirements } from '@/lib/cha'
-import { Plus, BellRing, ClipboardList, Star } from 'lucide-react'
+import { Plus, BellRing, ClipboardList, Star, Briefcase } from 'lucide-react'
+
+/** Chave de persistência do filtro "Todas as vagas" vs vaga específica. */
+const PIPELINE_FILTER_KEY = 'ats.pipeline.filter'
 
 export const PipelinePage: React.FC = () => {
   const { jobId } = useParams<{ jobId: string }>()
+  const navigate = useNavigate()
   const { user, isManager } = useAuth()
   const { activeCompanyId, companyVersion } = useActiveCompany()
   const { toast } = useToast()
@@ -69,6 +73,13 @@ export const PipelinePage: React.FC = () => {
   const [allJobs, setAllJobs] = useState<Job[]>([])
   const [applications, setApplications] = useState<Application[]>([])
   const [loading, setLoading] = useState(true)
+  // 'all' = visão consolidada de todas as vagas; caso contrário, o id da vaga.
+  const [filter, setFilter] = useState<string>(() => {
+    if (typeof window === 'undefined') return 'all'
+    return window.localStorage.getItem(PIPELINE_FILTER_KEY) || 'all'
+  })
+  // Proteção contra corrida: só o carregamento mais recente grava estado.
+  const loadSeqRef = React.useRef(0)
 
   // Modal para mover candidato com justificativa
   const [moveModalOpen, setMoveModalOpen] = useState(false)
@@ -111,54 +122,106 @@ export const PipelinePage: React.FC = () => {
     }
   }, [ownersModalOpen, users.length])
 
-  const loadPipeline = async (targetJobId: string) => {
+  const jobListFilter = useMemo(
+    () =>
+      [
+        activeCompanyId ? `company_id = "${activeCompanyId}"` : '',
+        isManager && user?.id ? `manager_id = "${user.id}"` : '',
+      ]
+        .filter(Boolean)
+        .join(' && ') || undefined,
+    [activeCompanyId, isManager, user?.id],
+  )
+
+  /**
+   * Carrega a lista de vagas (seletor) e o quadro conforme o filtro:
+   * - vaga específica: candidaturas da vaga + etapas da própria vaga;
+   * - "Todas as vagas": candidaturas da organização + etapas por vaga
+   *   (colunas = união das etapas na ordem canônica DEFAULT_STAGES).
+   */
+  const loadPipeline = async (targetFilter: string) => {
+    loadSeqRef.current += 1
+    const seq = loadSeqRef.current
     try {
       setLoading(true)
-      const [currentJob, appsList, jobsList] = await Promise.all([
-        jobsService.getJobById(targetJobId),
-        applicationsService.listApplications(targetJobId),
-        jobsService.listJobs(
-          [
-            activeCompanyId ? `company_id = "${activeCompanyId}"` : '',
-            isManager && user?.id ? `manager_id = "${user.id}"` : '',
-          ]
-            .filter(Boolean)
-            .join(' && ') || undefined,
-        ),
-      ])
-      setJob(currentJob)
-      setApplications(appsList)
-      setAllJobs(jobsList)
+      const jobsList = await jobsService.listJobs(jobListFilter)
+
+      if (targetFilter === 'all') {
+        const appsList = await applicationsService.listApplications()
+        if (seq !== loadSeqRef.current) return
+        setAllJobs(jobsList)
+        setJob(null)
+        setApplications(appsList)
+      } else {
+        const [currentJob, appsList] = await Promise.all([
+          jobsService.getJobById(targetFilter),
+          applicationsService.listApplications(targetFilter),
+        ])
+        if (seq !== loadSeqRef.current) return
+        setAllJobs(jobsList)
+        setJob(currentJob)
+        setApplications(appsList)
+      }
     } catch (err) {
       console.error('Erro ao carregar pipeline:', err)
+      if (seq !== loadSeqRef.current) return
       toast({
         title: 'Erro ao carregar pipeline da vaga',
         description: 'Não foi possível carregar o quadro. Tente novamente em instantes.',
         variant: 'destructive',
       })
     } finally {
-      setLoading(false)
+      if (seq === loadSeqRef.current) {
+        setLoading(false)
+      }
     }
   }
 
   useEffect(() => {
-    if (jobId) {
-      loadPipeline(jobId)
-    } else {
-      // Se não passou jobId, busca a primeira vaga disponível (da empresa ativa)
-      jobsService
-        .listJobs(activeCompanyId ? `company_id = "${activeCompanyId}"` : undefined)
-        .then((list) => {
-          if (list.length > 0) {
-            loadPipeline(list[0].id)
-          } else {
-            setLoading(false)
-          }
-        })
-    }
-  }, [jobId, activeCompanyId, companyVersion])
+    loadPipeline(filter)
+  }, [filter, activeCompanyId, companyVersion])
 
-  const stages: JobStage[] = Array.isArray(job?.stages) ? job!.stages : []
+  // Sincroniza o filtro com a rota: /pipeline/:jobId fixa a vaga (e persiste);
+  // /pipeline sem parâmetro volta para o último filtro salvo (padrão: Todas).
+  useEffect(() => {
+    if (jobId) {
+      if (jobId !== filter) {
+        setFilter(jobId)
+        window.localStorage.setItem(PIPELINE_FILTER_KEY, jobId)
+      }
+    } else if (filter !== 'all') {
+      window.localStorage.removeItem(PIPELINE_FILTER_KEY)
+      setFilter('all')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobId])
+
+  const stagesFallback: JobStage[] = Array.isArray(job?.stages) ? job!.stages : []
+
+  // Visão "Todas as vagas": colunas = união das etapas das vagas com candidatos,
+  // respeitando a ordem canônica de DEFAULT_STAGES (etapas opcionais anexas).
+  const stages = useMemo<JobStage[]>(() => {
+    if (job) return stagesFallback
+    const byId = new Map<string, JobStage>()
+    for (const j of allJobs) {
+      if (!Array.isArray(j.stages)) continue
+      for (const s of j.stages) {
+        if (!byId.has(s.id)) byId.set(s.id, s)
+      }
+    }
+    const canonicalOrder = DEFAULT_STAGES.map((s) => s.id)
+    return [...byId.values()].sort((a, b) => {
+      const ia = canonicalOrder.indexOf(a.id)
+      const ib = canonicalOrder.indexOf(b.id)
+      return (ia === -1 ? canonicalOrder.length : ia) - (ib === -1 ? canonicalOrder.length : ib)
+    })
+  }, [job, stagesFallback, allJobs])
+
+  // Visão consolidada ativa? (filtro "Todas as vagas")
+  const isAllJobs = !job
+
+  // Título da vaga de cada candidatura (badge de origem na visão consolidada).
+  const jobTitles = useMemo(() => new Map(allJobs.map((j) => [j.id, j.title])), [allJobs])
 
   // Requisitos CHA efetivos da vaga (herdados do cargo + específicos).
   const jobCha: JobChaRequirements | null = useMemo(
@@ -229,9 +292,7 @@ export const PipelinePage: React.FC = () => {
       // o score anterior permanece visível até o próximo cálculo.
       calculateScore(selectedApp.id, 'stage_change').catch(() => {})
 
-      if (job) {
-        loadPipeline(job.id)
-      }
+      loadPipeline(filter)
     } catch (err) {
       console.error('Erro ao mover candidato:', err)
       toast({
@@ -305,19 +366,29 @@ export const PipelinePage: React.FC = () => {
           </div>
         </div>
 
-        {/* Seletor de Vagas */}
+        {/* Seletor de Vagas: "Todas as vagas" (consolidado) ou uma vaga específica */}
         <div className="flex items-center gap-2">
-          <Label className="text-xs text-slate-500 shrink-0">Vaga selecionada:</Label>
+          <Label className="text-xs text-slate-500 shrink-0">Vaga:</Label>
           <Select
-            value={job?.id || ''}
+            value={filter}
             onValueChange={(val) => {
-              window.location.href = `/pipeline/${val}`
+              setFilter(val)
+              if (val === 'all') {
+                window.localStorage.removeItem(PIPELINE_FILTER_KEY)
+                navigate('/pipeline', { replace: true })
+              } else {
+                window.localStorage.setItem(PIPELINE_FILTER_KEY, val)
+                navigate(`/pipeline/${val}`, { replace: true })
+              }
             }}
           >
-            <SelectTrigger className="w-[260px] text-xs">
+            <SelectTrigger className="w-[280px] text-xs">
               <SelectValue placeholder="Selecione a vaga" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="all" className="text-xs font-semibold">
+                Todas as vagas
+              </SelectItem>
               {allJobs.map((j) => (
                 <SelectItem key={j.id} value={j.id} className="text-xs">
                   {j.title} ({j.department || 'Geral'})
@@ -330,13 +401,195 @@ export const PipelinePage: React.FC = () => {
 
       {loading ? (
         <LoadingState message="Carregando quadro do pipeline..." className="py-20" />
-      ) : !job ? (
-        <EmptyState
-          icon={Users}
-          title="Nenhum pipeline para exibir ainda"
-          description="Cadastre e publique uma vaga para acompanhar os candidatos em um quadro por etapas."
-          actions={[{ label: 'Cadastrar Vaga', to: '/vagas/nova', icon: Plus }]}
-        />
+      ) : isAllJobs ? (
+        /* VISÃO CONSOLIDADA — todas as vagas da organização */
+        applications.length === 0 && allJobs.length === 0 ? (
+          <EmptyState
+            icon={Users}
+            title="Nenhum pipeline para exibir ainda"
+            description="Cadastre e publique uma vaga para acompanhar os candidatos em um quadro por etapas."
+            actions={[{ label: 'Cadastrar Vaga', to: '/vagas/nova', icon: Plus }]}
+          />
+        ) : (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-xl border shadow-2xs">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-bold text-slate-900">Todas as vagas</h2>
+                  <Badge className="text-xs bg-sky-600">
+                    Total: {applications.length} candidatos
+                  </Badge>
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Visão consolidada de {allJobs.length} {allJobs.length === 1 ? 'vaga' : 'vagas'} —
+                  cada cartão identifica a vaga de origem.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-4 overflow-x-auto pb-6 pt-2 items-start min-h-[500px]">
+              {stages.map((stage, stageIndex) => {
+                const stageApps = applications.filter((a) => a.stage_id === stage.id)
+                const isRejectStage = stage.id === 'rejected'
+                const isHiredStage = stage.id === 'hired'
+
+                return (
+                  <div
+                    key={stage.id}
+                    className={`shrink-0 w-72 rounded-xl border flex flex-col max-h-[750px] ${
+                      isRejectStage
+                        ? 'bg-rose-50/40 border-rose-200'
+                        : isHiredStage
+                          ? 'bg-emerald-50/40 border-emerald-200'
+                          : 'bg-slate-100/70 border-slate-200'
+                    }`}
+                  >
+                    <div className="p-3 border-b flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="w-2.5 h-2.5 rounded-full"
+                          style={{ backgroundColor: stage.color || '#64748b' }}
+                        />
+                        <span className="font-bold text-xs text-slate-800 uppercase tracking-wider">
+                          {stage.label}
+                        </span>
+                      </div>
+                      <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-bold">
+                        {stageApps.length}
+                      </Badge>
+                    </div>
+
+                    <div className="p-2 space-y-2 overflow-y-auto flex-1">
+                      {stageApps.length === 0 ? (
+                        <div className="text-center py-8 text-slate-400 text-xs">
+                          Nenhum candidato nesta fase
+                        </div>
+                      ) : (
+                        stageApps.map((app) => {
+                          const candidate = app.expand?.candidate_id
+                          if (!candidate) return null
+                          const appJob = app.expand?.job_id
+
+                          return (
+                            <Card
+                              key={app.id}
+                              className="bg-white shadow-2xs hover:shadow-sm border transition"
+                            >
+                              <CardHeader className="p-3 pb-2">
+                                <div className="flex items-center gap-1 mb-1">
+                                  <Briefcase className="w-3 h-3 text-sky-600 shrink-0" />
+                                  <span className="text-[10px] font-semibold text-sky-700 bg-sky-50 border border-sky-100 rounded px-1.5 py-0.5 line-clamp-1">
+                                    {appJob?.title || jobTitles.get(app.job_id) || 'Vaga'}
+                                  </span>
+                                </div>
+                                <div className="flex items-start justify-between gap-1">
+                                  <Link
+                                    to={`/candidato/${candidate.id}?appId=${app.id}`}
+                                    className="font-semibold text-xs text-slate-900 hover:text-sky-600 line-clamp-1"
+                                  >
+                                    {candidate.name}
+                                  </Link>
+                                  {getSourceBadge(app.source)}
+                                </div>
+                                <CardDescription className="text-[11px] text-slate-500 truncate">
+                                  {candidate.email}
+                                </CardDescription>
+                              </CardHeader>
+
+                              <CardContent className="p-3 pt-0 text-[11px] space-y-2">
+                                <AiScoreBadge applicationId={app.id} className="mb-1" />
+
+                                <CandidateWhatsAppButton
+                                  candidateId={candidate.id}
+                                  applicationId={app.id}
+                                  candidateName={candidate.name}
+                                  phone={candidate.phone || ''}
+                                  jobTitle={appJob?.title || jobTitles.get(app.job_id) || ''}
+                                  stageLabel={stage.label}
+                                />
+
+                                {candidate.location && (
+                                  <div className="text-slate-600 truncate">
+                                    📍 {candidate.location}
+                                  </div>
+                                )}
+
+                                {candidate.skills && (
+                                  <div className="flex flex-wrap gap-1">
+                                    {candidate.skills
+                                      .split(',')
+                                      .slice(0, 2)
+                                      .map((sk, idx) => (
+                                        <span
+                                          key={idx}
+                                          className="bg-slate-100 text-slate-600 text-[9px] px-1 py-0.5 rounded"
+                                        >
+                                          {sk.trim()}
+                                        </span>
+                                      ))}
+                                  </div>
+                                )}
+
+                                {app.rejection_reason && (
+                                  <div className="bg-rose-50 text-rose-700 p-1.5 rounded text-[10px] border border-rose-100">
+                                    <strong>Motivo:</strong> {app.rejection_reason}
+                                  </div>
+                                )}
+                              </CardContent>
+
+                              <div className="p-2 border-t bg-slate-50/50 flex items-center justify-between gap-1">
+                                <Link to={`/candidato/${candidate.id}?appId=${app.id}`}>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 text-[10px] px-2 text-slate-600"
+                                  >
+                                    Perfil
+                                  </Button>
+                                </Link>
+
+                                <div className="flex items-center gap-1">
+                                  {stageIndex < stages.length - 1 &&
+                                    !isRejectStage &&
+                                    !isHiredStage && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-6 text-[10px] px-2 text-sky-700 hover:bg-sky-50"
+                                        onClick={() =>
+                                          handleOpenMoveModal(app, stages[stageIndex + 1].id)
+                                        }
+                                        title={`Mover para ${stages[stageIndex + 1].label}`}
+                                      >
+                                        Avançar
+                                        <MoveRight className="w-3 h-3 ml-1" />
+                                      </Button>
+                                    )}
+
+                                  {!isRejectStage && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-6 text-[10px] px-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                                      onClick={() => handleOpenMoveModal(app, 'rejected')}
+                                      title="Reprovar candidato com justificativa"
+                                    >
+                                      <XCircle className="w-3.5 h-3.5" />
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            </Card>
+                          )
+                        })
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
       ) : (
         <div className="space-y-4">
           {/* Informações da vaga ativa */}
