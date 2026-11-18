@@ -24,6 +24,7 @@ import { useToast } from '@/hooks/use-toast'
 import { onboardingService } from '@/services/onboarding'
 import { Briefcase, Lock, Mail, User as UserIcon, Building2, CheckCircle2 } from 'lucide-react'
 import type { UserRole } from '@/types/ats'
+import { DEMO_CREDENTIALS } from '@/lib/demoCredentials'
 
 export const LoginPage: React.FC = () => {
   const { signIn, signUp, requestPasswordReset } = useAuth()
@@ -109,6 +110,15 @@ export const LoginPage: React.FC = () => {
       // Conta recém-criada: leva ao onboarding guiado da empresa
       navigate('/onboarding')
     }
+  }
+
+  // Preenche e-mail e senha com as credenciais demo (1 clique — evita erro de
+  // digitação de quem recebeu o link da demo).
+  const handleFillDemo = () => {
+    if (!DEMO_CREDENTIALS) return
+    setLoginEmail(DEMO_CREDENTIALS.email)
+    setLoginPassword(DEMO_CREDENTIALS.password)
+    setActiveTab('login')
   }
 
   const handleForgotPassword = async (e: React.FormEvent) => {
@@ -210,6 +220,26 @@ export const LoginPage: React.FC = () => {
                     />
                   </div>
                 </div>
+
+                {DEMO_CREDENTIALS && (
+                  <div className="border border-dashed border-sky-300 bg-sky-50/60 p-2.5 rounded">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-[11px] text-sky-800">
+                        <strong className="font-semibold">Acesso de demonstração</strong>
+                        <span className="text-slate-500"> — dados fictícios</span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleFillDemo}
+                        className="h-6 px-2 text-[11px] border-sky-300 text-sky-700 hover:bg-sky-100"
+                      >
+                        Preencher credenciais de demo
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
                 <div className="bg-slate-50 p-2.5 rounded text-[11px] text-slate-600 border">
                   <strong>Contas pré-configuradas:</strong>
