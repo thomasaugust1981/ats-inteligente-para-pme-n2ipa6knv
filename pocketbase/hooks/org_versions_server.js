@@ -33,8 +33,9 @@ onRecordCreateRequest((e) => {
   // PocketBase v0.23+ (JSVM): o corpo JSON da requisição está em
   // e.requestInfo().body — não em e.data.
   let payload = {}
+  let info = null
   try {
-    const info = e.requestInfo()
+    info = e.requestInfo()
     payload = (info && info.body) || {}
   } catch (_) {
     payload = {}
@@ -42,8 +43,24 @@ onRecordCreateRequest((e) => {
   if (!payload || typeof payload !== 'object') payload = {}
   const action = payload.action || ''
 
-  // create normal (seed de exemplo via painel): segue o fluxo padrão.
+  // create normal (seed de exemplo via painel): preenche org_id a partir da
+  // sessão quando o cliente não envia — a regra de create da migração 0024
+  // exige org_id = @request.auth.org_id, e sem esse campo o PocketBase
+  // responde 400 "Failed to create record" (bug do botão "Novo rascunho").
   if (!action) {
+    try {
+      const auth = (info && info.auth) || null
+      const orgId = (auth && auth.get('org_id')) || payload.org_id || ''
+      if (orgId) {
+        e.record.set('org_id', orgId)
+        if (!e.record.get('company')) {
+          const org = e.app.findFirstRecordByFilter('organizations', 'id = {:id}', { id: orgId })
+          if (org) e.record.set('company', org.get('name'))
+        }
+      }
+    } catch (err) {
+      console.log('org_versions_server: backfill org_id no create: ' + err)
+    }
     e.next()
     return
   }
@@ -53,6 +70,15 @@ onRecordCreateRequest((e) => {
     const auth = (info && info.auth) || null
     const actorName = (auth && (auth.get('name') || auth.get('email'))) || payload.actor_name || '—'
     const actorRole = (auth && auth.get('role')) || payload.actor_role || ''
+    // org da sessão: preenche org_id nos registros gravados pelo servidor
+    // (org_versions criadas por action e trilha org_approvals), que antes
+    // gravavam sem org_id e ficavam invisíveis às regras de leitura 0024.
+    let sessionOrgId = ''
+    try {
+      sessionOrgId = (auth && auth.get('org_id')) || ''
+    } catch (_) {
+      sessionOrgId = ''
+    }
 
     function maxVersionNumber(company) {
       try {
@@ -93,6 +119,7 @@ onRecordCreateRequest((e) => {
         app.runInTransaction(function () {
           app.recordCreate('org_approvals', {
             version_number: versionNumber,
+            org_id: payload.org_id || sessionOrgId || '',
             company: payload.company || 'Tecnobrasil',
             step: step,
             decision: decision,
@@ -275,6 +302,7 @@ onRecordCreateRequest((e) => {
         created_by: actorName,
         created_by_role: actorRole || 'Elaboração',
         next_approver_role: '',
+        org_id: sessionOrgId || payload.org_id || src.get('org_id') || '',
       })
       app.save(rec)
       trail(

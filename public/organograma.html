@@ -1926,6 +1926,10 @@
             is_new_position: !!n.isNewPosition,
           }
           if (n.jobId) p.job_id = n.jobId
+          // org_id é exigido pela regra de create da migração 0024
+          // (org_id = @request.auth.org_id) — sem ele o POST volta 400.
+          const authOrgId = atsAuth().orgId
+          if (authOrgId) p.org_id = authOrgId
           return p
         },
         async list() {
@@ -4854,12 +4858,22 @@
         async function createBlankDraft() {
           try {
             const me = actor()
+            const orgId = authOrgId()
+            if (!orgId) {
+              toast(
+                'Sessão do ATS sem organização — faça login novamente pelo menu do ATS.',
+                'err',
+                5000,
+              )
+              return
+            }
             const num = maxVersion() + 1
             await versionAction({
               version_number: num,
               label: 'Novo rascunho',
               status: 'RASCUNHO',
               nodes_json: '[]',
+              org_id: orgId,
               company: company(),
               created_by: me.name,
               created_by_role: me.role === 'admin' ? 'Elaboração' : me.role,
@@ -4878,10 +4892,20 @@
         async function cloneVersion(srcNum) {
           try {
             const me = actor()
+            const orgId = authOrgId()
+            if (!orgId) {
+              toast(
+                'Sessão do ATS sem organização — faça login novamente pelo menu do ATS.',
+                'err',
+                5000,
+              )
+              return
+            }
             await flushDraft()
             await versionAction({
               action: 'clone',
               version_number: srcNum,
+              org_id: orgId,
               company: company(),
               actor_name: me.name,
               actor_role: me.role,
