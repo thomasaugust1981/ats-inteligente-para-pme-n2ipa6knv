@@ -4,7 +4,10 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/hooks/use-auth'
-import { useActiveCompany } from '@/hooks/use-active-company'
+import { useToast } from '@/hooks/use-toast'
+
+import { getErrorMessage } from '@/lib/pocketbase/errors'
+import type { User } from '@/types/ats'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -34,13 +37,20 @@ type RoadmapFormValues = z.infer<typeof roadmapSchema>
  * não vê o card: visitantes externos durante uma demo não devem enxergar as
  * tasks internas do roadmap — nem o card, nem qualquer chamada à API.
  *
- * Degrada em silêncio: qualquer falha de carregamento/escrita apenas loga no
- * console — o Painel nunca quebra por causa deste card.
+ * O escopo é a ORGANIZAÇÃO do usuário (org_id do token), não a empresa ativa:
+ * a regra de create (0041) exige org_id = @request.auth.org_id.
+ *
+ * Falhas de carregamento/escrita são logadas e mostradas em toast — o Painel
+ * nunca quebra por causa deste card.
  */
 export const DashboardRoadmapCard: React.FC = () => {
   const { user, isAdmin } = useAuth()
-  const { activeCompanyId, companyVersion } = useActiveCompany()
+  const { toast } = useToast()
+
   const isDemoUser = isDemoUserEmail(user?.email)
+  const orgId = String(
+    (user as (User & { org_id?: string }) | null)?.org_id || pb.authStore.record?.org_id || '',
+  )
   const [items, setItems] = useState<RoadmapItem[]>([])
   const [loading, setLoading] = useState(true)
   const [loaded, setLoaded] = useState(false)
@@ -53,43 +63,63 @@ export const DashboardRoadmapCard: React.FC = () => {
   })
 
   const loadItems = useCallback(async () => {
-    if (!pb.authStore.isValid || !isAdmin || !activeCompanyId || isDemoUser) {
+    if (!pb.authStore.isValid || !isAdmin || !orgId || isDemoUser) {
       setLoading(false)
       setLoaded(true)
       return
     }
     setLoading(true)
     try {
-      const list = await roadmapService.list(activeCompanyId)
+      const list = await roadmapService.list(orgId)
       setItems(list)
     } catch (err) {
       console.error('[roadmap] falha ao carregar itens', err)
+      toast({
+        title: 'Não foi possível carregar o roadmap',
+        description: getErrorMessage(err),
+        variant: 'destructive',
+      })
       setItems([])
     } finally {
       setLoading(false)
       setLoaded(true)
     }
-  }, [isAdmin, activeCompanyId, isDemoUser])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin, orgId, isDemoUser])
 
   useEffect(() => {
+    console.info('[roadmap] bundle v0.0.104 — org_id da sessão renovada nas escritas')
     loadItems()
-  }, [loadItems, companyVersion])
+  }, [loadItems])
 
   if (!isAdmin || isDemoUser) return null
 
   const addItem = form.handleSubmit(async (values) => {
-    if (!activeCompanyId) return
+    if (!orgId) {
+      toast({
+        title: 'Não foi possível salvar a tarefa',
+        description: 'Sua organização não foi identificada. Faça login novamente.',
+        variant: 'destructive',
+      })
+      return
+    }
     try {
       const created = await roadmapService.create({
-        org_id: activeCompanyId,
+        org_id: orgId,
         title: values.title,
         description: values.description || undefined,
         created_by: user?.id,
       })
       setItems((prev) => sortRoadmapItems([...prev, created]))
       form.reset({ title: '', description: '' })
+      toast({ title: 'Tarefa adicionada ao roadmap' })
     } catch (err) {
       console.error('[roadmap] falha ao adicionar item', err)
+      toast({
+        title: 'Não foi possível salvar a tarefa',
+        description: getErrorMessage(err),
+        variant: 'destructive',
+      })
     }
   })
 
@@ -100,6 +130,11 @@ export const DashboardRoadmapCard: React.FC = () => {
       setItems((prev) => sortRoadmapItems(prev.map((i) => (i.id === updated.id ? updated : i))))
     } catch (err) {
       console.error('[roadmap] falha ao atualizar item', err)
+      toast({
+        title: 'Não foi possível atualizar a tarefa',
+        description: getErrorMessage(err),
+        variant: 'destructive',
+      })
     } finally {
       setPendingDoneId(null)
     }
@@ -112,6 +147,11 @@ export const DashboardRoadmapCard: React.FC = () => {
       setItems((prev) => prev.filter((i) => i.id !== item.id))
     } catch (err) {
       console.error('[roadmap] falha ao remover item', err)
+      toast({
+        title: 'Não foi possível remover a tarefa',
+        description: getErrorMessage(err),
+        variant: 'destructive',
+      })
     } finally {
       setPendingDeleteId(null)
     }
