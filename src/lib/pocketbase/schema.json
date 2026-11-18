@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-18T13:24:30.407Z",
+  "generatedAt": "2026-11-18T13:36:49.862Z",
   "collections": [
     {
       "name": "users",
@@ -2334,6 +2334,68 @@
         }
       ],
       "indexes": ["CREATE UNIQUE INDEX idx_org_modules_org_module ON org_modules (org_id, module)"]
+    },
+    {
+      "name": "roadmap_items",
+      "type": "base",
+      "apiRules": {
+        "list": "(@request.auth.role = 'admin' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "view": "(@request.auth.role = 'admin' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "create": "(@request.auth.id != '' && @request.auth.role = 'admin' && @request.auth.org_id != '' && @request.body.org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "update": "(@request.auth.role = 'admin' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "delete": "(@request.auth.role = 'admin' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'"
+      },
+      "fields": [
+        {
+          "name": "org_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "organizations"
+        },
+        {
+          "name": "title",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "done",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created_by",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_roadmap_items_org_done_created ON roadmap_items (org_id, done, created)"
+      ]
     }
   ]
 }
