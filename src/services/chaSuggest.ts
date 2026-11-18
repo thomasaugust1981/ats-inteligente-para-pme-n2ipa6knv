@@ -46,9 +46,9 @@ export const fetchChaSuggestion = async (params: {
 }): Promise<ChaSuggestionResult> => {
   return withFreshToken(async () => {
     try {
-      const res = await pb.send<Record<string, unknown>>('/api/backend/v1/cha/suggest', {
+      const res = await pb.send<Record<string, unknown>>('/backend/v1/cha/suggest', {
         method: 'POST',
-        headers: { Authorization: token },
+        // o SDK envia o token do authStore automaticamente
         body: JSON.stringify({
           title: params.title,
           area: params.area || '',
