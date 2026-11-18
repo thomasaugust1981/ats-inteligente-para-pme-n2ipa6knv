@@ -86,7 +86,7 @@ onRecordAfterCreateSuccess((e) => {
 
     function sendStageEmail(jobId, toEmails, subject, body) {
       const job = findJob(jobId)
-      let companyName = 'ATS Inteligente PME'
+      let companyName = 'Talent · Ausland'
       try {
         const company = app.findFirstRecordByFilter('companies', 'id != ""')
         if (company && company.get('name')) companyName = company.get('name')
@@ -136,7 +136,7 @@ onRecordAfterCreateSuccess((e) => {
               Abrir Pipeline
             </a>
           </p>
-          <p style="font-size: 12px; color: #64748b;">Mensagem automática do ATS Inteligente PME.</p>
+          <p style="font-size: 12px; color: #64748b;">Mensagem automática do Talent.</p>
         </div>
       `
       return { subject, html }
@@ -240,7 +240,7 @@ onRecordAfterUpdateSuccess((e) => {
 
     function sendStageEmail(jobId, toEmails, subject, body) {
       const job = findJob(jobId)
-      let companyName = 'ATS Inteligente PME'
+      let companyName = 'Talent · Ausland'
       try {
         const company = app.findFirstRecordByFilter('companies', 'id != ""')
         if (company && company.get('name')) companyName = company.get('name')
@@ -294,7 +294,7 @@ onRecordAfterUpdateSuccess((e) => {
               Abrir Pipeline
             </a>
           </p>
-          <p style="font-size: 12px; color: #64748b;">Mensagem automática do ATS Inteligente PME.</p>
+          <p style="font-size: 12px; color: #64748b;">Mensagem automática do Talent.</p>
         </div>
       `
       return { subject, html }
@@ -404,7 +404,7 @@ cronAdd('stageReminders', '0 */6 * * *', () => {
 
   function sendStageEmail(jobId, toEmails, subject, body) {
     const job = findJob(jobId)
-    let companyName = 'ATS Inteligente PME'
+    let companyName = 'Talent · Ausland'
     try {
       const company = app.findFirstRecordByFilter('companies', 'id != ""')
       if (company && company.get('name')) companyName = company.get('name')
@@ -454,7 +454,7 @@ cronAdd('stageReminders', '0 */6 * * *', () => {
             Abrir Pipeline
           </a>
         </p>
-        <p style="font-size: 12px; color: #64748b;">Mensagem automática do ATS Inteligente PME.</p>
+        <p style="font-size: 12px; color: #64748b;">Mensagem automática do Talent.</p>
       </div>
     `
     return { subject, html }

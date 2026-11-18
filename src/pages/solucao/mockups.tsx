@@ -271,7 +271,7 @@ const FlowMockErp = () => (
     </div>
     <div className="flex items-center gap-1.5">
       <div className="flex-1 rounded border border-slate-200 px-2 py-1.5 text-center">
-        <p className="text-[9px] text-slate-500">ATS</p>
+        <p className="text-[9px] text-slate-500">Talent</p>
         <p className="text-[10px] font-semibold text-slate-800">dados do contratado</p>
       </div>
       <ArrowRight className="h-3.5 w-3.5 text-slate-400" />

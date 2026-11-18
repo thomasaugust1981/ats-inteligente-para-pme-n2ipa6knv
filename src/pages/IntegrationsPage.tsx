@@ -182,7 +182,7 @@ export default function IntegrationsPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Integrações</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Conecte o ATS aos sistemas usados pela empresa{' '}
+          Conecte o Talent aos sistemas usados pela empresa{' '}
           <span className="font-medium text-foreground">{activeCompany?.name || '—'}</span>.
         </p>
       </div>
@@ -228,7 +228,7 @@ export default function IntegrationsPage() {
                 Destino pós-contratação: após a aprovação do candidato, o cadastro do contratado é
                 exportado para o ERP no layout "Cadastro Profissional" (planilha pronta para
                 importação). O ponto eletrônico fica por conta do próprio ERP, que cadastra o
-                usuário diretamente nele — sem integração adicional no ATS.
+                usuário diretamente nele — sem integração adicional no Talent.
               </p>
               <p className="text-sm">
                 <span className="font-medium">{goldwayCount ?? '—'}</span>{' '}

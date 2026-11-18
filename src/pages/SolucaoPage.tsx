@@ -156,11 +156,12 @@ export const SolucaoPage: React.FC = () => {
           </span>
         </div>
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900 max-w-3xl">
-          Você não contrata um funil de vagas — contrata o processo de R&amp;S inteiro, amarrado à
-          estrutura da empresa e ao ERP que já usa.
+          Talent — o processo de R&amp;S inteiro, amarrado à estrutura da empresa e ao ERP que já
+          usa.
         </h1>
         <p className="mt-3 text-sm text-slate-600 max-w-2xl">
-          Escolha um dos 6 pontos abaixo para ver a tela correspondente em ação.
+          Goldway · Talent · Discovery — escolha um dos 6 pontos abaixo para ver a tela
+          correspondente em ação.
         </p>
       </section>
 
@@ -243,8 +244,9 @@ export const SolucaoPage: React.FC = () => {
           <div>
             <h3 className="font-semibold text-slate-900">Ver na prática</h3>
             <p className="text-sm text-slate-500 mt-0.5">
-              Abra as telas reais do produto — os exemplos acima são réplicas delas.
+              Abra as telas reais do Talent — os exemplos acima são réplicas delas.
             </p>
+            <p className="text-[11px] text-slate-400 mt-1">Goldway · Talent · Discovery</p>
           </div>
           <div className="flex flex-wrap gap-2">
             {FOOTER_LINKS.map((l) => (

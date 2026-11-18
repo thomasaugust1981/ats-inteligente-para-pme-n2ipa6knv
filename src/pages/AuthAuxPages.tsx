@@ -46,7 +46,7 @@ export const VerifyEmailPage: React.FC = () => {
       <Card className="max-w-md w-full bg-white shadow-md">
         <CardHeader>
           <CardTitle className="text-xl">Verificação de E-mail</CardTitle>
-          <CardDescription>Confirmação da sua conta de acesso ao ATS</CardDescription>
+          <CardDescription>Confirmação da sua conta de acesso ao Talent</CardDescription>
         </CardHeader>
         <CardContent className="text-center py-6">
           {status === 'loading' && (

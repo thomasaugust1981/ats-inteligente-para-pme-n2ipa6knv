@@ -31,7 +31,7 @@ const PROVIDERS: { value: AiProvider; label: string; description: string }[] = [
   {
     value: 'native',
     label: 'Nativo (padrão)',
-    description: 'Agente embutido do ATS — sem custo extra, nada a configurar.',
+    description: 'Agente embutido do Talent — sem custo extra, nada a configurar.',
   },
   {
     value: 'openai',

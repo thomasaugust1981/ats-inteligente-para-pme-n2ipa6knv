@@ -64,7 +64,7 @@ export const LoginPage: React.FC = () => {
       })
     } else {
       toast({
-        title: 'Bem-vindo ao ATS!',
+        title: 'Bem-vindo ao Talent!',
         description: 'Login realizado com sucesso.',
       })
       // Quem ainda não concluiu (ou pulou) o onboarding é levado a ele;
@@ -150,8 +150,10 @@ export const LoginPage: React.FC = () => {
         <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-sky-600 text-white shadow-md mb-3">
           <Briefcase className="w-6 h-6" />
         </div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">ATS Inteligente PME</h1>
-        <p className="text-sm text-slate-600 mt-1">Recrutamento, Seleção & Pipeline com LGPD</p>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Talent</h1>
+        <p className="text-sm text-slate-600 mt-1">
+          Plataforma de Recrutamento e Seleção da Ausland
+        </p>
       </div>
 
       <Card className="w-full max-w-md shadow-lg border-slate-200 bg-white">

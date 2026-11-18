@@ -64,12 +64,10 @@ const Layout: React.FC = () => {
       <aside className="hidden md:flex flex-col w-64 bg-slate-900 text-slate-200 border-r border-slate-800 shrink-0">
         <div className="p-5 border-b border-slate-800 flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-sky-500 text-white flex items-center justify-center font-bold text-lg shadow-sm">
-            AT
+            T
           </div>
           <div className="overflow-hidden">
-            <h2 className="font-bold text-sm tracking-tight text-white truncate">
-              ATS Inteligente PME
-            </h2>
+            <h2 className="font-bold text-sm tracking-tight text-white truncate">Talent</h2>
             <p className="text-[11px] text-slate-400 truncate">
               {user.company_name || 'Vanguard Soluções'}
             </p>
@@ -129,9 +127,9 @@ const Layout: React.FC = () => {
       <div className="md:hidden bg-slate-900 text-white p-4 flex items-center justify-between sticky top-0 z-30">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-sky-500 text-white flex items-center justify-center font-bold text-sm">
-            AT
+            T
           </div>
-          <span className="font-bold text-sm">ATS PME</span>
+          <span className="font-bold text-sm">Talent</span>
         </div>
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}

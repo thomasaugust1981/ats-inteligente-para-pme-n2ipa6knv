@@ -437,7 +437,7 @@ export const CareersPage: React.FC = () => {
               Área do Recrutador
             </Link>
             <span>•</span>
-            <span>ATS PME Vanguard</span>
+            <span>Talent · Ausland</span>
           </div>
         </div>
       </footer>

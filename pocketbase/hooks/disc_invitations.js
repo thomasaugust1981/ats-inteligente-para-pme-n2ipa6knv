@@ -58,7 +58,7 @@ onRecordAfterUpdateSuccess((e) => {
 
     function sendDiscEmail(toEmail, candidateName, jobTitle, link) {
       try {
-        let companyName = 'ATS Inteligente PME'
+        let companyName = 'Talent · Ausland'
         try {
           const company = app.findFirstRecordByFilter('companies', 'id != ""')
           if (company && company.get('name')) companyName = company.get('name')
@@ -78,7 +78,7 @@ onRecordAfterUpdateSuccess((e) => {
               </a>
             </p>
             <p style="font-size: 12px; color: #64748b;">Se o botão não funcionar, copie e cole este link no navegador:<br>${link}</p>
-            <p style="font-size: 12px; color: #64748b;">Mensagem automática do ATS Inteligente PME.</p>
+            <p style="font-size: 12px; color: #64748b;">Mensagem automática do Talent.</p>
           </div>
         `
 

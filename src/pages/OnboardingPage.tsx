@@ -360,7 +360,7 @@ function OnboardingPage() {
           >
             Configuração inicial
           </Badge>
-          <h1 className="text-2xl font-bold tracking-tight">Bem-vindo(a) ao ATS Inteligente PME</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Bem-vindo(a) ao Talent</h1>
           <p className="text-sm text-slate-500 mt-1">
             Vamos configurar sua empresa em 5 passos rápidos. Você pode pular agora e retomar depois
             pelo painel.

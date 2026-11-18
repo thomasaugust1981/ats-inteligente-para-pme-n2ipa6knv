@@ -192,7 +192,7 @@ export function exportCargoPdf(cargo: CargoPdfData, orgName = ''): void {
 </style></head>
 <body>
   <header>
-    <small>${esc(orgName || 'ATS Inteligente')} · Descrição de cargo</small>
+    <small>${esc(orgName || 'Talent · Ausland')} · Descrição de cargo</small>
     <h1>${esc(cargo.title)}</h1>
     <div class="meta">
       ${cargo.area ? `<span>Área: ${esc(cargo.area)}</span>` : ''}
@@ -202,7 +202,7 @@ export function exportCargoPdf(cargo: CargoPdfData, orgName = ''): void {
   </header>
   ${cargo.mission ? `<section><h2>Missão do cargo</h2><p class="mission">${esc(cargo.mission)}</p></section>` : ''}
   ${blocksHtml}
-  <footer>Documento gerado pelo ATS Inteligente em ${new Date().toLocaleDateString('pt-BR')} — modelo CHA (Conhecimentos, Habilidades e Atitudes).</footer>
+  <footer>Documento gerado pelo Talent em ${new Date().toLocaleDateString('pt-BR')} — modelo CHA (Conhecimentos, Habilidades e Atitudes).</footer>
   <script>window.onload = function () { window.print() }</script>
 </body></html>`
 
