@@ -7,7 +7,6 @@ import {
   Columns3,
   Users,
   Boxes,
-  Building2,
   BarChart3,
   Network,
   Plug,
@@ -23,7 +22,6 @@ export type NavId =
   | 'pipeline'
   | 'candidatos'
   | 'cargos'
-  | 'estrutura'
   | 'indicadores'
   | 'organograma'
   | 'integracoes'
@@ -68,7 +66,6 @@ export const DEFAULT_NAV_IDS: NavId[] = [
   'pipeline',
   'candidatos',
   'cargos',
-  'estrutura',
   'indicadores',
   'organograma',
   'integracoes',
@@ -109,13 +106,6 @@ export const NAV_ITEMS: NavItem[] = [
     path: '/cargos',
     icon: Boxes,
     // Admin/RH editam; recrutador/gestor têm leitura — todos veem.
-    visible: () => true,
-  },
-  {
-    id: 'estrutura',
-    label: 'Estrutura',
-    path: '/estrutura',
-    icon: Building2,
     visible: () => true,
   },
   {

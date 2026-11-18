@@ -34,7 +34,6 @@ import { AdminRouteGuard } from './components/AdminRouteGuard'
 import EmpresasPage from './pages/EmpresasPage'
 import IntegrationsPage from './pages/IntegrationsPage'
 import { CargosPage } from './pages/CargosPage'
-import EstruturaPage from './pages/EstruturaPage'
 import { IndicadoresPage } from './pages/IndicadoresPage'
 
 const App = () => (
@@ -71,7 +70,9 @@ const App = () => (
                 <Route path="/organograma" element={<OrganogramaPage />} />
                 <Route path="/empresas" element={<EmpresasPage />} />
                 <Route path="/cargos" element={<CargosPage />} />
-                <Route path="/estrutura" element={<EstruturaPage />} />
+                {/* Estrutura foi mesclada no Organograma (aba "Resumo") —
+                    /estrutura redireciona para não quebrar links antigos. */}
+                <Route path="/estrutura" element={<Navigate to="/organograma" replace />} />
                 <Route path="/indicadores" element={<IndicadoresPage />} />
                 <Route path="/agente-score" element={<AiAgentSettingsPage />} />
                 <Route element={<AdminRouteGuard />}>

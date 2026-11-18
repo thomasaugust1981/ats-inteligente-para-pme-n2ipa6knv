@@ -1,6 +1,11 @@
+/**
+ * Resumo da estrutura — antiga página /estrutura, hoje aba "Resumo" em
+ * /organograma. Lista as posições do organograma vigente cruzadas com cargos e
+ * vagas em três listas: recrutamentos em andamento (link para o pipeline),
+ * posições com cargo estrutural e posições vagas.
+ */
 import React, { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,8 +14,7 @@ import pb from '@/lib/pocketbase/client'
 import { useActiveCompany } from '@/hooks/use-active-company'
 import { LoadingState } from '@/components/LoadingState'
 import { EmptyState } from '@/components/EmptyState'
-import { canOpenJob, checkOpeningPreconditions, listOrgNodes } from '@/services/jobOpening'
-import type { InheritanceNode } from '@/services/jobOpening'
+import { listOrgNodes } from '@/services/jobOpening'
 import type { CargoRaw } from '@/services/cargos'
 import type { Job } from '@/types/ats'
 
@@ -35,10 +39,8 @@ const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   vaga: { label: 'Vaga', className: 'border-amber-300 text-amber-700 bg-amber-50' },
 }
 
-/** FASE 3: /estrutura — posições do organograma cruzadas com cargos e vagas,
- *  separadas em: posições vagas, posições com cargo estrutural e recrutamentos
- *  em andamento (vagas ativas ligadas à posição). */
-export const EstruturaPage: React.FC = () => {
+/** Aba "Resumo" do Organograma: as três listas da ex-/estrutura. */
+export const OrganogramaResumo: React.FC = () => {
   const { activeCompanyId } = useActiveCompany()
   const [nodes, setNodes] = useState<OrgNodeRow[]>([])
   const [cargos, setCargos] = useState<CargoRaw[]>([])
@@ -123,7 +125,7 @@ export const EstruturaPage: React.FC = () => {
     () =>
       filtered.filter((n) => {
         const cargo = cargoByNode[n.id]
-        return cargo && String(cargo.purpose || '') === 'ESTRUTURA'
+        return cargo && String(cargo.purpose || '') === 'ESTRUTURAL'
       }),
     [filtered, cargoByNode],
   )
@@ -136,7 +138,6 @@ export const EstruturaPage: React.FC = () => {
     const cargo = cargoByNode[node.id]
     const nodeJobs = jobsByNode[node.id] || []
     const status = STATUS_LABELS[String(node.status || 'ativo')] || STATUS_LABELS.ativo
-    const preconds = checkOpeningPreconditions(cargo as never, node as InheritanceNode)
     return (
       <div
         key={node.id}
@@ -189,10 +190,8 @@ export const EstruturaPage: React.FC = () => {
 
         {!cargo && nodeJobs.length === 0 && String(node.status || 'ativo') !== 'inativo' && (
           <p className="text-[11px] text-slate-400">
-            Posição vaga — nenhum cargo vinculado nem recrutamento em andamento.
-            {!canOpenJob(cargo as never, node as InheritanceNode) && preconds.length > 0
-              ? ' Abra um cargo em /cargos para preencher esta posição.'
-              : ''}
+            Posição vaga — nenhum cargo vinculado nem recrutamento em andamento. Abra um cargo em
+            "/cargos" para preencher esta posição.
           </p>
         )}
       </div>
@@ -202,25 +201,7 @@ export const EstruturaPage: React.FC = () => {
   if (loading) return <LoadingState message="Carregando estrutura organizacional..." />
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-12">
-      <div className="flex items-center justify-between pb-2 border-b">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-            <Building2 className="w-6 h-6 text-sky-600" />
-            Estrutura organizacional
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Posições do organograma vigente cruzadas com cargos e vagas — onde há posição vaga,
-            cargo estrutural ou recrutamento em andamento.
-          </p>
-        </div>
-        <Link to="/organograma">
-          <Button variant="outline" size="sm">
-            Ver organograma
-          </Button>
-        </Link>
-      </div>
-
+    <div className="max-w-5xl mx-auto pb-12 space-y-4">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
         <Input
@@ -237,7 +218,7 @@ export const EstruturaPage: React.FC = () => {
           title="Nenhuma posição encontrada"
           description={
             nodes.length === 0
-              ? 'Monte o organograma em /organograma para visualizar a estrutura aqui.'
+              ? 'Monte o organograma na aba Árvore para visualizar a estrutura aqui.'
               : 'Nenhuma posição corresponde à busca.'
           }
         />
@@ -301,4 +282,4 @@ export const EstruturaPage: React.FC = () => {
   )
 }
 
-export default EstruturaPage
+export default OrganogramaResumo
