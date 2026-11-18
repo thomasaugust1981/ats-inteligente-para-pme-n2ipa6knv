@@ -24,6 +24,7 @@ interface OrgNodeRow {
   name: string
   area: string
   manager: string
+  dotted_line_manager?: string
   cost_center: string
   status: string
   company?: string
@@ -236,6 +237,7 @@ export const OrganogramaResumo: React.FC = () => {
             <p className="text-[11px] text-slate-500">
               {node.area || 'Sem área'}
               {node.manager ? ` · Gestor: ${node.manager}` : ''}
+              {node.dotted_line_manager ? ` · Linha pontilhada: ${node.dotted_line_manager}` : ''}
               {node.cost_center ? ` · CC: ${node.cost_center}` : ''}
             </p>
           </div>

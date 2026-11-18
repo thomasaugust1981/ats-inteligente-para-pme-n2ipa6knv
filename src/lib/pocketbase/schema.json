@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-18T16:41:21.743Z",
+  "generatedAt": "2026-11-18T16:50:51.744Z",
   "collections": [
     {
       "name": "users",
@@ -1242,6 +1242,12 @@
         },
         {
           "name": "assignment_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "dotted_line_manager",
           "type": "text",
           "required": false,
           "system": false

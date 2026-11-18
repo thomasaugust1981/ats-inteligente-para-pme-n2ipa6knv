@@ -1537,6 +1537,17 @@
                 </select>
                 <span class="err" data-err="parentId"></span>
               </div>
+              <div class="form-field full">
+                <label>Segundo chefe (linha pontilhada)</label>
+                <input
+                  name="dottedLineManager"
+                  list="dlmList"
+                  autocomplete="off"
+                  placeholder="Ex.: Gerente da Filial (subordinação matricial)"
+                />
+                <datalist id="dlmList"></datalist>
+                <span class="err" data-err="dottedLineManager"></span>
+              </div>
               <div class="form-field">
                 <label>Colaborador</label>
                 <select name="personId">
@@ -1914,6 +1925,7 @@
             nome: r.name,
             cargo: r.role_title || '',
             area: r.area || '',
+            dottedLineManager: r.dotted_line_manager || '',
             email: r.email || '',
             localidade: r.location || '',
             tipoContrato: this.mapContractBack(r.contract_type),
@@ -1936,6 +1948,7 @@
             role_title: n.cargo || '',
             area: n.area || '',
             manager: n.parentId || '',
+            dotted_line_manager: n.dottedLineManager || '',
             email: n.email || '',
             location: n.localidade || '',
             contract_type: this.mapContract(n.tipoContrato),
@@ -3087,6 +3100,7 @@
         }
         const parent = n.parentId ? nodeIndex.get(n.parentId) : null
         const subs = childrenOf(n.id).length
+        const dlm = String(n.dottedLineManager || '').trim()
         const isVaga = !String(n.cargo || '').trim() && !n.jobId && n.status !== 'vaga_aberta'
         const showAts = (n.status === 'vaga_aberta' && !n.jobId) || isVaga
         box.innerHTML = `
@@ -3096,6 +3110,7 @@
       Gestor: ${esc(parent ? parent.nome : '— (raiz)')} ·
       ${subs} subordinado${subs === 1 ? '' : 's'} direto${subs === 1 ? '' : 's'}
     </div>
+    ${dlm ? `<div style="color:var(--muted)">Linha pontilhada: ${esc(dlm)}</div>` : ''}
     <div style="color:var(--muted)">${esc(n.localidade || '—')} · ${esc(n.tipoContrato || '—')} · início ${fmtDate(n.dataInicio)}</div>
     <div class="row-actions">
       <button class="btn small" data-act="edit">✎ Editar</button>
@@ -3142,7 +3157,12 @@
             .normalize('NFD')
             .replace(/[\u0300-\u036f]/g, '')
         for (const n of state.nodes) {
-          if (norm(n.nome).includes(q) || norm(n.cargo).includes(q) || norm(n.area).includes(q))
+          if (
+            norm(n.nome).includes(q) ||
+            norm(n.cargo).includes(q) ||
+            norm(n.area).includes(q) ||
+            norm(n.dottedLineManager).includes(q)
+          )
             searchHits.add(n.id)
         }
         render()
@@ -3409,6 +3429,7 @@
         form.elements['nome'].value = node?.nome || ''
         form.elements['cargo'].value = node?.cargo || ''
         form.elements['area'].value = node?.area || ''
+        form.elements['dottedLineManager'].value = node?.dottedLineManager || ''
         form.elements['email'].value = node?.email || ''
         form.elements['localidade'].value = node?.localidade || ''
         form.elements['tipoContrato'].value = node?.tipoContrato || 'CLT'
@@ -3443,6 +3464,10 @@
         $('#locList').innerHTML = [...new Set(state.nodes.map((n) => n.localidade).filter(Boolean))]
           .sort()
           .map((a) => `<option value="${esc(a)}">`)
+          .join('')
+        $('#dlmList').innerHTML = [...new Set(state.nodes.map((n) => n.nome).filter(Boolean))]
+          .sort((a, b) => a.localeCompare(b, 'pt-BR'))
+          .map((nm) => `<option value="${esc(nm)}">`)
           .join('')
         // status pills
         $('#statusPills')
@@ -3505,6 +3530,7 @@
           nome: form.elements['nome'].value.trim(),
           cargo: form.elements['cargo'].value.trim(),
           area: form.elements['area'].value.trim(),
+          dottedLineManager: form.elements['dottedLineManager'].value.trim(),
           parentId: form.elements['parentId'].value || null,
           email: form.elements['email'].value.trim(),
           localidade: form.elements['localidade'].value.trim(),
@@ -3553,6 +3579,7 @@
             'nome',
             'cargo',
             'area',
+            'dottedLineManager',
             'parentId',
             'email',
             'localidade',
@@ -3576,6 +3603,7 @@
                       nome: 'Nome',
                       cargo: 'Cargo',
                       area: 'Área',
+                      dottedLineManager: 'Segundo chefe (linha pontilhada)',
                       email: 'E-mail',
                       localidade: 'Localidade',
                       tipoContrato: 'Contrato',
