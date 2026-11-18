@@ -2,13 +2,15 @@
  * Resumo da estrutura — antiga página /estrutura, hoje aba "Resumo" em
  * /organograma. Lista as posições do organograma vigente cruzadas com cargos e
  * vagas em três listas: recrutamentos em andamento (link para o pipeline),
- * posições com cargo estrutural e posições vagas.
+ * posições com cargo estrutural e posições vagas. Inclui ainda a lista de
+ * Colaboradores (coleção `people`): cada pessoa com as posições que ocupa
+ * (nós com person_id) e a soma das horas semanais.
  */
 import React, { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { Building2, Rocket, Search, Users } from 'lucide-react'
+import { Building2, Rocket, Search, Users, UserRound } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { useActiveCompany } from '@/hooks/use-active-company'
 import { LoadingState } from '@/components/LoadingState'
@@ -25,7 +27,30 @@ interface OrgNodeRow {
   cost_center: string
   status: string
   company?: string
-  expand?: { cargo_id?: CargoRaw[] }
+  person_id?: string
+  weekly_hours?: number
+  assignment_type?: string
+  expand?: { cargo_id?: CargoRaw[]; person_id?: PersonRow[] }
+}
+
+interface PersonRow {
+  id: string
+  name: string
+  email?: string
+}
+
+/** Uma pessoa e as posições (nós) que ela ocupa no organograma vigente. */
+interface PersonSummary {
+  id: string
+  name: string
+  email: string
+  positions: {
+    nodeId: string
+    label: string
+    hours: number
+    assignmentType: string
+  }[]
+  totalHours: number
 }
 
 interface JobsByNode {
@@ -46,12 +71,18 @@ const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   },
 }
 
-/** Aba "Resumo" do Organograma: as três listas da ex-/estrutura. */
+const ASSIGNMENT_LABELS: Record<string, string> = {
+  titular: 'Titular',
+  eventual: 'Eventual',
+}
+
+/** Aba "Resumo" do Organograma: as três listas da ex-/estrutura + Colaboradores. */
 export const OrganogramaResumo: React.FC = () => {
   const { activeCompanyId } = useActiveCompany()
   const [nodes, setNodes] = useState<OrgNodeRow[]>([])
   const [cargos, setCargos] = useState<CargoRaw[]>([])
   const [jobs, setJobs] = useState<Job[]>([])
+  const [people, setPeople] = useState<PersonRow[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
 
@@ -60,15 +91,20 @@ export const OrganogramaResumo: React.FC = () => {
     async function load() {
       try {
         setLoading(true)
-        const [nodesList, cargosList, jobsList] = await Promise.all([
+        const [nodesList, cargosList, jobsList, peopleList] = await Promise.all([
           listOrgNodes() as Promise<OrgNodeRow[]>,
           pb.collection('cargos').getFullList<CargoRaw>({ sort: '-created' }),
           pb.collection('jobs').getFullList<Job>({ sort: '-created' }),
+          pb
+            .collection('people')
+            .getFullList<PersonRow>({ sort: 'name', requestKey: null })
+            .catch(() => [] as PersonRow[]),
         ])
         if (!cancelled) {
           setNodes(nodesList)
           setCargos(cargosList)
           setJobs(jobsList)
+          setPeople(peopleList)
         }
       } catch (err) {
         console.error('Erro ao carregar estrutura organizacional:', err)
@@ -113,6 +149,48 @@ export const OrganogramaResumo: React.FC = () => {
     return map
   }, [nodes, cargos])
 
+  /** Nome de cada pessoa vinculada (expand person_id ou lista plana de people). */
+  const personById = useMemo(() => {
+    const map: Record<string, PersonRow> = {}
+    for (const node of nodes) {
+      const expanded = node.expand?.person_id?.[0]
+      if (expanded) map[expanded.id] = expanded
+    }
+    for (const p of people) if (!map[p.id]) map[p.id] = p
+    return map
+  }, [nodes, people])
+
+  /** Agrupa nós por pessoa: posições ocupadas + soma das horas semanais. */
+  const personSummaries = useMemo<PersonSummary[]>(() => {
+    const byPerson = new Map<string, PersonSummary>()
+    for (const node of nodes) {
+      const personId = String(node.person_id || '')
+      if (!personId) continue
+      const person = personById[personId]
+      if (!person) continue
+      if (!byPerson.has(personId)) {
+        byPerson.set(personId, {
+          id: personId,
+          name: person.name || 'Sem nome',
+          email: person.email || '',
+          positions: [],
+          totalHours: 0,
+        })
+      }
+      const summary = byPerson.get(personId)!
+      const label = node.name || cargoByNode[node.id]?.title || 'Posição'
+      const hours = Number(node.weekly_hours) || 0
+      summary.positions.push({
+        nodeId: node.id,
+        label,
+        hours,
+        assignmentType: String(node.assignment_type || 'titular'),
+      })
+      summary.totalHours += hours
+    }
+    return [...byPerson.values()].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+  }, [nodes, personById, cargoByNode])
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     if (!q) return nodes
@@ -145,6 +223,8 @@ export const OrganogramaResumo: React.FC = () => {
     const cargo = cargoByNode[node.id]
     const nodeJobs = jobsByNode[node.id] || []
     const status = STATUS_LABELS[String(node.status || 'ativo')] || STATUS_LABELS.ativo
+    const person = node.person_id ? personById[node.person_id] : undefined
+    const hours = Number(node.weekly_hours) || 0
     return (
       <div
         key={node.id}
@@ -163,6 +243,22 @@ export const OrganogramaResumo: React.FC = () => {
             {status.label}
           </Badge>
         </div>
+
+        {person && (
+          <div className="text-[11px] text-slate-600 flex items-center gap-1.5">
+            <UserRound className="w-3 h-3 shrink-0 text-violet-600" />
+            <span>
+              Colaborador: <span className="font-medium">{person.name}</span>
+              {hours > 0 ? ` · ${hours}h/semana` : ''}
+              {node.assignment_type && node.assignment_type !== 'titular' ? (
+                <span className="text-slate-400">
+                  {' '}
+                  ({ASSIGNMENT_LABELS[node.assignment_type] || node.assignment_type})
+                </span>
+              ) : null}
+            </span>
+          </div>
+        )}
 
         {cargo && (
           <div className="text-[11px] text-slate-600">
@@ -281,6 +377,64 @@ export const OrganogramaResumo: React.FC = () => {
               </div>
             ) : (
               <p className="text-xs text-slate-400">Todas as posições ativas estão preenchidas.</p>
+            )}
+          </section>
+
+          <section className="space-y-2">
+            <h2 className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+              <UserRound className="w-4 h-4 text-violet-600" />
+              Colaboradores
+              <Badge variant="outline" className="text-[10px]">
+                {personSummaries.length}
+              </Badge>
+            </h2>
+            {personSummaries.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {personSummaries.map((person) => (
+                  <div
+                    key={person.id}
+                    className="rounded-lg border border-slate-200 bg-white p-3 flex flex-col gap-2"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-900 truncate">
+                          {person.name}
+                        </p>
+                        {person.email ? (
+                          <p className="text-[11px] text-slate-500 truncate">{person.email}</p>
+                        ) : null}
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] shrink-0 border-violet-300 text-violet-700 bg-violet-50"
+                      >
+                        {person.totalHours > 0 ? `${person.totalHours}h/semana` : '—'}
+                      </Badge>
+                    </div>
+                    <div className="space-y-1">
+                      {person.positions.map((pos) => (
+                        <div
+                          key={pos.nodeId}
+                          className="flex items-center gap-1.5 text-[11px] text-slate-600"
+                        >
+                          <Building2 className="w-3 h-3 shrink-0 text-slate-400" />
+                          <span>
+                            {pos.label}
+                            {pos.hours > 0 ? ` (${pos.hours}h)` : ''}
+                            {pos.assignmentType !== 'titular'
+                              ? ` · ${ASSIGNMENT_LABELS[pos.assignmentType] || pos.assignmentType}`
+                              : ''}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400">
+                Nenhum colaborador vinculado a posições do organograma.
+              </p>
             )}
           </section>
         </div>

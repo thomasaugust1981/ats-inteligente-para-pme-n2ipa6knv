@@ -1538,6 +1538,25 @@
                 <span class="err" data-err="parentId"></span>
               </div>
               <div class="form-field">
+                <label>Colaborador</label>
+                <select name="personId">
+                  <option value="">— Posição vaga (sem colaborador) —</option>
+                </select>
+                <span class="err" data-err="personId"></span>
+              </div>
+              <div class="form-field">
+                <label>Horas semanais</label>
+                <input name="weeklyHours" type="number" min="0" max="80" step="0.5" value="0" />
+                <span class="err" data-err="weeklyHours"></span>
+              </div>
+              <div class="form-field">
+                <label>Tipo de atribuição</label>
+                <select name="assignmentType">
+                  <option value="titular">Titular</option>
+                  <option value="eventual">Eventual</option>
+                </select>
+              </div>
+              <div class="form-field">
                 <label>E-mail</label>
                 <input
                   name="email"
@@ -1905,6 +1924,9 @@
             costCenter: r.cost_center || '',
             tipoPosicao: r.position_type || 'efetivo',
             isNewPosition: !!r.is_new_position,
+            personId: r.person_id || '',
+            weeklyHours: r.weekly_hours == null ? 0 : Number(r.weekly_hours),
+            assignmentType: r.assignment_type || 'titular',
           }
         },
         nodePayload(n) {
@@ -1924,6 +1946,9 @@
             cost_center: n.costCenter || '',
             position_type: n.tipoPosicao || 'efetivo',
             is_new_position: !!n.isNewPosition,
+            person_id: n.personId || '',
+            weekly_hours: Number(n.weeklyHours) || 0,
+            assignment_type: n.assignmentType || 'titular',
           }
           if (n.jobId) p.job_id = n.jobId
           // org_id é exigido pela regra de create da migração 0024
@@ -2532,6 +2557,27 @@
         return s.length > n ? s.slice(0, n - 1) + '…' : s
       }
 
+      /* ---------------- Selo "mesma pessoa" ------------------------------- */
+      // person_id -> nº de nós visíveis ocupados pela mesma pessoa. A pessoa
+      // é o vínculo entre múltiplas frentes (ex.: professor no fundamental E
+      // no médio): cada frente é um nó próprio, marcado com o mesmo selo.
+      function multiRoleCounts(visible) {
+        const counts = new Map()
+        for (const n of visible) {
+          if (!n.personId) continue
+          counts.set(n.personId, (counts.get(n.personId) || 0) + 1)
+        }
+        for (const [pid, c] of [...counts]) if (c < 2) counts.delete(pid)
+        return counts
+      }
+      const PERSON_BADGE_COLORS = ['#7c3aed', '#0891b2', '#d97706', '#db2777', '#059669']
+      function personBadgeColor(personId) {
+        let h = 0
+        const s = String(personId || '')
+        for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 997
+        return PERSON_BADGE_COLORS[h % PERSON_BADGE_COLORS.length]
+      }
+
       /* ---------------- Consultas ao modelo ----------------------------------- */
       function rebuildIndex() {
         nodeIndex = new Map(state.nodes.map((n) => [n.id, n]))
@@ -2700,6 +2746,8 @@
       }
 
       /* ---------------- Render -------------------------------------------------- */
+      // Contagem "mesma pessoa" usada por drawNode (preenchida em render()).
+      let multiRoleCountsMap = new Map()
       function render() {
         rebuildIndex()
         const { layout, bounds } = computeLayout()
@@ -2711,6 +2759,7 @@
         const visible = visibleNodes()
         const visSet = new Set(visible.map((n) => n.id))
         const highlightActive = searchHits.size > 0 || hasActiveFilters()
+        multiRoleCountsMap = multiRoleCounts(visible)
 
         const gEdges = el('g')
         const horizontal = view === 'horizontal'
@@ -2916,6 +2965,46 @@
           })
           badge.textContent = 'VAGA'
           g.appendChild(badge)
+        }
+
+        // Selo "mesma pessoa em N posições": mesmo person_id em 2+ nós
+        // visíveis da versão corrente — cor fixa por pessoa agrupa os nós.
+        const sameCount = multiRoleCountsMap.get(n.personId) || 0
+        if (sameCount >= 2) {
+          const color = personBadgeColor(n.personId)
+          const label = '👤 ' + sameCount
+          const badgeG = el('g', { class: 'same-person-badge' })
+          const pad = 6
+          const bw = label.length * 5.6 + pad * 2
+          const bx = size.w - bw - 8
+          const by = size.h - 20
+          const btxt = el('text', {
+            x: bx + bw / 2,
+            y: by + 11,
+            'text-anchor': 'middle',
+            'dominant-baseline': 'central',
+            'font-size': 9,
+            'font-weight': 700,
+            fill: color,
+            'font-family': 'inherit',
+          })
+          btxt.textContent = label
+          badgeG.appendChild(btxt)
+          const brect = el('rect', {
+            x: bx,
+            y: by,
+            width: bw,
+            height: 16,
+            rx: 8,
+            fill: color + '1a',
+            stroke: color,
+            'stroke-width': 1,
+          })
+          badgeG.insertBefore(brect, btxt)
+          const bt = el('title')
+          bt.textContent = 'Mesma pessoa em ' + sameCount + ' posições'
+          badgeG.appendChild(bt)
+          g.appendChild(badgeG)
         }
         return g
       }
@@ -3326,6 +3415,11 @@
         form.elements['costCenter'].value = node?.costCenter || ''
         form.elements['tipoPosicao'].value = node?.tipoPosicao || 'efetivo'
         form.elements['isNewPosition'].checked = !!node?.isNewPosition
+        form.elements['weeklyHours'].value =
+          node?.weeklyHours == null ? '0' : String(node.weeklyHours)
+        form.elements['assignmentType'].value = node?.assignmentType || 'titular'
+        populatePersonSelect(node?.personId || '')
+        refreshPeopleSelect(node?.personId || '')
         // opções de gestor (exclui o próprio nó e seus descendentes)
         const sel = form.elements['parentId']
         const exclude = new Set(node ? [node.id, ...descendantsOf(node.id).map((d) => d.id)] : [])
@@ -3420,6 +3514,9 @@
           costCenter: form.elements['costCenter'].value.trim(),
           tipoPosicao: form.elements['tipoPosicao'].value,
           isNewPosition: form.elements['isNewPosition'].checked,
+          personId: form.elements['personId'].value || '',
+          weeklyHours: Number(form.elements['weeklyHours'].value) || 0,
+          assignmentType: form.elements['assignmentType'].value || 'titular',
         }
         const errs = {}
         if (!v.nome) errs.nome = 'Informe o nome.'
@@ -3427,6 +3524,7 @@
         if (!v.area) errs.area = 'Informe a área.'
         if (v.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.email)) errs.email = 'E-mail inválido.'
         if (v.dataInicio && isNaN(Date.parse(v.dataInicio))) errs.dataInicio = 'Data inválida.'
+        if (v.weeklyHours < 0) errs.weeklyHours = 'Horas semanais não pode ser negativo.'
         if (v.parentId) {
           if (editingId && createsCycle(editingId, v.parentId))
             errs.parentId = 'Um nó não pode reportar-se a si mesmo ou a um subordinado (ciclo).'
@@ -3463,6 +3561,9 @@
             'costCenter',
             'tipoPosicao',
             'isNewPosition',
+            'personId',
+            'weeklyHours',
+            'assignmentType',
           ]) {
             const before = n[k] == null ? '' : String(n[k])
             const after = v[k] == null ? '' : String(v[k])
@@ -3482,15 +3583,20 @@
                       costCenter: 'Centro de custo',
                       tipoPosicao: 'Tipo de posição',
                       isNewPosition: 'Posição nova',
+                      personId: 'Colaborador',
+                      weeklyHours: 'Horas semanais',
+                      assignmentType: 'Tipo de atribuição',
                     }[k]
               const fmt = (val) =>
                 k === 'parentId'
                   ? nodeIndex.get(val)?.nome || (val ? '—' : 'raiz')
-                  : k === 'isNewPosition'
-                    ? val === 'true'
-                      ? 'Sim'
-                      : 'Não'
-                    : val || '—'
+                  : k === 'personId'
+                    ? peopleCache.find((p) => p.id === val)?.name || (val ? '(colaborador)' : '—')
+                    : k === 'isNewPosition'
+                      ? val === 'true'
+                        ? 'Sim'
+                        : 'Não'
+                      : val || '—'
               diffs.push(`${label}: ${fmt(before)} → ${fmt(after)}`)
             }
           }
@@ -3520,6 +3626,60 @@
           transform.y = viewport.clientHeight / 2 - (b.y + b.h / 2) * transform.k
           applyTransform()
           updateSelectedInfo()
+        }
+      }
+
+      /* ---------------- Colaboradores (pessoas da organização) --------------------- */
+      // Cache de `people` da organização do usuário logado (API padrão do
+      // PocketBase). Falha silenciosa: sem sessão/API o select fica vazio e o
+      // campo segue opcional (posição vaga = sem pessoa).
+      let peopleCache = []
+      async function refreshPeopleSelect(preselectedId) {
+        const sel = document.querySelector('#nodeForm [name="personId"]')
+        if (!sel) return
+        const current = sel.value || ''
+        const auth = atsAuth()
+        if (!API_BASE_URL || !auth.token) {
+          populatePersonSelect(preselectedId || current)
+          return
+        }
+        try {
+          const res = await fetch(
+            API_BASE_URL + '/api/collections/people/records?perPage=500&sort=name',
+            { headers: pbAuthHeaders() },
+          )
+          if (!res.ok) throw new Error('HTTP ' + res.status)
+          const data = await res.json()
+          peopleCache = (data.items || []).map((r) => ({ id: r.id, name: r.name, email: r.email }))
+        } catch (e) {
+          peopleCache = []
+        }
+        populatePersonSelect(preselectedId || current)
+      }
+      /** Preenche as opções do select de Colaborador a partir do peopleCache. */
+      function populatePersonSelect(preselectedId) {
+        const sel = document.querySelector('#nodeForm [name="personId"]')
+        if (!sel) return
+        const options =
+          '<option value="">— Posição vaga (sem colaborador) —</option>' +
+          peopleCache
+            .map(
+              (p) =>
+                `<option value="${esc(p.id)}">${esc(p.name || 'Sem nome')}${
+                  p.email ? ' · ' + esc(p.email) : ''
+                }</option>`,
+            )
+            .join('')
+        sel.innerHTML = options
+        sel.value = preselectedId || ''
+        // Registro ainda não carregado (cache vazio): mantém a opção corrente
+        // selecionável para não perder o vínculo ao salvar.
+        if (preselectedId && !peopleCache.some((p) => p.id === preselectedId)) {
+          const opt = document.createElement('option')
+          opt.value = preselectedId
+          opt.textContent = '(colaborador)'
+          sel.appendChild(opt)
+          sel.value = preselectedId
         }
       }
 
