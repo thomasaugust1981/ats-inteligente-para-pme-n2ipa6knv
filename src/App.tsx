@@ -1,5 +1,6 @@
 /* Main App Component - Handles routing (using react-router-dom), query client and other providers */
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { lazy, Suspense } from 'react'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -36,6 +37,9 @@ import IntegrationsPage from './pages/IntegrationsPage'
 import { CargosPage } from './pages/CargosPage'
 import { IndicadoresPage } from './pages/IndicadoresPage'
 import { SolucaoPage } from './pages/SolucaoPage'
+const RequisitionsPage = lazy(() =>
+  import('./pages/RequisitionsPage').then((m) => ({ default: m.RequisitionsPage })),
+)
 
 const App = () => (
   <BrowserRouter>
@@ -77,6 +81,15 @@ const App = () => (
                 <Route path="/indicadores" element={<IndicadoresPage />} />
                 <Route path="/solucao" element={<SolucaoPage />} />
                 <Route path="/agente-score" element={<AiAgentSettingsPage />} />
+                {/* Requisição de Vaga com Aprovação (gestor solicita, RH decide) */}
+                <Route
+                  path="/requisicoes"
+                  element={
+                    <Suspense fallback={null}>
+                      <RequisitionsPage />
+                    </Suspense>
+                  }
+                />
                 <Route element={<AdminRouteGuard />}>
                   <Route path="/integracoes" element={<IntegrationsPage />} />
                 </Route>

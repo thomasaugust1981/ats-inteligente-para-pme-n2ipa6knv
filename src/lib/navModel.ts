@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   Rocket,
   Presentation,
+  ClipboardList,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -23,6 +24,7 @@ export type NavId =
   | 'pipeline'
   | 'candidatos'
   | 'cargos'
+  | 'requisicoes'
   | 'indicadores'
   | 'solucao'
   | 'organograma'
@@ -68,6 +70,7 @@ export const DEFAULT_NAV_IDS: NavId[] = [
   'pipeline',
   'candidatos',
   'cargos',
+  'requisicoes',
   'indicadores',
   'solucao',
   'organograma',
@@ -110,6 +113,15 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Boxes,
     // Admin/RH editam; recrutador/gestor têm leitura — todos veem.
     visible: () => true,
+  },
+  {
+    id: 'requisicoes',
+    label: 'Requisições',
+    path: '/requisicoes',
+    icon: ClipboardList,
+    // Fluxo GESTOR → RH: o gestor (solicitante) acompanha as suas, o
+    // admin/recrutador decide a aprovação de orçamento.
+    visible: (c) => c.isAdmin || c.isRecruiter || c.isManager,
   },
   {
     id: 'indicadores',

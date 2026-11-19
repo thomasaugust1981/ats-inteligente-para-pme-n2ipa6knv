@@ -35,7 +35,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { LoadingState } from '@/components/LoadingState'
-import { EmptyState, EmptyStateAction } from '@/components/EmptyState'
+import { EmptyState } from '@/components/EmptyState'
 import {
   FileText,
   Plus,
@@ -360,7 +360,7 @@ export const RequisitionsPage: React.FC = () => {
       </div>
 
       {loading ? (
-        <LoadingState label="Carregando requisições..." />
+        <LoadingState message="Carregando requisições..." />
       ) : requisitions.length === 0 ? (
         <EmptyState
           icon={ClipboardList}
@@ -370,11 +370,12 @@ export const RequisitionsPage: React.FC = () => {
               ? 'Quando um gestor solicitar uma vaga, ela aparece aqui para aprovação.'
               : 'Solicite uma nova vaga preenchendo cargo pretendido, justificativa e orçamento estimado.'
           }
-        >
-          {canRequest && (
-            <EmptyStateAction onClick={handleOpenDialog} icon={Plus} label="Nova Requisição" />
-          )}
-        </EmptyState>
+          actions={
+            canRequest
+              ? [{ onClick: handleOpenDialog, icon: Plus, label: 'Nova Requisição' }]
+              : undefined
+          }
+        />
       ) : (
         <>
           {/* Pendentes (fila do aprovador / acompanhamento do gestor) */}

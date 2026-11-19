@@ -26,6 +26,7 @@ import { LoadingState } from '@/components/LoadingState'
 import { EmptyState } from '@/components/EmptyState'
 import { DashboardRoadmapCard } from '@/components/dashboard/DashboardRoadmapCard'
 import { ActivationChecklistCard } from '@/components/dashboard/ActivationChecklistCard'
+import { PendingRequisitionsCard } from '@/components/dashboard/PendingRequisitionsCard'
 import { useToast } from '@/hooks/use-toast'
 
 export const DashboardPage: React.FC = () => {
@@ -234,6 +235,10 @@ export const DashboardPage: React.FC = () => {
 
       {/* Roadmap do Talent — apenas admin (o componente renderiza null para os demais) */}
       <DashboardRoadmapCard />
+
+      {/* Requisições de vaga pendentes — apenas aprovador (admin/recrutador);
+          o componente renderiza null para os demais e falha aberto. */}
+      <PendingRequisitionsCard />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Vagas em destaque com atalho para Pipeline */}
