@@ -339,10 +339,61 @@ export interface DiscResult {
   updated: string
 }
 
+/** Requisição de Vaga (fluxo GESTOR → aprovador RH/admin, isolada por org_id). */
+export type JobRequisitionStatus = 'pendente' | 'aprovada' | 'reprovada'
+export type RequisitionUrgency = 'baixa' | 'media' | 'alta'
+
+export const REQUISITION_STATUS_META: Record<
+  JobRequisitionStatus,
+  { label: string; className: string }
+> = {
+  pendente: {
+    label: 'Aguardando aprovação',
+    className: 'bg-amber-50 text-amber-800 border-amber-300',
+  },
+  aprovada: { label: 'Aprovada', className: 'bg-emerald-50 text-emerald-800 border-emerald-300' },
+  reprovada: {
+    label: 'Reprovada (cancelada)',
+    className: 'bg-rose-50 text-rose-700 border-rose-300',
+  },
+}
+
+export const REQUISITION_URGENCY_META: Record<RequisitionUrgency, { label: string }> = {
+  baixa: { label: 'Baixa' },
+  media: { label: 'Média' },
+  alta: { label: 'Alta' },
+}
+
+export interface JobRequisition {
+  id: string
+  org_id?: string
+  title: string
+  justification?: string
+  budget_estimate?: number | null
+  salary_min?: number | null
+  salary_max?: number | null
+  urgency?: RequisitionUrgency
+  requested_by?: string
+  company_id?: string | null
+  status: JobRequisitionStatus
+  decided_by?: string
+  decision_note?: string
+  decided_at?: string
+  job_id?: string
+  created: string
+  updated: string
+  expand?: {
+    requested_by?: User
+  }
+}
+
 export type AuditAction =
   | 'viewed_resume'
   | 'stage_changed'
   | 'candidate_rejected'
+  | 'requisition_created'
+  | 'requisition_approved'
+  | 'requisition_rejected'
   | 'candidate_hired'
   | 'note_added'
   | 'candidate_created'
