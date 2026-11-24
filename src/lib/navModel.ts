@@ -15,6 +15,7 @@ import {
   Rocket,
   Presentation,
   ClipboardList,
+  UserPlus,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -25,6 +26,7 @@ export type NavId =
   | 'candidatos'
   | 'cargos'
   | 'requisicoes'
+  | 'admissoes'
   | 'indicadores'
   | 'solucao'
   | 'organograma'
@@ -71,6 +73,7 @@ export const DEFAULT_NAV_IDS: NavId[] = [
   'candidatos',
   'cargos',
   'requisicoes',
+  'admissoes',
   'indicadores',
   'solucao',
   'organograma',
@@ -121,6 +124,15 @@ export const NAV_ITEMS: NavItem[] = [
     icon: ClipboardList,
     // Fluxo GESTOR → RH: o gestor (solicitante) acompanha as suas, o
     // admin/recrutador decide a aprovação de orçamento.
+    visible: (c) => c.isAdmin || c.isRecruiter || c.isManager,
+  },
+  {
+    id: 'admissoes',
+    label: 'Admissões',
+    path: '/admissoes',
+    icon: UserPlus,
+    // Handoff admissional: RH opera, o gestor acompanha as admissões das
+    // vagas dele (regra da coleção filtra por vaga no backend).
     visible: (c) => c.isAdmin || c.isRecruiter || c.isManager,
   },
   {

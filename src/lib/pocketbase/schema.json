@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-24T18:17:20.623Z",
+  "generatedAt": "2026-11-24T18:27:13.740Z",
   "collections": [
     {
       "name": "users",
@@ -2823,6 +2823,203 @@
       "indexes": [
         "CREATE UNIQUE INDEX idx_offerletters_app ON offer_letters (application_id)",
         "CREATE INDEX idx_offerletters_org ON offer_letters (org_id, created)"
+      ]
+    },
+    {
+      "name": "admissions",
+      "type": "base",
+      "apiRules": {
+        "list": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "view": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "create": "(@request.auth.id != '' && @request.auth.org_id != '' && @request.body.org_id = @request.auth.org_id && (@request.auth.role = 'admin' || @request.auth.role = 'recruiter' || @request.auth.role = 'manager')) || @request.auth.role = 'superadmin'",
+        "update": "((@request.auth.id != '' && org_id = @request.auth.org_id && (@request.auth.role = 'admin' || @request.auth.role = 'recruiter' || @request.auth.role = 'manager'))) || @request.auth.role = 'superadmin'",
+        "delete": "((@request.auth.id != '' && org_id = @request.auth.org_id && (@request.auth.role = 'admin' || @request.auth.role = 'recruiter' || @request.auth.role = 'manager'))) || @request.auth.role = 'superadmin'"
+      },
+      "fields": [
+        {
+          "name": "org_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "organizations"
+        },
+        {
+          "name": "application_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "applications"
+        },
+        {
+          "name": "job_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "jobs"
+        },
+        {
+          "name": "manager_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "candidate_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "candidate_contact",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "candidate_cpf",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "job_title",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cargo_title",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "org_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "manager_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["pendente", "em_andamento", "concluido"]
+        },
+        {
+          "name": "hire_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_admissions_app ON admissions (application_id)",
+        "CREATE INDEX idx_admissions_org ON admissions (org_id, created)",
+        "CREATE INDEX idx_admissions_job ON admissions (job_id)"
+      ]
+    },
+    {
+      "name": "admission_checklist_items",
+      "type": "base",
+      "apiRules": {
+        "list": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "view": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "create": "(@request.auth.id != '' && @request.auth.org_id != '' && @request.body.org_id = @request.auth.org_id && (@request.auth.role = 'admin' || @request.auth.role = 'recruiter' || @request.auth.role = 'manager')) || @request.auth.role = 'superadmin'",
+        "update": "((@request.auth.id != '' && org_id = @request.auth.org_id && (@request.auth.role = 'admin' || @request.auth.role = 'recruiter' || @request.auth.role = 'manager'))) || @request.auth.role = 'superadmin'",
+        "delete": "((@request.auth.id != '' && org_id = @request.auth.org_id && (@request.auth.role = 'admin' || @request.auth.role = 'recruiter' || @request.auth.role = 'manager'))) || @request.auth.role = 'superadmin'"
+      },
+      "fields": [
+        {
+          "name": "org_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "organizations"
+        },
+        {
+          "name": "admission_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "admissions"
+        },
+        {
+          "name": "title",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "done",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "done_by",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "done_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sort_order",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_admchecks_admission ON admission_checklist_items (admission_id, sort_order)",
+        "CREATE INDEX idx_admchecks_org ON admission_checklist_items (org_id)"
       ]
     }
   ]

@@ -40,6 +40,9 @@ import { SolucaoPage } from './pages/SolucaoPage'
 const RequisitionsPage = lazy(() =>
   import('./pages/RequisitionsPage').then((m) => ({ default: m.RequisitionsPage })),
 )
+const AdmissionsPage = lazy(() =>
+  import('./pages/AdmissionsPage').then((m) => ({ default: m.AdmissionsPage })),
+)
 
 const App = () => (
   <BrowserRouter>
@@ -87,6 +90,15 @@ const App = () => (
                   element={
                     <Suspense fallback={null}>
                       <RequisitionsPage />
+                    </Suspense>
+                  }
+                />
+                {/* Handoff admissional (Departamento Pessoal) */}
+                <Route
+                  path="/admissoes"
+                  element={
+                    <Suspense fallback={null}>
+                      <AdmissionsPage />
                     </Suspense>
                   }
                 />

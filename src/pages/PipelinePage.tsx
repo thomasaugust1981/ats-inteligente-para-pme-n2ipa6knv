@@ -57,6 +57,8 @@ import ChaEvaluationDialog from '@/components/candidates/ChaEvaluationDialog'
 import ChaComparisonCard from '@/components/candidates/ChaComparisonCard'
 import { InterviewScorecardDialog } from '@/components/candidates/InterviewScorecardDialog'
 import { OfferLetterDialog } from '@/components/candidates/OfferLetterDialog'
+import { AdmissionDialog } from '@/components/admissions/AdmissionDialog'
+import { admissionsService } from '@/services/admissions'
 import { ERP_STAGE_ID, getMissingEssentialFields } from '@/lib/erpIntegration'
 import { parseJobCha, type JobChaRequirements } from '@/lib/cha'
 import { Plus, BellRing, ClipboardList, Star, Briefcase } from 'lucide-react'
@@ -116,6 +118,26 @@ export const PipelinePage: React.FC = () => {
   const [scorecardStage, setScorecardStage] = useState<JobStage | null>(null)
   // Carta de proposta (candidatura aberta a partir da coluna Proposta)
   const [offerApp, setOfferApp] = useState<Application | null>(null)
+  // Processo admissional (candidatura contratada) — handoff para o DP
+  const [admissionApp, setAdmissionApp] = useState<Application | null>(null)
+  const [admissionDialogOpen, setAdmissionDialogOpen] = useState(false)
+  const [admissionAdmissionId, setAdmissionAdmissionId] = useState<string | null>(null)
+  const [admissionsByApp, setAdmissionsByApp] = useState<Map<string, string>>(new Map())
+
+  /** Carrega (uma vez) quais candidaturas já têm processo admissional. */
+  const loadAdmissionsIndex = async () => {
+    try {
+      const map = await admissionsService.listApplicationIds()
+      setAdmissionsByApp(map)
+    } catch {
+      // fail-open: sem o índice, o botão abre o diálogo que tenta criar/abrir
+      setAdmissionsByApp(new Map())
+    }
+  }
+
+  useEffect(() => {
+    loadAdmissionsIndex()
+  }, [applications.length])
 
   /** Etapas de entrevista que exibem o botão de scorecard. */
   const isInterviewStage = (stageId: string) =>
@@ -540,6 +562,23 @@ export const PipelinePage: React.FC = () => {
                                   </button>
                                 )}
 
+                                {isHiredStage && (
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      setAdmissionApp(app)
+                                      setAdmissionAdmissionId(admissionsByApp.get(app.id) || null)
+                                      setAdmissionDialogOpen(true)
+                                    }}
+                                    className="w-full bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 rounded p-1.5 text-emerald-700 font-medium transition flex items-center justify-center gap-1.5"
+                                  >
+                                    <ClipboardList className="w-3.5 h-3.5" />
+                                    {admissionsByApp.has(app.id)
+                                      ? 'Processo admissional'
+                                      : 'Iniciar admissão'}
+                                  </button>
+                                )}
+
                                 <CandidateWhatsAppButton
                                   candidateId={candidate.id}
                                   applicationId={app.id}
@@ -783,6 +822,23 @@ export const PipelinePage: React.FC = () => {
                                 >
                                   <FileText className="w-3.5 h-3.5" />
                                   Gerar carta proposta
+                                </button>
+                              )}
+
+                              {isHiredStage && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setAdmissionApp(app)
+                                    setAdmissionAdmissionId(admissionsByApp.get(app.id) || null)
+                                    setAdmissionDialogOpen(true)
+                                  }}
+                                  className="w-full bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 rounded p-1.5 text-emerald-700 font-medium transition flex items-center justify-center gap-1.5"
+                                >
+                                  <ClipboardList className="w-3.5 h-3.5" />
+                                  {admissionsByApp.has(app.id)
+                                    ? 'Processo admissional'
+                                    : 'Iniciar admissão'}
                                 </button>
                               )}
 
@@ -1167,6 +1223,25 @@ export const PipelinePage: React.FC = () => {
         job={(offerApp?.expand?.job_id as Job | undefined) || job}
         companyName={activeCompany?.name || ''}
         onSaved={() => loadPipeline(filter)}
+      />
+
+      {/* Processo admissional (candidatura contratada) — cria/abre o processo
+          do DP com checklist e pacote de admissão. */}
+      <AdmissionDialog
+        open={admissionDialogOpen && Boolean(admissionApp)}
+        onOpenChange={(o) => {
+          if (!o) {
+            setAdmissionDialogOpen(false)
+            setAdmissionApp(null)
+            loadAdmissionsIndex()
+          }
+        }}
+        application={admissionApp}
+        admissionId={admissionAdmissionId}
+        onSaved={() => {
+          loadAdmissionsIndex()
+          loadPipeline(filter)
+        }}
       />
 
       {/* Dialog de Responsáveis e Notificações por etapa (da vaga aberta) */}

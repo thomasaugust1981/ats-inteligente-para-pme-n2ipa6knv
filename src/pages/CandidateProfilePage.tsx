@@ -41,6 +41,7 @@ import { CandidateScheduleInterviewButton } from '@/components/candidates/Candid
 import LgpdDeleteDialog from '@/components/candidates/LgpdDeleteDialog'
 import { InterviewHistorySection } from '@/components/candidates/InterviewHistorySection'
 import { OfferLetterDialog } from '@/components/candidates/OfferLetterDialog'
+import { AdmissionProfileNotice } from '@/components/admissions/AdmissionProfileNotice'
 import { useActiveCompany } from '@/hooks/use-active-company'
 
 export const CandidateProfilePage: React.FC = () => {
@@ -575,6 +576,18 @@ export const CandidateProfilePage: React.FC = () => {
               }
             />
           ) : null}
+
+          {/* Handoff admissional: indica processo aberto para candidatura contratada */}
+          {(targetAppId || applications[0]?.id) && (
+            <AdmissionProfileNotice
+              applicationId={targetAppId || applications[0].id}
+              candidateName={candidate.name}
+              jobTitle={
+                applications.find((a) => a.id === (targetAppId || applications[0]?.id))?.expand
+                  ?.job_id?.title
+              }
+            />
+          )}
 
           {/* Trilha de Auditoria Completa */}
           <Card className="bg-white">
