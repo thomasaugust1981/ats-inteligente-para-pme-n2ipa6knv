@@ -179,7 +179,7 @@ export const OfferLetterDialog: React.FC<OfferLetterDialogProps> = ({
         </DialogHeader>
 
         {loading ? (
-          <LoadingState label="Gerando preview da proposta..." />
+          <LoadingState message="Gerando preview da proposta..." />
         ) : (
           <div className="space-y-3 py-1">
             <Textarea

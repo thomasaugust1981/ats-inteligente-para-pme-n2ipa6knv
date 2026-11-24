@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-24T17:30:15.121Z",
+  "generatedAt": "2026-11-24T18:17:20.623Z",
   "collections": [
     {
       "name": "users",
@@ -2774,9 +2774,9 @@
       "apiRules": {
         "list": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
         "view": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
-        "create": "(@request.auth.id != '' && @request.auth.org_id != '' && @request.body.org_id = @request.auth.org_id && (@request.auth.role = 'admin' || @request.auth.role = 'recruiter' || @request.auth.role = 'manager')) || @request.auth.role = 'superadmin'",
-        "update": "(@request.auth.id != '' && org_id = @request.auth.org_id && @request.auth.role = 'admin' || @request.auth.role = 'recruiter' || @request.auth.role = 'manager') || @request.auth.role = 'superadmin'",
-        "delete": "(@request.auth.id != '' && org_id = @request.auth.org_id && @request.auth.role = 'admin' || @request.auth.role = 'recruiter' || @request.auth.role = 'manager') || @request.auth.role = 'superadmin'"
+        "create": "(@request.auth.id != '' && @request.body.org_id = @request.auth.org_id && (@request.auth.role = 'admin' || @request.auth.role = 'recruiter' || @request.auth.role = 'manager')) || @request.auth.role = 'superadmin'",
+        "update": "((@request.auth.id != '' && org_id = @request.auth.org_id && (@request.auth.role = 'admin' || @request.auth.role = 'recruiter' || @request.auth.role = 'manager'))) || @request.auth.role = 'superadmin'",
+        "delete": "((@request.auth.id != '' && org_id = @request.auth.org_id && (@request.auth.role = 'admin' || @request.auth.role = 'recruiter' || @request.auth.role = 'manager'))) || @request.auth.role = 'superadmin'"
       },
       "fields": [
         {

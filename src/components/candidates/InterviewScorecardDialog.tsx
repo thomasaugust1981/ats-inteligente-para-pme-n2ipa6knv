@@ -289,7 +289,10 @@ export const InterviewScorecardDialog: React.FC<InterviewScorecardDialogProps> =
 
             <div>
               <Label className="text-xs font-semibold">Recomendação</Label>
-              <Select value={recommendation || undefined} onValueChange={setRecommendation}>
+              <Select
+                value={recommendation || undefined}
+                onValueChange={(v) => setRecommendation(v as ScorecardRecommendation | '')}
+              >
                 <SelectTrigger className="mt-1 text-xs">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>

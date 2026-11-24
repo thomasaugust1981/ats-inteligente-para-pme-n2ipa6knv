@@ -12,7 +12,7 @@ interface InterviewHistorySectionProps {
 }
 
 const RECOMMENDATION_BADGE: Record<string, { label: string; className: string }> = {
-  'avançar': { label: 'Avançar', className: 'bg-sky-50 text-sky-800 border-sky-200' },
+  avançar: { label: 'Avançar', className: 'bg-sky-50 text-sky-800 border-sky-200' },
   reprovar: { label: 'Reprovar', className: 'bg-rose-50 text-rose-800 border-rose-200' },
   contratar: { label: 'Contratar', className: 'bg-emerald-50 text-emerald-800 border-emerald-200' },
 }
@@ -40,7 +40,7 @@ export const InterviewHistorySection: React.FC<InterviewHistorySectionProps> = (
     let cancelled = false
     setLoading(true)
     interviewScorecardsService
-      .listForApplication(applicationId)
+      .listByApplication(applicationId)
       .then((rows) => {
         if (!cancelled) setScorecards(rows)
       })
@@ -94,11 +94,11 @@ export const InterviewHistorySection: React.FC<InterviewHistorySectionProps> = (
             {scorecards.length === 0 ? null : (
               <div className="space-y-3">
                 {scorecards.map((card) => {
-                  const rec = card.recommendation
-                    ? RECOMMENDATION_BADGE[card.recommendation]
-                    : null
+                  const rec = card.recommendation ? RECOMMENDATION_BADGE[card.recommendation] : null
                   const avg =
-                    card.score_technical != null && card.score_communication != null && card.score_culture != null
+                    card.score_technical != null &&
+                    card.score_communication != null &&
+                    card.score_culture != null
                       ? (card.score_technical + card.score_communication + card.score_culture) / 3
                       : null
                   return (
@@ -122,7 +122,9 @@ export const InterviewHistorySection: React.FC<InterviewHistorySectionProps> = (
                         <span>· Cultura {card.score_culture ?? '—'}</span>
                       </div>
                       {card.interviewer ? (
-                        <p className="text-[11px] text-slate-500">Entrevistador: {card.interviewer}</p>
+                        <p className="text-[11px] text-slate-500">
+                          Entrevistador: {card.interviewer}
+                        </p>
                       ) : null}
                       {card.interviewed_at ? (
                         <p className="text-[10px] text-slate-400">
