@@ -39,6 +39,7 @@ import { AiScorePanel } from '@/components/AiScorePanel'
 import { CandidateWhatsAppButton } from '@/components/candidates/CandidateWhatsAppButton'
 import { CandidateScheduleInterviewButton } from '@/components/candidates/CandidateScheduleInterviewButton'
 import LgpdDeleteDialog from '@/components/candidates/LgpdDeleteDialog'
+import { InterviewHistorySection } from '@/components/candidates/InterviewHistorySection'
 
 export const CandidateProfilePage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -552,6 +553,13 @@ export const CandidateProfilePage: React.FC = () => {
               )}
             </CardContent>
           </Card>
+
+          {/* Histórico de entrevistas (scorecards da candidatura) */}
+          {targetAppId ? (
+            <InterviewHistorySection applicationId={targetAppId} />
+          ) : applications.length > 0 ? (
+            <InterviewHistorySection applicationId={applications[0].id} />
+          ) : null}
 
           {/* Trilha de Auditoria Completa */}
           <Card className="bg-white">

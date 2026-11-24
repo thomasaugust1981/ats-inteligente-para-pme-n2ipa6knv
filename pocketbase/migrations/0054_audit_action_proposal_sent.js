@@ -32,9 +32,7 @@ migrate(
       const auditLogs = app.findCollectionByNameOrId('audit_logs')
       const actionField = auditLogs.fields.getByName('action')
       if (!actionField) return
-      actionField.values = (actionField.values || []).filter(
-        (v) => v !== 'proposal_sent',
-      )
+      actionField.values = (actionField.values || []).filter((v) => v !== 'proposal_sent')
       app.save(auditLogs)
     } catch (_) {}
   },
