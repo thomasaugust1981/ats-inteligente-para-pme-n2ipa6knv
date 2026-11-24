@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
@@ -6,6 +6,7 @@ import {
   interviewScorecardsService,
   formatScorecardAverage,
   type InterviewScorecard,
+  type ScorecardRecommendation,
 } from '@/services/interviewScorecards'
 import type { Job } from '@/types/ats'
 import {
@@ -79,7 +80,7 @@ export const InterviewScorecardDialog: React.FC<InterviewScorecardDialogProps> =
     score_culture: '',
   })
   const [comments, setComments] = useState('')
-  const [recommendation, setRecommendation] = useState('')
+  const [recommendation, setRecommendation] = useState<ScorecardRecommendation | ''>('')
 
   const average = useMemo(() => {
     const notes = [scores.score_technical, scores.score_communication, scores.score_culture]
@@ -210,7 +211,7 @@ export const InterviewScorecardDialog: React.FC<InterviewScorecardDialogProps> =
         </DialogHeader>
 
         {loading ? (
-          <LoadingState label="Carregando avaliação..." />
+          <LoadingState message="Carregando avaliação..." />
         ) : (
           <div className="space-y-4 py-1">
             <div className="grid grid-cols-2 gap-3">

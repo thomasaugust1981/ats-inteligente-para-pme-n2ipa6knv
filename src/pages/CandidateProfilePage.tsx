@@ -40,6 +40,8 @@ import { CandidateWhatsAppButton } from '@/components/candidates/CandidateWhatsA
 import { CandidateScheduleInterviewButton } from '@/components/candidates/CandidateScheduleInterviewButton'
 import LgpdDeleteDialog from '@/components/candidates/LgpdDeleteDialog'
 import { InterviewHistorySection } from '@/components/candidates/InterviewHistorySection'
+import { OfferLetterDialog } from '@/components/candidates/OfferLetterDialog'
+import { useActiveCompany } from '@/hooks/use-active-company'
 
 export const CandidateProfilePage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -48,6 +50,7 @@ export const CandidateProfilePage: React.FC = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { toast } = useToast()
+  const { activeCompany } = useActiveCompany()
 
   const [candidate, setCandidate] = useState<Candidate | null>(null)
   const [applications, setApplications] = useState<Application[]>([])
@@ -75,6 +78,10 @@ export const CandidateProfilePage: React.FC = () => {
   const [erpDialogOpen, setErpDialogOpen] = useState(false)
   const targetApp = applications.find((a) => a.id === targetAppId) ?? applications[0]
   const isInErpStage = targetApp?.stage_id === ERP_STAGE_ID
+
+  // Carta de proposta (edição a partir do perfil)
+  const [offerOpen, setOfferOpen] = useState(false)
+  const [offerApp, setOfferApp] = useState<Application | null>(null)
 
   const loadData = async () => {
     if (!id) return
@@ -555,10 +562,18 @@ export const CandidateProfilePage: React.FC = () => {
           </Card>
 
           {/* Histórico de entrevistas (scorecards da candidatura) */}
-          {targetAppId ? (
-            <InterviewHistorySection applicationId={targetAppId} />
-          ) : applications.length > 0 ? (
-            <InterviewHistorySection applicationId={applications[0].id} />
+          {targetAppId || applications[0]?.id ? (
+            <InterviewHistorySection
+              applicationId={targetAppId || applications[0].id}
+              onEditOffer={
+                (targetAppId ? targetApp : applications[0])
+                  ? () => {
+                      setOfferApp(targetAppId ? targetApp : applications[0]!)
+                      setOfferOpen(true)
+                    }
+                  : undefined
+              }
+            />
           ) : null}
 
           {/* Trilha de Auditoria Completa */}
@@ -663,6 +678,18 @@ export const CandidateProfilePage: React.FC = () => {
           onSaved={loadData}
         />
       )}
+
+      {/* Carta de proposta (histórico/edição a partir do perfil) */}
+      {offerApp ? (
+        <OfferLetterDialog
+          open={offerOpen}
+          onOpenChange={setOfferOpen}
+          application={offerApp}
+          job={(offerApp.expand?.job_id as Job | undefined) || null}
+          companyName={activeCompany?.name || ''}
+          onSaved={loadData}
+        />
+      ) : null}
     </div>
   )
 }

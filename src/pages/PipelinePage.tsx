@@ -55,6 +55,8 @@ import { AiScoreBadge } from '@/components/AiScoreBadge'
 import ErpDataDialog from '@/components/candidates/ErpDataDialog'
 import ChaEvaluationDialog from '@/components/candidates/ChaEvaluationDialog'
 import ChaComparisonCard from '@/components/candidates/ChaComparisonCard'
+import { InterviewScorecardDialog } from '@/components/candidates/InterviewScorecardDialog'
+import { OfferLetterDialog } from '@/components/candidates/OfferLetterDialog'
 import { ERP_STAGE_ID, getMissingEssentialFields } from '@/lib/erpIntegration'
 import { parseJobCha, type JobChaRequirements } from '@/lib/cha'
 import { Plus, BellRing, ClipboardList, Star, Briefcase } from 'lucide-react'
@@ -66,7 +68,7 @@ export const PipelinePage: React.FC = () => {
   const { jobId } = useParams<{ jobId: string }>()
   const navigate = useNavigate()
   const { user, isManager } = useAuth()
-  const { activeCompanyId, companyVersion } = useActiveCompany()
+  const { activeCompanyId, activeCompany, companyVersion } = useActiveCompany()
   const { toast } = useToast()
   const { copyLink } = useCopyLink()
 
@@ -108,6 +110,16 @@ export const PipelinePage: React.FC = () => {
   // Ficha de avaliação CHA (por candidatura) + sinal para recarregar o comparativo
   const [chaApp, setChaApp] = useState<Application | null>(null)
   const [chaRefreshSignal, setChaRefreshSignal] = useState(0)
+
+  // Scorecard de entrevista (candidatura aberta a partir da coluna de etapa)
+  const [scorecardApp, setScorecardApp] = useState<Application | null>(null)
+  const [scorecardStage, setScorecardStage] = useState<JobStage | null>(null)
+  // Carta de proposta (candidatura aberta a partir da coluna Proposta)
+  const [offerApp, setOfferApp] = useState<Application | null>(null)
+
+  /** Etapas de entrevista que exibem o botão de scorecard. */
+  const isInterviewStage = (stageId: string) =>
+    stageId === 'interview_hr' || stageId === 'tech_interview' || stageId === 'cultural_fit'
 
   useEffect(() => {
     if (!ownersModalOpen || users.length > 0) return
@@ -503,6 +515,31 @@ export const PipelinePage: React.FC = () => {
                               <CardContent className="p-3 pt-0 text-[11px] space-y-2">
                                 <AiScoreBadge applicationId={app.id} className="mb-1" />
 
+                                {isInterviewStage(stage.id) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setScorecardApp(app)
+                                      setScorecardStage(stage)
+                                    }}
+                                    className="w-full bg-sky-50 hover:bg-sky-100 border border-sky-100 rounded p-1.5 text-sky-700 font-medium transition flex items-center justify-center gap-1.5"
+                                  >
+                                    <ClipboardList className="w-3.5 h-3.5" />
+                                    Avaliação da entrevista
+                                  </button>
+                                )}
+
+                                {stage.id === 'proposal' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setOfferApp(app)}
+                                    className="w-full bg-amber-50 hover:bg-amber-100 border border-amber-100 rounded p-1.5 text-amber-700 font-medium transition flex items-center justify-center gap-1.5"
+                                  >
+                                    <FileText className="w-3.5 h-3.5" />
+                                    Gerar carta proposta
+                                  </button>
+                                )}
+
                                 <CandidateWhatsAppButton
                                   candidateId={candidate.id}
                                   applicationId={app.id}
@@ -723,6 +760,31 @@ export const PipelinePage: React.FC = () => {
 
                             <CardContent className="p-3 pt-0 text-[11px] space-y-2">
                               <AiScoreBadge applicationId={app.id} className="mb-1" />
+
+                              {isInterviewStage(stage.id) && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setScorecardApp(app)
+                                    setScorecardStage(stage)
+                                  }}
+                                  className="w-full bg-sky-50 hover:bg-sky-100 border border-sky-100 rounded p-1.5 text-sky-700 font-medium transition flex items-center justify-center gap-1.5"
+                                >
+                                  <ClipboardList className="w-3.5 h-3.5" />
+                                  Avaliação da entrevista
+                                </button>
+                              )}
+
+                              {stage.id === 'proposal' && (
+                                <button
+                                  type="button"
+                                  onClick={() => setOfferApp(app)}
+                                  className="w-full bg-amber-50 hover:bg-amber-100 border border-amber-100 rounded p-1.5 text-amber-700 font-medium transition flex items-center justify-center gap-1.5"
+                                >
+                                  <FileText className="w-3.5 h-3.5" />
+                                  Gerar carta proposta
+                                </button>
+                              )}
 
                               {jobHasCha && (
                                 <button
@@ -1075,6 +1137,36 @@ export const PipelinePage: React.FC = () => {
         jobId={job?.id || ''}
         application={chaApp}
         onSaved={() => setChaRefreshSignal((n) => n + 1)}
+      />
+
+      {/* Scorecard de entrevista (da candidatura aberta na etapa de entrevista) */}
+      {scorecardApp && (
+        <InterviewScorecardDialog
+          open={Boolean(scorecardApp)}
+          onOpenChange={(o) => {
+            if (!o) setScorecardApp(null)
+          }}
+          applicationId={scorecardApp.id}
+          candidateName={scorecardApp.expand?.candidate_id?.name || 'Candidato'}
+          jobTitle={
+            scorecardApp?.expand?.job_id?.title || jobTitles.get(scorecardApp?.job_id || '') || ''
+          }
+          stageId={scorecardStage?.id || scorecardApp?.stage_id || ''}
+          stageLabel={scorecardStage?.label || ''}
+          onSaved={() => loadPipeline(filter)}
+        />
+      )}
+
+      {/* Carta de proposta (da candidatura aberta na coluna Proposta) */}
+      <OfferLetterDialog
+        open={Boolean(offerApp)}
+        onOpenChange={(o) => {
+          if (!o) setOfferApp(null)
+        }}
+        application={offerApp}
+        job={(offerApp?.expand?.job_id as Job | undefined) || job}
+        companyName={activeCompany?.name || ''}
+        onSaved={() => loadPipeline(filter)}
       />
 
       {/* Dialog de Responsáveis e Notificações por etapa (da vaga aberta) */}

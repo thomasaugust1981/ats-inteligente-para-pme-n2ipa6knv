@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-24T17:08:42.940Z",
+  "generatedAt": "2026-11-24T17:30:15.121Z",
   "collections": [
     {
       "name": "users",
@@ -2766,6 +2766,63 @@
       "indexes": [
         "CREATE INDEX idx_interview_scorecards_org ON interview_scorecards (org_id, created)",
         "CREATE INDEX idx_interview_scorecards_application ON interview_scorecards (application_id)"
+      ]
+    },
+    {
+      "name": "offer_letters",
+      "type": "base",
+      "apiRules": {
+        "list": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "view": "(@request.auth.id != '' && org_id = @request.auth.org_id) || @request.auth.role = 'superadmin'",
+        "create": "(@request.auth.id != '' && @request.auth.org_id != '' && @request.body.org_id = @request.auth.org_id && (@request.auth.role = 'admin' || @request.auth.role = 'recruiter' || @request.auth.role = 'manager')) || @request.auth.role = 'superadmin'",
+        "update": "(@request.auth.id != '' && org_id = @request.auth.org_id && @request.auth.role = 'admin' || @request.auth.role = 'recruiter' || @request.auth.role = 'manager') || @request.auth.role = 'superadmin'",
+        "delete": "(@request.auth.id != '' && org_id = @request.auth.org_id && @request.auth.role = 'admin' || @request.auth.role = 'recruiter' || @request.auth.role = 'manager') || @request.auth.role = 'superadmin'"
+      },
+      "fields": [
+        {
+          "name": "org_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "organizations"
+        },
+        {
+          "name": "application_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "applications"
+        },
+        {
+          "name": "content",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "sent",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_offerletters_app ON offer_letters (application_id)",
+        "CREATE INDEX idx_offerletters_org ON offer_letters (org_id, created)"
       ]
     }
   ]
